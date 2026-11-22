@@ -2071,7 +2071,7 @@ let saucerGroupsMap = new Map();
 let miniViewers = [];
 let hoveredHex = null;
 let targetCameraPos = null;
-const targetLookAt = new THREE.Vector3(0, 0, 0);
+const targetLookAt = window.THREE ? new THREE.Vector3(0, 0, 0) : null;
 let threeClock = null;
 
 function pseudoNoise3D(v) {
