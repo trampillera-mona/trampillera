@@ -9,6 +9,82 @@
   <meta name="robots" content="index, follow, max-image-preview:large" />
   <title>TRAMPILLERA MEDIA (trampillera.com) · Unified Reality OS, 3D FUI & JARVISER</title>
 
+  <!-- TRAMPILLERA independent runtime diagnostics: does not alter app routing or module state. -->
+  <script>
+  (() => {
+    const state = { dom: false, errors: [], lastClick: '—', resources: [] };
+    const esc = (v) => String(v ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    window.addEventListener('error', (event) => {
+      const target = event.target;
+      if (target && target !== window && target.src) {
+        state.resources.push('Resource failed: ' + target.src);
+      } else {
+        state.errors.push((event.message || 'Script error') + (event.filename ? ' · ' + event.filename.split('/').pop() : '') + (event.lineno ? ':' + event.lineno : ''));
+      }
+      paint();
+    }, true);
+    window.addEventListener('unhandledrejection', (event) => {
+      const reason = event.reason;
+      state.errors.push('Unhandled promise: ' + (reason && reason.message ? reason.message : String(reason)));
+      paint();
+    });
+    document.addEventListener('click', (event) => {
+      const el = event.target && event.target.closest ? event.target.closest('button,a,[role="button"],[onclick]') : null;
+      if (el && !el.closest('#tp-runtime-diagnostic')) {
+        state.lastClick = ((el.innerText || el.getAttribute('aria-label') || el.id || el.tagName) + '').trim().replace(/\\s+/g,' ').slice(0,90);
+        paint();
+      }
+    }, true);
+    let panel;
+    function probe() {
+      const out = {};
+      try { out.realm = typeof RealmRouter !== 'undefined'; } catch (_) { out.realm = false; }
+      try { out.router = typeof Router !== 'undefined'; } catch (_) { out.router = false; }
+      try { out.navigator = typeof MischiefNavigator !== 'undefined'; } catch (_) { out.navigator = false; }
+      try { out.jarviser = typeof JarviserOrchestrator !== 'undefined'; } catch (_) { out.jarviser = false; }
+      out.three = !!window.THREE;
+      out.vector3 = !!(window.THREE && window.THREE.Vector3);
+      out.clock = !!(window.THREE && window.THREE.Clock);
+      out.boot = window.__TRAMPILLERA_BOOT_OK__ === true;
+      return out;
+    }
+    function paint() {
+      if (!panel) return;
+      const p = probe();
+      const rows = [
+        ['DOMContentLoaded', state.dom],
+        ['RealmRouter', p.realm], ['Classic Router', p.router],
+        ['Mischief Navigator', p.navigator], ['JARVISER', p.jarviser],
+        ['Three.js', p.three], ['Three.Vector3', p.vector3], ['Three.Clock', p.clock],
+        ['Main boot completed', p.boot]
+      ];
+      panel.innerHTML = '<div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><b style="color:#8eeaf2">TRAMPILLERA · RUNTIME CHECK</b><button id="tp-diag-hide" style="background:#263747;color:#fff;border:1px solid #496174;padding:3px 7px;cursor:pointer">Hide</button></div>' +
+        '<div style="margin-top:8px;display:grid;grid-template-columns:1fr auto;gap:4px 12px">' +
+        rows.map(([n,v]) => '<span>'+n+'</span><b style="color:'+(v?'#6ee7a8':'#fbbf24')+'">'+(v?'OK':'NOT READY')+'</b>').join('') +
+        '</div><div style="margin-top:8px;color:#b8c6d3">Last click: '+esc(state.lastClick)+'</div>' +
+        (state.errors.length ? '<div style="margin-top:8px;color:#ff9c9c">JS errors:<br>'+state.errors.slice(-3).map(esc).join('<br>')+'</div>' : '<div style="margin-top:8px;color:#6ee7a8">No uncaught JavaScript errors captured</div>') +
+        (state.resources.length ? '<div style="margin-top:6px;color:#ffbf75">Failed resources:<br>'+state.resources.slice(-3).map(esc).join('<br>')+'</div>' : '');
+      const hide = document.getElementById('tp-diag-hide');
+      if (hide) hide.onclick = () => { panel.style.display='none'; if (window.__tpDiagButton) window.__tpDiagButton.style.display='block'; };
+    }
+    function mount() {
+      panel = document.createElement('aside');
+      panel.id = 'tp-runtime-diagnostic';
+      panel.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:20000;width:min(340px,calc(100vw - 24px));max-height:55vh;overflow:auto;padding:12px;background:rgba(5,12,20,.96);border:1px solid #287082;border-radius:8px;color:#dce8f2;font:11px/1.45 ui-monospace,monospace;box-shadow:0 12px 36px #0009';
+      document.body.appendChild(panel);
+      const toggle = document.createElement('button');
+      toggle.textContent = 'RUNTIME CHECK';
+      toggle.style.cssText = 'display:none;position:fixed;right:12px;bottom:12px;z-index:20000;background:#10232e;color:#8eeaf2;border:1px solid #287082;border-radius:6px;padding:9px;font:10px monospace';
+      toggle.onclick = () => { panel.style.display='block'; toggle.style.display='none'; paint(); };
+      document.body.appendChild(toggle);
+      window.__tpDiagButton = toggle;
+      paint();
+      window.setInterval(paint, 1500);
+    }
+    document.addEventListener('DOMContentLoaded', () => { state.dom = true; mount(); });
+  })();
+  </script>
+
   <!-- Tailwind CSS (for 3D FUI / Spatial Layer) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -4499,6 +4575,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $$('.mv-pane').forEach(p => p.classList.remove('active')); $('#mv-' + t.dataset.mv)?.classList.add('active');
   }));
   $('#shared-modal')?.addEventListener('click', e => { if (e.target.id === 'shared-modal') SharedModal.close(); });
+  window.__TRAMPILLERA_BOOT_OK__ = true;
 });
 
 // RESTORED ADVANCED MODULES (Time-Travel + Speech + Media Intel)
