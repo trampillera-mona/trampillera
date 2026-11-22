@@ -28,7 +28,9 @@ const pool = new pg.Pool({
 });
 
 app.disable("x-powered-by");
-app.set("trust proxy", process.env.TRUST_PROXY === "true" ? 1 : false);
+// Render and production ingress sit behind one trusted reverse-proxy hop.
+const trustProxy = process.env.TRUST_PROXY === "true" || (process.env.TRUST_PROXY !== "false" && NODE_ENV === "production");
+app.set("trust proxy", trustProxy ? 1 : false);
 app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: true,
