@@ -1,0 +1,112 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TRAMPILLERA MEDIA · Control Plane v1.1</title><style>
+:root{--bg:#0f151d;--side:#0b1016;--card:#151f2a;--inner:#111a24;--line:#233140;--text:#eef4fa;--muted:#8b9bb0;--dim:#5d6f83;--cyan:#22d3ee;--green:#10b981;--yellow:#eab308}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px Inter,system-ui,sans-serif}.shell{min-height:100vh}.side{position:fixed;inset:0 auto 0 0;width:245px;background:var(--side);border-right:1px solid var(--line);padding:24px 16px;display:flex;flex-direction:column}.brand{display:flex;gap:12px;align-items:center;padding:0 7px 25px;border-bottom:1px solid var(--line)}.mark{border:1px solid var(--cyan);border-radius:9px;width:39px;height:39px;display:grid;place-items:center;color:var(--cyan);font-size:22px;font-weight:700}.brand b{font-size:13px;letter-spacing:1px}.brand small{display:block;color:var(--muted);font-size:9px;letter-spacing:1.5px;margin-top:4px}.label{font:10px monospace;letter-spacing:1.3px;color:var(--dim);padding:25px 10px 12px}.nav{display:grid;gap:5px}.nav button{border:1px solid transparent;background:none;color:var(--muted);padding:12px;text-align:left;border-radius:7px;cursor:pointer}.nav button.active,.nav button:hover{background:var(--card);border-color:var(--line);color:var(--text)}.bottom{margin-top:auto;border-top:1px solid var(--line);padding:20px 8px 0;color:var(--muted);font-size:11px}.main{margin-left:245px;min-height:100vh;display:flex;flex-direction:column}.top{padding:27px 38px 20px;border-bottom:1px solid #23314066;display:flex;align-items:center;justify-content:space-between}.crumb{font:10px monospace;color:var(--dim);letter-spacing:1px}.top h1{margin:8px 0 0;font-size:27px}.pill{font:10px monospace;color:var(--yellow);border:1px solid #eab30855;padding:7px 10px;border-radius:5px}.content{padding:30px 38px;display:grid;gap:18px;flex:1}.welcome{display:flex;justify-content:space-between;align-items:center}.welcome h2{font-size:17px;margin:0 0 5px}.welcome p,.panel p{color:var(--muted);font-size:12px;margin:0}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.stat,.panel,.item{background:var(--card);border:1px solid var(--line);border-radius:9px}.stat{padding:17px}.stat small{font:9px monospace;color:var(--muted);letter-spacing:.8px}.stat strong{display:block;font-size:28px;margin:12px 0 4px}.stat span{font-size:10px;color:var(--dim)}.panel{padding:20px}.panel h3{font-size:14px;margin:0 0 7px}.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}.tile{background:var(--inner);border:1px solid var(--line);padding:16px;border-radius:7px}.tile b{display:block;font-size:13px;margin:12px 0 5px}.tile small{color:var(--dim);font-size:10px}.list{display:grid;gap:9px}.item{display:flex;align-items:center;gap:13px;padding:13px}.ico{width:35px;height:35px;border-radius:8px;background:#102c38;color:var(--cyan);display:grid;place-items:center}.info{flex:1;min-width:0}.info b{font-size:12px}.info small,.info p{display:block;color:var(--muted);font-size:10px;margin:5px 0 0;overflow-wrap:anywhere}.tag{font:9px monospace;border:1px solid var(--line);padding:6px 8px;border-radius:5px;color:var(--yellow)}button,.btn{font:11px inherit;cursor:pointer}.btn{background:#123440;border:1px solid #286071;color:#b6f5fc;border-radius:6px;padding:9px 12px}.form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:15px}.form input,.form select{width:100%;background:#0d151e;border:1px solid var(--line);border-radius:6px;padding:10px;color:var(--text);margin-top:6px}.form label{font-size:10px;color:var(--muted)}.actions{display:flex;gap:9px;margin-top:14px}.hide{display:none}.note{font-size:10px;color:var(--dim);line-height:1.5}.toast{position:fixed;bottom:20px;left:55%;background:#182632;border:1px solid #2c4555;border-radius:7px;padding:11px 15px;font-size:11px}.foot{display:flex;justify-content:space-between;padding:20px 38px;color:var(--dim);font:9px monospace;letter-spacing:1px}@media(max-width:850px){.side{position:relative;width:auto}.nav{display:flex;overflow:auto}.nav button{white-space:nowrap}.label,.bottom{display:none}.main{margin:0}.stats{grid-template-columns:repeat(2,1fr)}.tiles{grid-template-columns:1fr}.top,.content{padding:20px}.form{grid-template-columns:1fr}.item{flex-wrap:wrap}.foot{padding:15px 20px}}
+</style></head><body><div class="shell"><aside class="side"><div class="brand"><div class="mark">T</div><div><b>TRAMPILLERA</b><small>MEDIA CONTROL PLANE</small></div></div><div class="label">WORKSPACE</div><nav class="nav" id="nav"></nav><div class="bottom">● CONTROL CONSOLE<br><br>Live server-backed workspace</div></aside><main class="main"><header class="top"><div><div class="crumb">TRAMPILLERA MEDIA / ADMIN</div><h1 id="title">Overview</h1></div><span class="pill">SERVER-BACKED · SIGN-IN REQUIRED</span></header><section class="content" id="content"></section><footer class="foot"><span>TRAMPILLERA MEDIA · CONTROL PLANE</span><span>v1.1.0 · REGISTRY & LIFECYCLE</span></footer></main></div><div id="toast" class="toast hide"></div><script>
+const pages=['Overview','Modules','Connectors','Model Registry','Activity Log','Settings'];let current='Overview';let modules=[{key:'media.library',name:'Media Library',version:'1.0.0',status:'CONFIGURED',description:'Asset catalogue and media metadata'},{key:'community.hub',name:'Community Hub',version:'0.8.0',status:'INSTALLED',description:'Audience and member workspace'},{key:'jarviser.core',name:'JARVISER Core',version:'0.6.0',status:'DISCOVERED',description:'Model and service orchestration dispatcher'}];let connectors=[{key:'storage.s3',name:'Object Storage',provider:'S3-compatible',status:'NOT_CONFIGURED',endpoint:'Endpoint not configured'},{key:'analytics.api',name:'Analytics API',provider:'Custom REST',status:'DISCONNECTED',endpoint:'https://analytics.example/health'}];let models=[{key:'openai.gpt',name:'OpenAI GPT provider',org:'OpenAI',region:'US / Cloud',deployment:'CLOUD',modal:'text · vision',spec:'general reasoning · coding',status:'DISCOVERED'},{key:'local.llama',name:'Local LLM runtime',org:'Local deployment',region:'On-premise',deployment:'LOCAL',modal:'text',spec:'offline inference',status:'DISCOVERED'}];function toast(t){let e=document.getElementById('toast');e.textContent=t;e.classList.remove('hide');setTimeout(()=>e.classList.add('hide'),2300)}function go(p){current=p;document.getElementById('title').textContent=p;document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.textContent===p));render()}document.getElementById('nav').innerHTML=pages.map(p=>`<button onclick="go('${p}')">${p}</button>`).join('');function render(){let c=document.getElementById('content');if(current==='Overview'){c.innerHTML=`<div class="welcome"><div><h2>Platform overview</h2><p>Live Control Plane connected to the TRAMPILLERA Platform API.</p></div></div><div class="stats"><div class="stat"><small>REGISTERED MODULES</small><strong>${modules.length}</strong><span>Sample inventory</span></div><div class="stat"><small>ENABLED</small><strong>0</strong><span>No activation claimed</span></div><div class="stat"><small>CONNECTORS</small><strong>${connectors.length}</strong><span>Sample inventory</span></div><div class="stat"><small>MODEL PROVIDERS</small><strong>${models.length}</strong><span>JARVISER registry</span></div></div><section class="panel"><h3>Control Plane architecture</h3><p>Registry · lifecycle contracts · connector checks · model inventory · audit and event trail.</p><div class="tiles"><div class="tile">API<b>Not connected</b><small>Preview has no backend</small></div><div class="tile">Database<b>Not connected</b><small>PostgreSQL required</small></div><div class="tile">JARVISER<b>Registry only</b><small>No provider dispatch yet</small></div></div></section><section class="panel"><h3>Execution integrity</h3><p>Sample entries are for interface review only. No connection, test, deployment or activation is being reported as successful.</p></section>`}else if(current==='Modules'){c.innerHTML=`<div class="welcome"><div><h2>Module lifecycle registry</h2><p>Offline sample data · lifecycle actions are local to this preview.</p></div><button class="btn" onclick="moduleForm()">＋ Register module</button></div><div id="formslot"></div><div class="list">${modules.map(m=>`<div class="item"><div class="ico">▦</div><div class="info"><b>${m.name}</b><small>${m.key} · v${m.version}</small><p>${m.description}</p></div><span class="tag">${m.status}</span><button class="btn" onclick="advance('${m.key}')">Advance</button></div>`).join('')}</div>`}else if(current==='Connectors'){c.innerHTML=`<div class="welcome"><div><h2>Integration connectors</h2><p>Provider inventory and illustrative test controls.</p></div><button class="btn" onclick="connectorForm()">＋ Add connector</button></div><div id="formslot"></div><div class="list">${connectors.map(x=>`<div class="item"><div class="ico">↔</div><div class="info"><b>${x.name}</b><small>${x.provider} · ${x.key}</small><p>${x.endpoint}</p></div><span class="tag">${x.status}</span><button class="btn" onclick="toast('Server validation completed')">Test</button></div>`).join('')}</div>`}else if(current==='Model Registry'){c.innerHTML=`<div class="welcome"><div><h2>JARVISER · Model provider registry</h2><p>Catalog by developer, origin, deployment, modality and specialization.</p></div><button class="btn" onclick="modelForm()">＋ Register provider</button></div><div id="formslot"></div><div class="list">${models.map(m=>`<div class="item"><div class="ico">◇</div><div class="info"><b>${m.name}</b><small>${m.org} · ${m.region} · ${m.deployment}</small><p>${m.modal} · ${m.spec}</p></div><span class="tag">${m.status}</span></div>`).join('')}</div>`}else if(current==='Activity Log'){c.innerHTML=`<section class="panel"><h3>Audit activity</h3><p>No persisted events. The standalone preview does not have a database or event stream.</p></section>`}else{c.innerHTML=`<section class="panel"><h3>Environment configuration</h3><p>DATABASE_URL, OPENAI_API_KEY and deployment secrets are configured on the server, never in browser-visible source.</p><div class="tiles"><div class="tile">PostgreSQL<b>Environment variable</b><small>Not exposed to browser</small></div><div class="tile">AI Provider<b>Optional</b><small>Server-side key only</small></div><div class="tile">Realtime<b>Socket.IO</b><small>Custom Node server</small></div></div></section>`}}function moduleForm(){document.getElementById('formslot').innerHTML=`<section class="panel"><h3>Register module</h3><div class="form"><label>Key<input id="mk" placeholder="media.library"></label><label>Name<input id="mn" placeholder="Media Library"></label></div><div class="actions"><button class="btn" onclick="addModule()">Save sample module</button></div></section>`}function addModule(){let key=document.getElementById('mk').value,name=document.getElementById('mn').value;if(!key||!name)return toast('Enter key and name');modules.push({key,name,version:'0.1.0',status:'DISCOVERED',description:'Preview-created sample'});render();toast('Added to local preview only')}function advance(k){let m=modules.find(x=>x.key===k);let next={DISCOVERED:'INSTALLED',INSTALLED:'CONFIGURED',CONFIGURED:'DISABLED',DISABLED:'INSTALLED'};m.status=next[m.status]||'DISABLED';render();toast('Local preview state changed — not persisted')}function connectorForm(){document.getElementById('formslot').innerHTML=`<section class="panel"><h3>Add connector</h3><div class="form"><label>Key<input id="ck"></label><label>Display name<input id="cn"></label><label>Provider<input id="cp"></label><label>Endpoint<input id="ce" placeholder="https://example.com/health"></label></div><div class="actions"><button class="btn" onclick="addConnector()">Save sample connector</button></div></section>`}function addConnector(){let key=ck.value,name=cn.value,provider=cp.value;if(!key||!name||!provider)return toast('Complete required fields');connectors.push({key,name,provider,status:'NOT_CONFIGURED',endpoint:ce.value||'Endpoint not configured'});render();toast('Added to local preview only')}function modelForm(){document.getElementById('formslot').innerHTML=`<section class="panel"><h3>Register model provider</h3><div class="form"><label>Registry key<input id="rk"></label><label>Model/provider<input id="rn"></label><label>Organization<input id="ro"></label><label>Region<input id="rr"></label><label>Deployment<select id="rd"><option>CLOUD</option><option>LOCAL</option><option>HYBRID</option></select></label><label>Modalities<input id="rm" placeholder="text, vision"></label><label>Specializations<input id="rs"></label><label>Reasoning types<input id="rt"></label></div><div class="actions"><button class="btn" onclick="addModel()">Save sample provider</button></div></section>`}function addModel(){if(!rk.value||!rn.value)return toast('Enter key and provider');models.push({key:rk.value,name:rn.value,org:ro.value||'Unspecified',region:rr.value||'Unspecified',deployment:rd.value,modal:rm.value,spec:rs.value+' · '+rt.value,status:'DISCOVERED'});render();toast('Added to local preview only')}render();go('Overview');</script>
+<style>
+#tp-auth{position:fixed;inset:0;z-index:10000;background:rgba(3,8,14,.94);display:none;place-items:center;padding:20px}
+#tp-auth .auth-card{width:min(420px,100%);background:#111a24;border:1px solid #286071;border-radius:12px;padding:26px;box-shadow:0 24px 80px #0009}
+#tp-auth h2{margin:0 0 8px;font-size:20px}#tp-auth p{color:#8b9bb0;font-size:12px;line-height:1.5}
+#tp-auth input{width:100%;padding:12px;background:#0b121a;border:1px solid #2b4051;color:#eef4fa;border-radius:6px;margin:10px 0}
+#tp-auth button{padding:11px 14px;border:1px solid #22d3ee;background:#123440;color:#b6f5fc;border-radius:6px;width:100%}
+.tp-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.tp-toolbar button{padding:8px 11px;border:1px solid #286071;border-radius:5px;color:#b6f5fc}
+.tp-error{color:#fca5a5!important}
+</style>
+<div id="tp-auth"><div class="auth-card"><div class="crumb">TRAMPILLERA / IDENTITY GATE</div><h2>Control Plane sign-in</h2><p>Authenticate with the administrator password configured on the server. Credentials are never embedded in this page.</p><form id="tp-login"><input id="tp-password" type="password" autocomplete="current-password" placeholder="Administrator password" required><button type="submit">Sign in securely</button><p id="tp-login-error"></p></form></div></div>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const originalRender = render;
+  let authenticated = false;
+  let refreshing = false;
+  const safe = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  async function api(path, options={}) {
+    const res = await fetch('/api/control' + path, {
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json', ...(options.headers||{})},
+      ...options
+    });
+    const data = await res.json().catch(()=>({error:'Invalid server response'}));
+    if(!res.ok) { const e=new Error(data.error||`HTTP ${res.status}`); e.status=res.status; throw e; }
+    return data;
+  }
+  function auth(show=true){ $('tp-auth').style.display=show?'grid':'none'; }
+  async function loadData(){
+    const [m,c,p,a] = await Promise.all([
+      api('/modules'), api('/connectors'), api('/models'), api('/audit')
+    ]);
+    modules.splice(0,modules.length,...m.items.map(x=>({...x,key:safe(x.key),name:safe(x.name),description:safe(x.description),version:safe(x.version)})));
+    connectors.splice(0,connectors.length,...c.items.map(x=>({...x,key:safe(x.key),name:safe(x.name),provider:safe(x.provider),endpoint:safe(x.endpoint),status:safe(x.status)})));
+    models.splice(0,models.length,...p.items.map(x=>({...x,key:safe(x.key),name:safe(x.name),org:safe(x.org),region:safe(x.region),deployment:safe(x.deployment),modal:safe(x.modal),spec:safe(x.spec),status:safe(x.status)})));
+    window.__tpAudit = a.items;
+  }
+  render = function(){
+    if(!authenticated) { auth(true); return; }
+    if(refreshing) return;
+    refreshing=true;
+    loadData().then(()=>{
+      originalRender();
+      if(current==='Overview'){
+        const p=document.querySelector('.welcome p'); if(p) p.textContent='Live data from the unified server and persistent database.';
+        const tiles=document.querySelectorAll('.tile b');
+        if(tiles[0]) tiles[0].textContent='Connected';
+        if(tiles[1]) tiles[1].textContent='PostgreSQL';
+        if(tiles[2]) tiles[2].textContent='Provider registry';
+      }
+      if(current==='Activity Log'){
+        const panel=document.querySelector('.content .panel');
+        if(panel) panel.innerHTML='<h3>Persisted audit activity</h3><div class="list">'+(window.__tpAudit||[]).map(x=>`<div class="item"><div class="info"><b>${safe(x.action)}</b><small>${safe(x.entity_type)} · ${safe(x.entity_key)} · ${safe(x.created_at)}</small><p>${safe(x.details||'')}</p></div></div>`).join('')+'</div>';
+      }
+      if(current==='Connectors'){
+        document.querySelectorAll('.list .item .btn').forEach((b,i)=>{b.textContent='Validate';b.onclick=()=>validateConnector(connectors[i]?.key)});
+      }
+    }).catch(e=>{
+      if(e.status===401){authenticated=false;auth(true);}
+      else toast('Server error: '+e.message);
+    }).finally(()=>{refreshing=false;});
+  };
+  async function validateConnector(key){
+    try{const r=await api(`/connectors/${encodeURIComponent(key)}/validate`,{method:'POST',body:'{}'});toast(r.message||'Configuration validated');render();}
+    catch(e){toast('Validation failed: '+e.message);}
+  }
+  window.addModule=async function(){
+    const key=$('mk')?.value, name=$('mn')?.value;
+    if(!key||!name)return toast('Enter key and name');
+    try{await api('/modules',{method:'POST',body:JSON.stringify({key,name,version:'1.0.0',description:'Registered from Control Plane'})});toast('Module registered');render();}
+    catch(e){toast(e.message);}
+  };
+  window.advance=async function(key){
+    try{const r=await api(`/modules/${encodeURIComponent(key)}/lifecycle`,{method:'POST',body:'{}'});toast('Lifecycle: '+r.item.status);render();}
+    catch(e){toast(e.message);}
+  };
+  window.addConnector=async function(){
+    const key=$('ck')?.value,name=$('cn')?.value,provider=$('cp')?.value,endpoint=$('ce')?.value||'';
+    if(!key||!name||!provider)return toast('Complete required fields');
+    try{await api('/connectors',{method:'POST',body:JSON.stringify({key,name,provider,endpoint})});toast('Connector registered');render();}
+    catch(e){toast(e.message);}
+  };
+  window.addModel=async function(){
+    const key=$('rk')?.value,name=$('rn')?.value;
+    if(!key||!name)return toast('Enter key and provider');
+    try{await api('/models',{method:'POST',body:JSON.stringify({key,name,org:$('ro').value,region:$('rr').value,deployment:$('rd').value,modal:$('rm').value,spec:$('rs').value+' · '+$('rt').value})});toast('Provider registered');render();}
+    catch(e){toast(e.message);}
+  };
+  $('tp-login').addEventListener('submit',async e=>{
+    e.preventDefault();$('tp-login-error').textContent='';
+    try{
+      const res=await fetch('/api/auth/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('tp-password').value})});
+      const data=await res.json();if(!res.ok)throw new Error(data.error||'Sign-in failed');
+      authenticated=true;auth(false);const badge=document.querySelector('.pill');if(badge)badge.textContent='AUTHENTICATED · LIVE DATA';$('tp-password').value='';render();
+    }catch(err){$('tp-login-error').textContent=err.message;}
+  });
+  async function boot(){
+    try{const r=await fetch('/api/auth/me',{credentials:'same-origin'});const d=await r.json();authenticated=!!d.authenticated;}
+    catch(_){authenticated=false;}
+    if(authenticated){auth(false);const badge=document.querySelector('.pill');if(badge)badge.textContent='AUTHENTICATED · LIVE DATA';render();}else auth(true);
+  }
+  const nav=document.querySelector('.top');
+  if(nav){const logout=document.createElement('button');logout.className='btn';logout.textContent='Sign out';logout.onclick=async()=>{await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin'});authenticated=false;auth(true);const badge=document.querySelector('.pill');if(badge)badge.textContent='SERVER-BACKED · SIGN-IN REQUIRED';};nav.appendChild(logout);}
+  boot();
+})();
+</script>
+
+</body></html>
