@@ -12,7 +12,7 @@
   <!-- TRAMPILLERA independent runtime diagnostics: does not alter app routing or module state. -->
   <script>
   (() => {
-    const state = { dom: false, errors: [], lastClick: '—', resources: [] };
+    const state = { dom: false, errors: [], lastClick: '—', resources: [], switchCall: 'not called yet', activeAfterClick: '—', csp: [] };
     const esc = (v) => String(v ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     window.addEventListener('error', (event) => {
       const target = event.target;
@@ -23,6 +23,7 @@
       }
       paint();
     }, true);
+    window.addEventListener('securitypolicyviolation', (event) => { state.csp.push((event.violatedDirective || 'CSP') + ' · ' + (event.blockedURI || 'inline')); paint(); });
     window.addEventListener('unhandledrejection', (event) => {
       const reason = event.reason;
       state.errors.push('Unhandled promise: ' + (reason && reason.message ? reason.message : String(reason)));
@@ -36,7 +37,32 @@
       }
     }, true);
     let panel;
+    function hookRealmRouter() {
+      try {
+        if (typeof RealmRouter === 'undefined' || RealmRouter.__tpTraceWrapped) return;
+        const original = RealmRouter.switchRealm;
+        RealmRouter.switchRealm = function(realm) {
+          state.switchCall = 'CALLED: ' + realm;
+          try {
+            const result = original.call(this, realm);
+            state.switchCall += ' · returned';
+            window.setTimeout(() => {
+              const ids = ['realm-intro','realm-fui','realm-classic'];
+              state.activeAfterClick = ids.map(id => { const el = document.getElementById(id); return id + '=' + (el ? el.classList.contains('active') : 'MISSING'); }).join(' | ');
+              paint();
+            }, 120);
+            return result;
+          } catch (error) {
+            state.switchCall += ' · THREW: ' + (error && error.message ? error.message : String(error));
+            paint();
+            throw error;
+          }
+        };
+        RealmRouter.__tpTraceWrapped = true;
+      } catch (error) { state.switchCall = 'TRACE ERROR: ' + (error.message || String(error)); }
+    }
     function probe() {
+      hookRealmRouter();
       const out = {};
       try { out.realm = typeof RealmRouter !== 'undefined'; } catch (_) { out.realm = false; }
       try { out.router = typeof Router !== 'undefined'; } catch (_) { out.router = false; }
@@ -62,8 +88,11 @@
         '<div style="margin-top:8px;display:grid;grid-template-columns:1fr auto;gap:4px 12px">' +
         rows.map(([n,v]) => '<span>'+n+'</span><b style="color:'+(v?'#6ee7a8':'#fbbf24')+'">'+(v?'OK':'NOT READY')+'</b>').join('') +
         '</div><div style="margin-top:8px;color:#b8c6d3">Last click: '+esc(state.lastClick)+'</div>' +
+        '<div style="margin-top:5px;color:#8eeaf2">RealmRouter: '+esc(state.switchCall)+'</div>' +
+        '<div style="margin-top:4px;color:#b8c6d3">Screen classes: '+esc(state.activeAfterClick)+'</div>' +
         (state.errors.length ? '<div style="margin-top:8px;color:#ff9c9c">JS errors:<br>'+state.errors.slice(-3).map(esc).join('<br>')+'</div>' : '<div style="margin-top:8px;color:#6ee7a8">No uncaught JavaScript errors captured</div>') +
-        (state.resources.length ? '<div style="margin-top:6px;color:#ffbf75">Failed resources:<br>'+state.resources.slice(-3).map(esc).join('<br>')+'</div>' : '');
+        (state.resources.length ? '<div style="margin-top:6px;color:#ffbf75">Failed resources:<br>'+state.resources.slice(-3).map(esc).join('<br>')+'</div>' : '') +
+        (state.csp.length ? '<div style="margin-top:6px;color:#ffbf75">CSP blocked:<br>'+state.csp.slice(-3).map(esc).join('<br>')+'</div>' : '');
       const hide = document.getElementById('tp-diag-hide');
       if (hide) hide.onclick = () => { panel.style.display='none'; if (window.__tpDiagButton) window.__tpDiagButton.style.display='block'; };
     }
