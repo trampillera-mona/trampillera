@@ -4384,16 +4384,23 @@ function startMainLoop() {
   animate();
 }
 
+// Keep the editorial portal and navigation alive if an optional visual module fails.
+function safeStartup(label, start) {
+  try { start(); }
+  catch (error) { console.error('[TRAMPILLERA startup] ' + label + ' failed:', error); }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   UNIFIED_STATE.saucers = INITIAL_SAUCERS.map(s => ({ ...s, attachedSectors: [...s.attachedSectors] }));
   UNIFIED_STATE.windows = getDefaultFUIWindows();
 
-  Theme.init();
-  MasterClock.start();
-  IntroGateway.init();
-  initThreeScene();
-  renderAllFUIWindows();
-  startMainLoop();
+  safeStartup('Theme', () => Theme.init());
+  safeStartup('MasterClock', () => MasterClock.start());
+  safeStartup('IntroGateway', () => IntroGateway.init());
+  // 3D is an enhancement, not a prerequisite for the Classic Portal.
+  safeStartup('3D scene (WebGL)', () => initThreeScene());
+  safeStartup('FUI windows', () => renderAllFUIWindows());
+  safeStartup('Main animation loop', () => startMainLoop());
 
   // Default: English + Cinematic Intro as start page
   UNIFIED_STATE.lang = 'EN';
@@ -4402,7 +4409,7 @@ document.addEventListener('DOMContentLoaded', () => {
   try { if (typeof FUIWorkspace !== 'undefined') FUIWorkspace.load(true); } catch(e){}
 
 
-  Router.init();
+  safeStartup('Router', () => Router.init());
 
   // Mobile nav route clicks
   document.getElementById('mobile-nav')?.addEventListener('click', e => {
@@ -4415,11 +4422,11 @@ document.addEventListener('DOMContentLoaded', () => {
     a.classList.add('active');
   });
 
-  Feeds.init();
-  Hero3D.init();
-  Globe.init();
-  MV.init();
-  MischiefNavigator.initDrag();
+  safeStartup('Feeds', () => Feeds.init());
+  safeStartup('Hero3D', () => Hero3D.init());
+  safeStartup('Globe', () => Globe.init());
+  safeStartup('Microverse', () => MV.init());
+  safeStartup('MischiefNavigator', () => MischiefNavigator.initDrag());
 
   try { if (typeof SnapshotStore !== 'undefined') SnapshotStore.init(); } catch(e){}
   try { if (typeof SpeechBridge !== 'undefined') SpeechBridge.init(); } catch(e){}
