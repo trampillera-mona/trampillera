@@ -4,6 +4,7 @@ import cookieSession from "cookie-session";
 import rateLimit from "express-rate-limit";
 import pg from "pg";
 import crypto from "node:crypto";
+import { createOperationsRouter, initializeOperations } from "./operations.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -172,6 +173,7 @@ app.get("/api/auth/me", (req,res) => res.json({ authenticated:req.session?.authe
 app.post("/api/auth/logout", (req,res) => { req.session = null; res.json({ authenticated:false }); });
 
 app.use("/api/control", requireAuth);
+app.use("/api/control/operations", createOperationsRouter({ pool }));
 app.get("/api/control/overview", asyncRoute(async (_req,res) => {
   const [m,c,p,a] = await Promise.all([
     pool.query("SELECT COUNT(*)::int AS n FROM platform_modules"),
@@ -314,6 +316,7 @@ app.use((err,_req,res,_next)=>{
 });
 
 await initializeDatabase();
+await initializeOperations(pool);
 const server=app.listen(PORT,"0.0.0.0",()=>console.log(`TRAMPILLERA UNIFIED COMPLETE listening on ${PORT}`));
 async function shutdown(signal){
   console.log(`${signal}: shutting down`);
