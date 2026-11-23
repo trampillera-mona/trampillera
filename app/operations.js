@@ -22,6 +22,27 @@ export const OPERATIONAL_DOMAINS = {
   ip:{label:"IP Registry",statuses:["DRAFT","IN_REVIEW","APPROVED","LICENSED","ARCHIVED"]},
   governance:{label:"Governance & Risk",statuses:["OPEN","IN_REVIEW","MITIGATED","ACCEPTED","CLOSED"]}
 };
+const TRANSITIONS = {
+  analytics:{PLANNED:["READY","FAILED"],READY:["RUNNING","PAUSED"],RUNNING:["PAUSED","FAILED"],PAUSED:["RUNNING","FAILED"],FAILED:["PLANNED"]},
+  connectors:{DISCOVERED:["CONFIGURED","DISABLED"],CONFIGURED:["CONNECTED","DISABLED"],CONNECTED:["DEGRADED","DISABLED"],DEGRADED:["CONNECTED","DISABLED"],DISABLED:["CONFIGURED"]},
+  ai:{DISCOVERED:["CONFIGURED","DISABLED"],CONFIGURED:["AVAILABLE","DEGRADED","DISABLED"],AVAILABLE:["DEGRADED","DISABLED"],DEGRADED:["AVAILABLE","DISABLED"],DISABLED:["CONFIGURED"]},
+  property:{DRAFT:["IN_REVIEW","ARCHIVED"],IN_REVIEW:["DRAFT","VERIFIED"],VERIFIED:["IN_REVIEW","PUBLISHED"],PUBLISHED:["ARCHIVED"],ARCHIVED:[]},
+  auctions:{DRAFT:["SCHEDULED","CANCELLED"],SCHEDULED:["OPEN","CANCELLED"],OPEN:["CLOSED","CANCELLED"],CLOSED:[],CANCELLED:[]},
+  commerce:{DRAFT:["ACTIVE","CANCELLED"],ACTIVE:["PAUSED","FULFILMENT"],PAUSED:["ACTIVE","CANCELLED"],FULFILMENT:["COMPLETED","CANCELLED"],COMPLETED:[],CANCELLED:[]},
+  adtech:{DRAFT:["SCHEDULED"],SCHEDULED:["RUNNING","PAUSED"],RUNNING:["PAUSED","COMPLETED"],PAUSED:["RUNNING","COMPLETED"],COMPLETED:[]},
+  communications:{DRAFT:["ACTIVE","ARCHIVED"],ACTIVE:["MODERATED","ARCHIVED"],MODERATED:["ACTIVE","ARCHIVED"],ARCHIVED:[]},
+  support:{OPEN:["IN_PROGRESS","CLOSED"],IN_PROGRESS:["WAITING","RESOLVED"],WAITING:["IN_PROGRESS","RESOLVED"],RESOLVED:["CLOSED","IN_PROGRESS"],CLOSED:[]},
+  media:{IDEA:["PLANNED"],PLANNED:["IN_PRODUCTION"],IN_PRODUCTION:["REVIEW"],REVIEW:["IN_PRODUCTION","PUBLISHED"],PUBLISHED:["ARCHIVED"],ARCHIVED:[]},
+  worlds:{DRAFT:["BUILDING"],BUILDING:["TESTING"],TESTING:["BUILDING","PUBLISHED"],PUBLISHED:["PAUSED"],PAUSED:["BUILDING"]},
+  engineering:{IDEA:["SPECIFICATION"],SPECIFICATION:["IN_PROGRESS"],IN_PROGRESS:["BLOCKED","TESTING"],BLOCKED:["IN_PROGRESS"],TESTING:["IN_PROGRESS","VERIFIED"],VERIFIED:[]},
+  infrastructure:{PLANNED:["PROVISIONING"],PROVISIONING:["AVAILABLE","DEGRADED"],AVAILABLE:["DEGRADED","MAINTENANCE","RETIRED"],DEGRADED:["AVAILABLE","MAINTENANCE"],MAINTENANCE:["AVAILABLE","RETIRED"],RETIRED:[]},
+  people:{INVITED:["ACTIVE","DISABLED"],ACTIVE:["ON_LEAVE","DISABLED"],ON_LEAVE:["ACTIVE","DISABLED"],DISABLED:[]},
+  tasks:{OPEN:["IN_PROGRESS","BLOCKED","CANCELLED"],IN_PROGRESS:["BLOCKED","REVIEW","DONE"],BLOCKED:["IN_PROGRESS","CANCELLED"],REVIEW:["IN_PROGRESS","DONE"],DONE:[],CANCELLED:[]},
+  treasury:{DRAFT:["SUBMITTED"],SUBMITTED:["APPROVED","REJECTED"],APPROVED:[],REJECTED:["DRAFT"]},
+  payroll:{DRAFT:["SUBMITTED"],SUBMITTED:["APPROVED","REJECTED"],APPROVED:[],REJECTED:["DRAFT"]},
+  ip:{DRAFT:["IN_REVIEW","ARCHIVED"],IN_REVIEW:["DRAFT","APPROVED"],APPROVED:["LICENSED","ARCHIVED"],LICENSED:["ARCHIVED"],ARCHIVED:[]},
+  governance:{OPEN:["IN_REVIEW"],IN_REVIEW:["MITIGATED","ACCEPTED","CLOSED"],MITIGATED:["IN_REVIEW","CLOSED"],ACCEPTED:["CLOSED"],CLOSED:[]}
+};
 const cleanText=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
 const validDomain=(d)=>Object.hasOwn(OPERATIONAL_DOMAINS,d);
 const safePayload=(v)=>v&&typeof v==="object"&&!Array.isArray(v)?v:{};
@@ -47,7 +68,7 @@ export function createOperationsRouter({pool}){
     if(origin){try{if(new URL(origin).host!==req.get("host"))return res.status(403).json({error:"Cross-origin request rejected."})}catch{return res.status(403).json({error:"Invalid request origin."})}}
     next();
   });
-  router.get("/domains",(_req,res)=>res.json({items:Object.entries(OPERATIONAL_DOMAINS).map(([key,value])=>({key,...value}))}));
+  router.get("/domains",(_req,res)=>res.json({items:Object.entries(OPERATIONAL_DOMAINS).map(([key,value])=>({key,...value,transitions:TRANSITIONS[key]}))}));
   router.get("/summary",asyncRoute(async(_req,res)=>{
     const [counts,recent,finance]=await Promise.all([
       pool.query("SELECT domain,status,COUNT(*)::int AS count FROM control_records GROUP BY domain,status ORDER BY domain,status"),
@@ -71,8 +92,9 @@ export function createOperationsRouter({pool}){
     const domain=cleanText(req.body?.domain,40),definition=OPERATIONAL_DOMAINS[domain],title=cleanText(req.body?.title,180),status=cleanText(req.body?.status,40)||(definition&&definition.statuses[0]),payload=safePayload(req.body?.payload);
     if(!definition)return res.status(400).json({error:"Unknown operational domain."});
     if(!title)return res.status(400).json({error:"Record title is required."});
-    if(!definition.statuses.includes(status))return res.status(400).json({error:"Status is not valid for this domain."});
+    if(status!==definition.statuses[0])return res.status(400).json({error:"New records must start in the first lifecycle state: "+definition.statuses[0]});
     if(JSON.stringify(payload).length>12000)return res.status(400).json({error:"Record payload is too large."});
+    if(["treasury","payroll"].includes(domain)&&payload.amount!==undefined&&(!Number.isFinite(Number(payload.amount))||Number(payload.amount)<0))return res.status(400).json({error:"Financial amount must be a non-negative number."});
     const key=randomUUID(),client=await pool.connect();
     try{
       await client.query("BEGIN");
@@ -89,6 +111,7 @@ export function createOperationsRouter({pool}){
     const title=req.body?.title===undefined?undefined:cleanText(req.body.title,180),status=req.body?.status===undefined?undefined:cleanText(req.body.status,40),patch=req.body?.payload===undefined?undefined:safePayload(req.body.payload);
     if(title!==undefined&&!title)return res.status(400).json({error:"Title cannot be empty."});
     if(patch!==undefined&&JSON.stringify(patch).length>12000)return res.status(400).json({error:"Record payload is too large."});
+    if(patch!==undefined&&["treasury","payroll"].includes(req.body?.domain)&&patch.amount!==undefined&&(!Number.isFinite(Number(patch.amount))||Number(patch.amount)<0))return res.status(400).json({error:"Financial amount must be a non-negative number."});
     const client=await pool.connect();
     try{
       await client.query("BEGIN");
@@ -97,7 +120,7 @@ export function createOperationsRouter({pool}){
       const row=current.rows[0];
       if(row.version!==expectedVersion){await client.query("ROLLBACK");return res.status(409).json({error:"Record changed since it was loaded. Refresh and retry.",currentVersion:row.version})}
       const definition=OPERATIONAL_DOMAINS[row.domain];
-      if(status!==undefined&&!definition.statuses.includes(status)){await client.query("ROLLBACK");return res.status(400).json({error:"Status is not valid for this domain."})}
+      if(status!==undefined&&status!==row.status&&!(TRANSITIONS[row.domain]?.[row.status]||[]).includes(status)){await client.query("ROLLBACK");return res.status(409).json({error:"Lifecycle transition is not allowed.",currentStatus:row.status,allowedNext:TRANSITIONS[row.domain]?.[row.status]||[]})}
       const nextTitle=title===undefined?row.title:title,nextStatus=status===undefined?row.status:status,nextPayload=patch===undefined?row.payload:{...row.payload,...patch};
       const updated=await client.query("UPDATE control_records SET title=$2,status=$3,payload=$4::jsonb,version=version+1,updated_by='admin',updated_at=NOW() WHERE id=$1 RETURNING id,record_key,domain,title,status,payload,version,created_by,updated_by,created_at,updated_at",[id,nextTitle,nextStatus,JSON.stringify(nextPayload)]);
       await client.query("INSERT INTO audit_events(action,entity_type,entity_key,details,actor) VALUES('OPERATIONAL_RECORD_UPDATED',$1,$2,$3,'admin')",[row.domain,row.record_key,JSON.stringify({fromVersion:row.version,toVersion:row.version+1,changes:{title:title!==undefined,status:status!==undefined,payload:patch!==undefined}})]);
