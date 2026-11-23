@@ -79,12 +79,71 @@
 @media(max-width:900px){.comms-layout{grid-template-columns:1fr}.comms-rail{max-height:260px;overflow:auto}.comms-hero{grid-template-columns:1fr}.comms-hero-side{border:0;border-top:1px solid #385064;padding:12px 0 0}.comms-kpis{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:650px){.comms-conference-grid,.comms-security-grid{grid-template-columns:1fr}.comms-message{max-width:95%}}
 
+
+/* PRIMARY WORKSPACES */
+.primary-workspaces{padding:12px 10px 14px;border-bottom:1px solid var(--line);display:grid;gap:6px}
+.primary-workspaces .workspace-label{font:9px ui-monospace,monospace;letter-spacing:1px;color:var(--dim);padding:0 8px 4px}
+.primary-workspaces button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid transparent;background:transparent;color:var(--muted);padding:10px 11px;border-radius:7px;font-size:11px;cursor:pointer}
+.primary-workspaces button:hover{background:#14232e;color:var(--text)}
+.primary-workspaces button.active{background:#12303c;border-color:#2e6172;color:#d8fbff}
+.primary-workspaces .glyph{width:19px;text-align:center;font-size:15px}
+.primary-workspaces .workspace-state{margin-left:auto;font:8px ui-monospace,monospace;color:#7ecfb6}
+.scene-studio{display:grid;gap:12px}
+.scene-studio-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.scene-studio-head h2{font-size:17px;margin:0}
+.scene-studio-head p{font-size:10px;color:var(--muted);margin:5px 0 0}
+.scene-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.scene-toolbar button,.scene-toolbar select{border:1px solid var(--line);background:#111c27;color:var(--text);padding:8px 10px;border-radius:6px;font-size:10px;cursor:pointer}
+.scene-toolbar button.active{border-color:#34869a;background:#123440;color:#d9fbff}
+.scene-toolbar button.primary{background:#124052;border-color:#2b7186;color:#dffaff}
+.scene-toolbar button:disabled{opacity:.4;cursor:not-allowed}
+.scene-status{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:9px ui-monospace,monospace;color:var(--muted)}
+.scene-layout{display:grid;grid-template-columns:205px minmax(0,1fr) 225px;gap:10px;min-height:510px}
+.scene-panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-width:0;overflow:hidden}
+.scene-panel-head{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;border-bottom:1px solid var(--line);font:9px ui-monospace,monospace;letter-spacing:.8px;color:var(--muted)}
+.scene-panel-body{padding:10px}
+.scene-layer,.scene-object{display:flex;align-items:center;gap:8px;padding:8px;border-radius:5px;font-size:10px;color:#c4d2df;cursor:pointer}
+.scene-layer:hover,.scene-object:hover{background:#172734}
+.scene-object.active{background:#123542;border:1px solid #2e6375}
+.scene-object .obj-icon{width:20px;text-align:center;color:#73c9d6}
+.scene-object small{margin-left:auto;color:var(--dim);font:8px ui-monospace,monospace}
+.scene-center{display:grid;grid-template-rows:auto minmax(310px,1fr) auto;min-width:0;gap:8px}
+.scene-viewport{position:relative;min-height:360px;border:1px solid #28465a;border-radius:8px;overflow:hidden;background:#08131d}
+.scene-viewport canvas{display:block;width:100%;height:100%;min-height:360px;cursor:crosshair}
+.scene-viewport-hud{position:absolute;inset:10px 10px auto;display:flex;justify-content:space-between;gap:8px;pointer-events:none;font:8px ui-monospace,monospace;color:#9ab5c6;text-shadow:0 1px 4px #000}
+.scene-viewport-hud span{background:#08131dcc;border:1px solid #294455;border-radius:4px;padding:5px 7px}
+.scene-viewport-legend{position:absolute;left:10px;bottom:10px;display:flex;gap:10px;flex-wrap:wrap;background:#08131dcc;border:1px solid #294455;border-radius:5px;padding:7px 9px;font:8px ui-monospace,monospace;color:#a8c2d2;pointer-events:none}
+.scene-viewport-legend i{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:4px}
+.scene-timeline{padding:10px 12px;border:1px solid var(--line);border-radius:7px;background:#101a24}
+.scene-timeline-top{display:flex;justify-content:space-between;gap:8px;font:9px ui-monospace,monospace;color:var(--muted);margin-bottom:7px}
+.scene-timeline input{width:100%;accent-color:#38b6c9}
+.scene-inspector{display:grid;gap:10px}
+.scene-inspector label{display:grid;gap:5px;color:var(--muted);font:8px ui-monospace,monospace;letter-spacing:.5px}
+.scene-inspector input,.scene-inspector select{width:100%;background:#0b141d;border:1px solid var(--line);color:var(--text);padding:8px;border-radius:5px;font-size:10px}
+.scene-inspector .inspector-value{font-size:10px;color:#e0eaf0;overflow-wrap:anywhere}
+.scene-metric{padding:8px;border:1px solid var(--line);border-radius:6px;background:#101a24}
+.scene-metric small{display:block;font:8px ui-monospace,monospace;color:var(--dim)}
+.scene-metric b{display:block;font-size:13px;margin-top:4px}
+.scene-help{font-size:9px;color:var(--muted);line-height:1.55}
+.scene-empty{padding:12px;color:var(--muted);font-size:9px;line-height:1.5}
+.comms-thread{cursor:pointer}
+.comms-thread:hover,.comms-thread.selected{background:#152b38;border-color:#2b6072}
+.comms-search{width:100%;background:#0b141d;border:1px solid var(--line);color:var(--text);border-radius:5px;padding:9px;font-size:10px;margin:10px 0}
+@media(max-width:1100px){.scene-layout{grid-template-columns:180px minmax(0,1fr)}.scene-inspector-panel{grid-column:1/-1}.scene-inspector-panel .scene-panel-body{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}}
+@media(max-width:720px){.primary-workspaces{grid-template-columns:repeat(3,minmax(0,1fr))}.primary-workspaces .workspace-label{grid-column:1/-1}.primary-workspaces button{justify-content:center;flex-direction:column;gap:4px;padding:8px 4px;font-size:9px}.primary-workspaces .workspace-state{display:none}.scene-layout{grid-template-columns:1fr}.scene-inspector-panel{grid-column:auto}.scene-inspector-panel .scene-panel-body{grid-template-columns:1fr 1fr}.scene-center{grid-row:1}.scene-viewport,.scene-viewport canvas{min-height:300px}.scene-inspector-panel .scene-panel-body{display:grid;grid-template-columns:1fr 1fr}}
+
 </style>
 </head>
 <body>
 <div class="layout">
 <aside class="sidebar">
  <div class="brand"><div class="mark">T</div><div><b>TRAMPILLERA</b><small>MEDIA CONTROL PLANE</small></div></div>
+ <div class="primary-workspaces">
+  <div class="workspace-label">QUICK ACCESS · WORKSPACES</div>
+  <button data-page="Operations Desk"><span class="glyph">⌂</span><span>Operations Desk</span></button>
+  <button data-page="Communications"><span class="glyph">◉</span><span>TRAMPILLERA Comms</span><span class="workspace-state">PREVIEW</span></button>
+  <button data-page="Scene Studio"><span class="glyph">▧</span><span>Scene Studio · 2D/3D</span><span class="workspace-state">DEMO</span></button>
+ </div>
  <details class="nav-group" open data-nav-group="0">
   <summary><span>COMMAND</span><span class="nav-chevron">⌄</span></summary>
   <nav class="nav"><button data-page="Operations Desk" class="active"><span class="glyph">⌂</span><span class="nav-text">Operations Desk</span></button><button data-page="Overview" ><span class="glyph">◫</span><span class="nav-text">Executive Overview</span></button><button data-page="Workspace" ><span class="glyph">▦</span><span class="nav-text">Operational Workspace</span></button></nav>
@@ -337,7 +396,7 @@ return pageHead('Operations runbook','Quick navigation and operational boundarie
 '<section class="panel"><h3>Recovery & data protection</h3><div class="grid3" style="margin-top:12px"><div class="mini"><small>SOURCE RECOVERY</small><b>AVAILABLE</b><p>GitHub branch checkpoint exists.</p></div><div class="mini"><small>DATABASE BACKUP</small><b>UNKNOWN</b><p>No backup artifact or restore verification is registered here.</p></div><div class="mini"><small>DEPLOYMENT ROLLBACK</small><b>MANUAL</b><p>Operator-controlled through Render.</p></div></div><p class="muted" style="margin-top:12px">The GitHub recovery branch preserves source code at a known commit. It is not a PostgreSQL backup. Create and verify a separate database dump before schema migrations or destructive data operations. Never commit production database dumps or credentials to Git.</p><div class="toolbar" style="margin-top:12px"><a class="btn secondary" href="https://github.com/trampillera-mona/trampillera/tree/recovery/pre-db-migration-2026-11-23" target="_blank" rel="noopener">Open recovery branch ↗</a><a class="btn secondary" href="https://dashboard.render.com/web/srv-dc1g90cs728c73cc019g" target="_blank" rel="noopener">Render service ↗</a><a class="btn secondary" href="https://dashboard.render.com/d/dpg-dc1fodd9fdbs73anpmj0-a" target="_blank" rel="noopener">PostgreSQL dashboard ↗</a></div></section>'+
 '<div class="notice warn"><strong>No Simulated Success:</strong> EXECUTED ≠ VERIFIED · UNKNOWN ≠ PASS · UNKNOWN ≠ FAIL. A command being accepted is not proof that its intended outcome has been achieved.</div>';
 }
-var pageLabels={'Operations Desk':'Operations Desk','Global Media Desk':'Global Media Intelligence Desk','Analytics':'Analytics & Parsing','Auction':'Auction House','IP Registry':'IP & Patents','Commerce':'Supermall & Commerce','Advertising':'AdTech & Affiliates','Communications':'TRAMPILLERA Comms','Media Studio':'Media & Broadcast','World Studio':'Multiverse Studio','Engineering':'Design Bureau & R&D','Treasury':'Treasury & P&L','Payroll':'Payroll & Settlements'};
+var pageLabels={'Operations Desk':'Operations Desk','Global Media Desk':'Global Media Intelligence Desk','Analytics':'Analytics & Parsing','Auction':'Auction House','IP Registry':'IP & Patents','Commerce':'Supermall & Commerce','Advertising':'AdTech & Affiliates','Communications':'TRAMPILLERA Comms','Scene Studio':'Scene Studio · 2D / 3D','Media Studio':'Media & Broadcast','World Studio':'Multiverse Studio','Engineering':'Design Bureau & R&D','Treasury':'Treasury & P&L','Payroll':'Payroll & Settlements'};
 function renderWorkspace(){var names=Object.keys(domains);return pageHead('Operational Workspace','Seven operating domains in one navigation plane. Choose a domain to inspect its scope and implementation boundary.')+'<div class="notice warn"><strong>IMPLEMENTATION BOUNDARY:</strong> live server-backed areas are Module Registry, Connect Hub, JARVISER registry, authentication and Activity Log. Other business engines are not implemented.</div><div class="domain-grid">'+names.map(function(n){return '<article class="domain-card"><div class="crumb">'+domains[n][0]+'</div><h3>'+n+'</h3><p>'+domains[n][1]+'</p>'+tag('PLANNED')+' '+button('Open →','page:'+n,'secondary')+'</article>'}).join('')+'</div>'+'<section class="panel"><h3>Live control surfaces</h3><div class="toolbar" style="margin-top:12px">'+button('Modules','page:Modules','secondary')+button('Connectors','page:Connectors','secondary')+button('JARVISER Reactor','page:Model Registry','secondary')+button('Activity Log','page:Activity Log','secondary')+button('Diagnostics','page:Diagnostics','secondary')+'</div></section>'}
 function renderDomain(name){var d=domains[name];return pageHead(name,d[1])+'<div class="notice warn"><strong>NOT IMPLEMENTED:</strong> '+d[2]+' This is a navigation and requirements shell only. No live business records or financial values are fabricated.</div><div class="grid2">'+['Data model & ownership','API contracts','Roles & approvals','Lifecycle & audit','Verification criteria','Operational integrations'].map(function(x){return '<section class="panel"><div class="panel-head"><h3>'+x+'</h3>'+tag('PLANNED')+'</div><p class="muted">Define source of truth, state transitions, permissions, evidence and failure semantics under AWAS before implementation.</p><div class="toolbar" style="margin-top:10px">'+tag('NO BACKEND')+tag('NO LIVE DATA')+'</div></section>'}).join('')+'</div>'}
 
@@ -402,7 +461,7 @@ var hero='<section class="comms-hero"><div><div class="crumb">COMMUNICATIONS / P
 var body='';
 if(commsTab==='messages'){
 var list=commsMessages.map(function(m){return '<article class="comms-message '+(m.mine?'mine':'')+'"><b>'+esc(m.who)+'</b><p>'+esc(m.text)+'</p><small>'+esc(m.time)+' · LOCAL PREVIEW</small></article>'}).join('');
-body='<div class="comms-kpis"><div class="comms-kpi"><b>04</b><small>WORKSPACE CHANNELS · SAMPLE</small></div><div class="comms-kpi"><b>12</b><small>TEAM MEMBERS · SAMPLE</small></div><div class="comms-kpi"><b>03</b><small>UNREAD · SAMPLE</small></div><div class="comms-kpi"><b>—</b><small>LIVE SESSIONS · NOT CONNECTED</small></div></div><div class="comms-layout"><aside class="comms-rail"><div class="comms-rail-head"><b>Conversations</b>'+tag('SAMPLE')+'</div><input class="comms-search" id="comms-search" placeholder="Search people and channels…"><div class="comms-thread active"><div class="comms-avatar">OP</div><div><b>Operations · General</b><small>Briefings, shifts and coordination</small></div><span class="comms-thread-meta">09:47</span></div><div class="comms-thread"><div class="comms-avatar">ED</div><div><b>Editorial Desk</b><small>Sources, reviews and publication</small></div><span class="comms-thread-meta">09:21</span></div><div class="comms-thread"><div class="comms-avatar">ENG</div><div><b>Engineering</b><small>Deployments and incidents</small></div><span class="comms-thread-meta">08:56</span></div><div class="comms-thread"><div class="comms-avatar">DM</div><div><b>Mira · Direct message</b><small>Private conversation</small></div><span class="comms-thread-meta">YESTERDAY</span></div><div class="notice" style="margin-top:12px">Channel membership, message delivery, presence and history are not connected to a server.</div></aside><section class="comms-main"><div class="comms-chat-head"><div><b>Operations · General</b><small>12 members · Channel membership is illustrative</small></div>'+tag('E2EE NOT ACTIVE')+'</div><div class="comms-message-list" id="comms-message-list">'+list+'</div><form class="comms-compose" id="comms-compose"><input id="comms-message-input" placeholder="Write a local preview message…" maxlength="500"><button class="btn" type="submit">Preview</button></form><p class="muted" style="margin-top:8px">Preview only. Nothing is transmitted or stored. This composer is not a live messenger.</p></section></div>';
+body='<div class="comms-kpis"><div class="comms-kpi"><b>04</b><small>WORKSPACE CHANNELS · SAMPLE</small></div><div class="comms-kpi"><b>12</b><small>TEAM MEMBERS · SAMPLE</small></div><div class="comms-kpi"><b>03</b><small>UNREAD · SAMPLE</small></div><div class="comms-kpi"><b>—</b><small>LIVE SESSIONS · NOT CONNECTED</small></div></div><div class="comms-layout"><aside class="comms-rail"><div class="comms-rail-head"><b>Conversations</b>'+tag('SAMPLE')+'</div><input class="comms-search" id="comms-search" placeholder="Search people and channels…"><div class="comms-thread active"><div class="comms-avatar">OP</div><div><b id="comms-active-title">Operations · General</b><small>Briefings, shifts and coordination</small></div><span class="comms-thread-meta">09:47</span></div><div class="comms-thread"><div class="comms-avatar">ED data-comms-thread="Editorial Desk"</div><div><b>Editorial Desk</b><small>Sources, reviews and publication</small></div><span class="comms-thread-meta">09:21</span></div><div class="comms-thread"><div class="comms-avatar">ENG data-comms-thread="Engineering"</div><div><b>Engineering</b><small>Deployments and incidents</small></div><span class="comms-thread-meta">08:56</span></div><div class="comms-thread"><div class="comms-avatar">DM data-comms-thread="Mira · Direct message"</div><div><b>Mira · Direct message</b><small>Private conversation</small></div><span class="comms-thread-meta">YESTERDAY</span></div><div class="notice" style="margin-top:12px">Channel membership, message delivery, presence and history are not connected to a server.</div></aside><section class="comms-main"><div class="comms-chat-head"><div><b>Operations · General</b><small>12 members · Channel membership is illustrative</small></div>'+tag('E2EE NOT ACTIVE')+'</div><div class="comms-message-list" id="comms-message-list">'+list+'</div><form class="comms-compose" id="comms-compose"><input id="comms-message-input" placeholder="Write a local preview message…" maxlength="500"><button class="btn" type="submit">Preview</button></form><p class="muted" style="margin-top:8px">Preview only. Nothing is transmitted or stored. This composer is not a live messenger.</p></section></div>';
 }else if(commsTab==='conferences'){
 body='<div class="notice warn"><strong>VIDEO CONFERENCING — PLANNED:</strong> No signaling server, SFU, TURN relay, WebRTC session, device access or media encryption is connected. The controls below are design references, not callable meeting functions.</div><div class="comms-conference-grid"><article class="comms-conf-card"><div class="crumb">ROOM / 001 · TEAM MEETING</div><h3>Operations daily briefing</h3><p>Audio/video · screen sharing · participant roles · meeting notes · hand-raise and moderation.</p><div class="comms-participants"><span>MY</span><span>OP</span><span>ED</span><span>+9</span></div><div class="toolbar">'+tag('SCHEDULED · SAMPLE')+' '+tag('E2EE MEDIA · PLANNED')+'</div></article><article class="comms-conf-card"><div class="crumb">ROOM / 002 · ENGINEERING</div><h3>Incident response room</h3><p>Priority join flow, incident timeline, pinned diagnostics, screen share and controlled guest access.</p><div class="comms-participants"><span>EN</span><span>IT</span><span>QA</span><span>+2</span></div><div class="toolbar">'+tag('ON DEMAND · SAMPLE')+' '+tag('RECORDING OFF BY DEFAULT')+'</div></article><article class="comms-conf-card"><div class="crumb">ROOM / 003 · PRIVATE</div><h3>One-to-one secure call</h3><p>Verified contact identity, safety number / device verification and explicit call security indicator.</p><div class="toolbar">'+tag('PLANNED')+'</div></article><article class="comms-conf-card"><div class="crumb">MEETING CONTROLS</div><h3>Host and participant controls</h3><p>Waiting room, invite links with expiry, mute controls, screen-share permissions, removal and abuse reporting.</p><div class="toolbar">'+tag('PLANNED')+'</div></article></div>';
 }else if(commsTab==='security'){
@@ -413,7 +472,146 @@ body='<div class="comms-security-grid"><article class="comms-security-item"><b>O
 return head+hero+nav+body;
 }
 
-function renderPage(){var c=$('content');$('page-title').textContent=pageLabels[state.page]||state.page;if(state.page==='Operations Desk')c.innerHTML=renderOperationsDesk();else if(state.page==='Overview')c.innerHTML=renderOverview();else if(state.page==='Workspace')c.innerHTML=renderWorkspace();else if(domains[state.page])c.innerHTML=renderDomain(state.page);else if(state.page==='Modules')c.innerHTML=renderModules();else if(state.page==='Connectors')c.innerHTML=renderConnectors();else if(state.page==='Global Media Desk')c.innerHTML=renderGlobalMediaDesk();else if(state.page==='Communications')c.innerHTML=renderCommsDesk();else if(state.page==='Model Registry')c.innerHTML=renderModels();else if(state.page==='Activity Log')c.innerHTML=renderActivity();else if(state.page==='Diagnostics'){c.innerHTML='<div class="empty">Running read-only checks…</div>';renderDiagnostics().then(function(html){if(state.page==='Diagnostics')c.innerHTML=html}).catch(function(e){c.innerHTML=empty('Diagnostics could not be completed: '+esc(e.message))});}else if(state.page==='Settings')c.innerHTML=renderSettings();else c.innerHTML=renderRunbook();document.querySelectorAll('[data-page]').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-page')===state.page)})}
+
+/* SCENE STUDIO · interactive local scene editor prototype.
+   All scene entities below are illustrative local demo data, not surveyed GIS/BIM assets. */
+var sceneStudio={
+ mode:'2d',selected:'bldg-01',year:2026,activeTool:'select',
+ objects:[
+  {id:'bldg-01',name:'Operations Hub',type:'building',x:0.34,y:0.32,w:0.16,h:0.12,height:54,area:2840,layer:'buildings',status:'DEMO'},
+  {id:'bldg-02',name:'Research Block',type:'building',x:0.62,y:0.28,w:0.13,h:0.10,height:38,area:1920,layer:'buildings',status:'DEMO'},
+  {id:'bldg-03',name:'Logistics Hall',type:'building',x:0.60,y:0.68,w:0.20,h:0.12,height:26,area:3650,layer:'buildings',status:'DEMO'},
+  {id:'road-01',name:'Main access road',type:'road',x:0.46,y:0.51,w:0.66,h:0.035,height:0,area:0,layer:'transport',status:'DEMO'},
+  {id:'zone-01',name:'Green buffer',type:'zone',x:0.20,y:0.72,w:0.22,h:0.15,height:0,area:4200,layer:'landscape',status:'DEMO'},
+  {id:'node-01',name:'Gate A · control point',type:'node',x:0.82,y:0.47,w:0.035,h:0.035,height:8,area:0,layer:'infrastructure',status:'DEMO'}
+ ],
+ layers:{buildings:true,transport:true,landscape:true,infrastructure:true}
+};
+function sceneEsc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function sceneObj(){return sceneStudio.objects.find(function(o){return o.id===sceneStudio.selected})||null}
+function sceneProject(o,w,h){return {x:o.x*w,y:o.y*h}}
+function sceneDraw(){
+ var canvas=$('scene-canvas');if(!canvas)return;
+ var box=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
+ var w=Math.max(1,box.width),h=Math.max(1,box.height);
+ canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+ var c=canvas.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);
+ var bg=c.createLinearGradient(0,0,w,h);bg.addColorStop(0,'#0b1c29');bg.addColorStop(1,'#07111a');c.fillStyle=bg;c.fillRect(0,0,w,h);
+ if(sceneStudio.mode==='2d') sceneDraw2D(c,w,h); else sceneDraw3D(c,w,h);
+ var mode=$('scene-mode-label');if(mode)mode.textContent=sceneStudio.mode.toUpperCase()+' · SCHEMATIC';
+}
+function sceneDrawGrid(c,w,h,step){
+ c.save();c.strokeStyle='rgba(91,145,169,.12)';c.lineWidth=1;
+ for(var x=0;x<w;x+=step){c.beginPath();c.moveTo(x,0);c.lineTo(x,h);c.stroke()}
+ for(var y=0;y<h;y+=step){c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke()}
+ c.restore();
+}
+function sceneDraw2D(c,w,h){
+ sceneDrawGrid(c,w,h,28);
+ c.save();c.strokeStyle='rgba(100,178,195,.18)';c.lineWidth=1;c.setLineDash([5,7]);c.strokeRect(18,18,w-36,h-36);c.setLineDash([]);
+ c.fillStyle='rgba(38,91,105,.12)';c.fillRect(w*.08,h*.12,w*.84,h*.76);
+ c.strokeStyle='rgba(88,155,174,.24)';c.strokeRect(w*.08,h*.12,w*.84,h*.76);
+ c.restore();
+ sceneStudio.objects.forEach(function(o){
+  if(!sceneStudio.layers[o.layer])return;
+  var x=o.x*w,y=o.y*h,ww=o.w*w,hh=o.h*h,selected=o.id===sceneStudio.selected;
+  c.save();
+  if(o.type==='road'){
+   c.strokeStyle='#b18c4e';c.lineWidth=Math.max(7,hh);c.beginPath();c.moveTo(x-ww/2,y);c.lineTo(x+ww/2,y);c.stroke();
+   c.strokeStyle='#e4c77f';c.lineWidth=1.2;c.setLineDash([8,7]);c.beginPath();c.moveTo(x-ww/2,y);c.lineTo(x+ww/2,y);c.stroke();c.setLineDash([]);
+  }else if(o.type==='zone'){
+   c.fillStyle='rgba(56,139,111,.34)';c.strokeStyle='#58b995';c.lineWidth=1.5;c.beginPath();c.roundRect(x-ww/2,y-hh/2,ww,hh,7);c.fill();c.stroke();
+  }else if(o.type==='node'){
+   c.fillStyle='#e8b85e';c.strokeStyle='#fff0c2';c.lineWidth=1;c.beginPath();c.arc(x,y,Math.max(7,ww),0,Math.PI*2);c.fill();c.stroke();
+  }else{
+   c.fillStyle=o.id==='bldg-03'?'#315f78':'#2a7184';c.strokeStyle='#70d1dc';c.lineWidth=1.2;c.fillRect(x-ww/2,y-hh/2,ww,hh);c.strokeRect(x-ww/2,y-hh/2,ww,hh);
+   c.fillStyle='rgba(174,231,236,.5)';for(var wx=x-ww/2+7;wx<x+ww/2-4;wx+=12){c.fillRect(wx,y-hh/2+7,4,4);c.fillRect(wx,y+hh/2-12,4,4)}
+  }
+  if(selected){c.strokeStyle='#f5d27e';c.lineWidth=2;c.setLineDash([4,3]);c.strokeRect(x-ww/2-5,y-hh/2-5,ww+10,hh+10);c.setLineDash([])}
+  c.fillStyle='#d8e9ef';c.font='10px ui-monospace,monospace';c.textAlign='center';c.fillText(o.name,x,y+hh/2+15);
+  c.restore();
+ });
+ c.save();c.fillStyle='#7e9eae';c.font='8px ui-monospace,monospace';c.fillText('LOCAL DEMONSTRATION GRID · NOT GEOSPATIAL SURVEY',24,h-18);c.restore();
+}
+function sceneProject3(x,y,z,w,h){
+ var sx=(x-.5)*w*.82,sy=(y-.5)*h*.75;
+ return {x:w*.5+sx*.88-sy*.35,y:h*.55+sx*.25+sy*.22-z*h*.48};
+}
+function sceneDraw3D(c,w,h){
+ sceneDrawGrid(c,w,h,34);
+ var corners=[[.08,.14],[.92,.14],[.92,.88],[.08,.88]].map(function(p){return sceneProject3(p[0],p[1],0,w,h)});
+ c.save();c.beginPath();c.moveTo(corners[0].x,corners[0].y);corners.slice(1).forEach(function(p){c.lineTo(p.x,p.y)});c.closePath();c.fillStyle='rgba(32,79,91,.22)';c.fill();c.strokeStyle='rgba(89,162,181,.35)';c.stroke();
+ for(var i=0;i<=10;i++){var t=i/10;var a=sceneProject3(.08+t*.84,.14,0,w,h),b=sceneProject3(.08+t*.84,.88,0,w,h);c.strokeStyle='rgba(91,148,168,.13)';c.beginPath();c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);c.stroke()}
+ c.restore();
+ sceneStudio.objects.forEach(function(o){
+  if(!sceneStudio.layers[o.layer])return;
+  var selected=o.id===sceneStudio.selected,center=sceneProject3(o.x,o.y,0,w,h),baseW=Math.max(18,o.w*w*.46),baseH=Math.max(10,o.h*h*.22),z=o.type==='building'?Math.max(12,o.height/100*h*.72):o.type==='node'?12:0;
+  c.save();
+  if(o.type==='road'){
+   var a=sceneProject3(o.x-o.w/2,o.y,0,w,h),b=sceneProject3(o.x+o.w/2,o.y,0,w,h);
+   c.strokeStyle='#9c804f';c.lineWidth=10;c.beginPath();c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);c.stroke();c.strokeStyle='#e4c77f';c.lineWidth=1;c.setLineDash([7,6]);c.beginPath();c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);c.stroke();c.setLineDash([]);
+  }else if(o.type==='zone'){
+   c.fillStyle='rgba(58,150,113,.34)';c.strokeStyle='#5ac49c';c.beginPath();c.ellipse(center.x,center.y,baseW,baseH,0,0,Math.PI*2);c.fill();c.stroke();
+  }else{
+   var top={x:center.x,y:center.y-z},dx=baseW,dy=baseH;
+   c.beginPath();c.moveTo(top.x,top.y);c.lineTo(top.x+dx,top.y-dy*.42);c.lineTo(top.x+dx,top.y-dy*.42+z);c.lineTo(top.x,top.y+z);c.closePath();c.fillStyle=o.type==='node'?'#c48e45':'#1d566d';c.fill();c.strokeStyle='#5bb5c5';c.stroke();
+   c.beginPath();c.moveTo(top.x,top.y);c.lineTo(top.x-dx,top.y-dy*.42);c.lineTo(top.x-dx,top.y-dy*.42+z);c.lineTo(top.x,top.y+z);c.closePath();c.fillStyle=o.type==='node'?'#9e7138':'#174257';c.fill();c.stroke();
+   c.beginPath();c.moveTo(top.x,top.y);c.lineTo(top.x+dx,top.y-dy*.42);c.lineTo(top.x,top.y-dy*.42+z);c.lineTo(top.x-dx,top.y-dy*.42);c.closePath();c.fillStyle='#397f94';c.fill();c.stroke();
+   if(o.type==='building'){c.strokeStyle='rgba(181,238,242,.45)';for(var k=0;k<3;k++){c.beginPath();c.moveTo(top.x-dx*.6+k*dx*.55,top.y+z*.25);c.lineTo(top.x-dx*.6+k*dx*.55,top.y+z*.78);c.stroke()}}
+  }
+  if(selected){c.strokeStyle='#f4d27c';c.lineWidth=2;c.setLineDash([4,3]);c.beginPath();c.ellipse(center.x,center.y,baseW+8,baseH+8,0,0,Math.PI*2);c.stroke();c.setLineDash([])}
+  c.fillStyle='#dcebf0';c.font='9px ui-monospace,monospace';c.textAlign='center';c.fillText(o.name,center.x,center.y+baseH+z+14);
+  c.restore();
+ });
+ c.save();c.fillStyle='#7e9eae';c.font='8px ui-monospace,monospace';c.fillText('ARTMER SCHEMATIC VIEW · LOCAL DEMO GEOMETRY',24,h-18);c.restore();
+}
+function sceneRefreshPanels(){
+ var list=$('scene-object-list'),ins=$('scene-inspector-content'),obj=sceneObj();
+ if(list)list.innerHTML=sceneStudio.objects.map(function(o){return '<div class="scene-object '+(o.id===sceneStudio.selected?'active':'')+'" data-scene-select="'+sceneEsc(o.id)+'"><span class="obj-icon">'+(o.type==='building'?'▥':o.type==='road'?'↔':o.type==='zone'?'◌':'⌖')+'</span><span>'+sceneEsc(o.name)+'</span><small>'+o.type.toUpperCase()+'</small></div>'}).join('')||'<div class="scene-empty">No objects yet. Add a building, road or zone.</div>';
+ if(ins){if(!obj)ins.innerHTML='<div class="scene-empty">Select an object in the scene or object tree.</div>';else ins.innerHTML='<label>OBJECT NAME<input id="scene-name" maxlength="60" value="'+sceneEsc(obj.name)+'"></label><div class="scene-metric"><small>OBJECT ID</small><b>'+sceneEsc(obj.id)+'</b></div><div class="scene-metric"><small>TYPE / LAYER</small><b>'+sceneEsc(obj.type.toUpperCase())+' / '+sceneEsc(obj.layer)+'</b></div><div class="scene-metric"><small>HEIGHT</small><b>'+obj.height+' m · DEMO VALUE</b></div><div class="scene-metric"><small>AREA</small><b>'+obj.area+' m² · DEMO VALUE</b></div><div class="scene-help">Geometry and metrics are illustrative. Editing the name changes this local draft only.</div>'}
+ var count=$('scene-object-count');if(count)count.textContent=sceneStudio.objects.length+' OBJECTS';
+ var year=$('scene-year');if(year)year.textContent=sceneStudio.year;
+ document.querySelectorAll('[data-scene-layer]').forEach(function(el){var key=el.getAttribute('data-scene-layer');el.checked=!!sceneStudio.layers[key]});
+}
+function sceneAdd(type){
+ var n=sceneStudio.objects.filter(function(o){return o.type===type}).length+1;
+ var names={building:'New building',road:'New road',zone:'New zone',node:'New node'};
+ var o={id:type+'-'+String(Date.now()).slice(-6),name:names[type]+' '+n,type:type,x:.24+(n%4)*.16,y:.25+(n%3)*.19,w:type==='building'?.12:type==='road'?.34:.16,h:type==='building'?.10:type==='road'?.025:.12,height:type==='building'?24:8,area:type==='zone'?1200:type==='building'?900:0,layer:type==='building'?'buildings':type==='road'?'transport':type==='zone'?'landscape':'infrastructure',status:'LOCAL DRAFT'};
+ sceneStudio.objects.push(o);sceneStudio.selected=o.id;sceneRefreshPanels();sceneDraw();toast('Object added to local scene draft.');
+}
+function sceneExport(){
+ var payload={format:'TRAMPILLERA_SCENE_DRAFT',version:'0.1',evidence_state:'DEMO_LOCAL_ONLY',exported_at:new Date().toISOString(),coordinate_reference:'LOCAL_NORMALIZED_GRID_NOT_GEOREFERENCED',timeline_year:sceneStudio.year,layers:sceneStudio.layers,objects:sceneStudio.objects};
+ var blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='trampillera-scene-draft.json';a.click();URL.revokeObjectURL(url);toast('Scene draft exported. This is not a server save.');
+}
+function sceneSaveLocal(){
+ try{localStorage.setItem('trampillera.scene-studio.draft.v1',JSON.stringify({objects:sceneStudio.objects,layers:sceneStudio.layers,year:sceneStudio.year}));toast('Saved in this browser only. Server persistence is not connected.')}catch(e){toast('Browser-local save failed: '+e.message)}
+}
+function renderSceneStudio(){
+ var head=pageHead('Scene Studio','Interactive 2D / 3D scene workspace · ArtMer-inspired visualization · SDT5D spatial model.');
+ return head+'<div class="scene-studio"><div class="scene-studio-head"><div><h2>Territorial Scene Workspace</h2><p>Scene objects, layers, properties and timeline in one working environment.</p></div><div class="scene-status">'+tag('INTERACTIVE DEMO')+tag('LOCAL DRAFT ONLY')+tag('NO LIVE GIS / BIM DATA')+'</div></div><div class="scene-toolbar"><button type="button" data-scene-mode="2d" class="active">2D PLAN</button><button type="button" data-scene-mode="3d">3D VIEW</button><span style="width:1px;height:24px;background:var(--line);margin:0 3px"></span><button type="button" data-scene-add="building">＋ Building</button><button type="button" data-scene-add="road">＋ Road</button><button type="button" data-scene-add="zone">＋ Zone</button><button type="button" data-scene-add="node">＋ Node</button><span style="flex:1"></span><button type="button" data-scene-save>Save local draft</button><button type="button" class="primary" data-scene-export>Export JSON</button></div><div class="scene-layout"><section class="scene-panel"><div class="scene-panel-head"><span>OBJECT TREE</span><span id="scene-object-count">—</span></div><div class="scene-panel-body"><div id="scene-object-list"></div><div class="scene-panel-head" style="margin:12px -10px 7px;border-top:1px solid var(--line)">LAYER MANAGER</div><label class="scene-layer"><input type="checkbox" data-scene-layer="buildings" checked> Buildings</label><label class="scene-layer"><input type="checkbox" data-scene-layer="transport" checked> Transport</label><label class="scene-layer"><input type="checkbox" data-scene-layer="landscape" checked> Landscape</label><label class="scene-layer"><input type="checkbox" data-scene-layer="infrastructure" checked> Infrastructure</label></div></section><div class="scene-center"><div class="scene-status"><span id="scene-mode-label">2D · SCHEMATIC</span><span>·</span><span>GRID / LOCAL COORDINATES</span><span>·</span><span>SELECT OBJECT TO INSPECT</span></div><div class="scene-viewport"><canvas id="scene-canvas" aria-label="Interactive 2D and 3D scene viewport"></canvas><div class="scene-viewport-hud"><span>TRAMPILLERA / ARTMER ENGINE</span><span>VIEWPORT · <b id="scene-hud-mode">2D</b></span></div><div class="scene-viewport-legend"><span><i style="background:#2a7184"></i>BUILT</span><span><i style="background:#b18c4e"></i>TRANSPORT</span><span><i style="background:#58b995"></i>LANDSCAPE</span><span><i style="background:#e8b85e"></i>NODE</span></div></div><div class="scene-timeline"><div class="scene-timeline-top"><span>SCENARIO TIMELINE · DEMO CURSOR</span><b id="scene-year">2026</b></div><input id="scene-timeline" type="range" min="2024" max="2035" step="1" value="2026"><div class="scene-timeline-top" style="margin:5px 0 0"><span>2024 · BASELINE</span><span>2035 · HORIZON</span></div></div></div><section class="scene-panel scene-inspector-panel"><div class="scene-panel-head"><span>PROPERTIES INSPECTOR</span><span>LOCAL</span></div><div class="scene-panel-body scene-inspector" id="scene-inspector-content"></div></section></div><div class="notice warn"><strong>Evidence boundary:</strong> this is a functional local scene-editor prototype with selectable objects, editable names, layer visibility, 2D/3D schematic rendering, timeline cursor, local draft save and JSON export. It does not yet provide georeferenced coordinates, terrain tiles, real GIS/BIM imports, multi-user collaboration, server persistence or verified simulation.</div></div>';
+}
+function sceneInit(){
+ if(state.page!=='Scene Studio')return;
+ var canvas=$('scene-canvas');if(!canvas)return;
+ sceneRefreshPanels();sceneDraw();
+ var saved=null;try{saved=JSON.parse(localStorage.getItem('trampillera.scene-studio.draft.v1')||'null')}catch(_e){}
+ if(saved&&Array.isArray(saved.objects)&&saved.objects.length){sceneStudio.objects=saved.objects;sceneStudio.layers=Object.assign(sceneStudio.layers,saved.layers||{});sceneStudio.year=saved.year||2026;sceneStudio.selected=sceneStudio.objects[0].id;sceneRefreshPanels();sceneDraw();var slider=$('scene-timeline');if(slider)slider.value=sceneStudio.year}
+ canvas.onclick=function(e){
+  var rect=canvas.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top,w=rect.width,h=rect.height;
+  var candidates=sceneStudio.objects.filter(function(o){return sceneStudio.layers[o.layer]}).map(function(o){var p=sceneStudio.mode==='2d'?{x:o.x*w,y:o.y*h}:sceneProject3(o.x,o.y,o.type==='building'?o.height/100:0,w,h);return {o:o,p:p}}).sort(function(a,b){return Math.hypot(a.p.x-mx,a.p.y-my)-Math.hypot(b.p.x-mx,b.p.y-my)});
+  if(candidates.length&&Math.hypot(candidates[0].p.x-mx,candidates[0].p.y-my)<Math.max(35,candidates[0].o.w*w*.65)){sceneStudio.selected=candidates[0].o.id;sceneRefreshPanels();sceneDraw()}
+ };
+ document.querySelectorAll('[data-scene-mode]').forEach(function(b){b.onclick=function(){sceneStudio.mode=b.getAttribute('data-scene-mode');document.querySelectorAll('[data-scene-mode]').forEach(function(x){x.classList.toggle('active',x===b)});var h=$('scene-hud-mode');if(h)h.textContent=sceneStudio.mode.toUpperCase();sceneDraw()}});
+ document.querySelectorAll('[data-scene-add]').forEach(function(b){b.onclick=function(){sceneAdd(b.getAttribute('data-scene-add'))}});
+ document.querySelectorAll('[data-scene-layer]').forEach(function(b){b.onchange=function(){sceneStudio.layers[b.getAttribute('data-scene-layer')]=b.checked;sceneDraw()}});
+ var timeline=$('scene-timeline');if(timeline)timeline.oninput=function(){sceneStudio.year=Number(timeline.value);sceneRefreshPanels()};
+ var name=$('scene-name');if(name)name.oninput=function(){var o=sceneObj();if(o){o.name=name.value;var active=$('scene-object-list').querySelector('[data-scene-select="'+o.id+'"]');if(active)active.children[1].textContent=o.name;sceneDraw()}};
+ var save=document.querySelector('[data-scene-save]');if(save)save.onclick=sceneSaveLocal;
+ var exp=document.querySelector('[data-scene-export]');if(exp)exp.onclick=sceneExport;
+ document.querySelectorAll('[data-scene-select]').forEach(function(b){b.onclick=function(){sceneStudio.selected=b.getAttribute('data-scene-select');sceneRefreshPanels();sceneDraw()}});
+}
+
+function renderPage(){var c=$('content');$('page-title').textContent=pageLabels[state.page]||state.page;if(state.page==='Operations Desk')c.innerHTML=renderOperationsDesk();else if(state.page==='Overview')c.innerHTML=renderOverview();else if(state.page==='Workspace')c.innerHTML=renderWorkspace();else if(domains[state.page])c.innerHTML=renderDomain(state.page);else if(state.page==='Modules')c.innerHTML=renderModules();else if(state.page==='Connectors')c.innerHTML=renderConnectors();else if(state.page==='Global Media Desk')c.innerHTML=renderGlobalMediaDesk();else if(state.page==='Communications')c.innerHTML=renderCommsDesk();else if(state.page==='Scene Studio')c.innerHTML=renderSceneStudio();else if(state.page==='Model Registry')c.innerHTML=renderModels();else if(state.page==='Activity Log')c.innerHTML=renderActivity();else if(state.page==='Diagnostics'){c.innerHTML='<div class="empty">Running read-only checks…</div>';renderDiagnostics().then(function(html){if(state.page==='Diagnostics')c.innerHTML=html}).catch(function(e){c.innerHTML=empty('Diagnostics could not be completed: '+esc(e.message))});}else if(state.page==='Settings')c.innerHTML=renderSettings();else c.innerHTML=renderRunbook();document.querySelectorAll('[data-page]').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-page')===state.page)});document.querySelectorAll('.primary-workspaces [data-page]').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-page')===state.page)});if(state.page==='Scene Studio')sceneInit()}
 async function refresh(){if(state.busy)return;state.busy=true;$('refresh-btn').disabled=true;try{await loadAll();state.settings=await request('/settings');renderPage();toast('Workspace data refreshed from the server.')}catch(e){if(e.status===401){showAuth()}else{setConnection('bad','API ERROR');toast('Refresh failed: '+e.message)}}finally{state.busy=false;$('refresh-btn').disabled=false}}
 function showAuth(){state.authenticated=false;$('auth-layer').classList.remove('hidden');setConnection('bad','SIGN-IN REQUIRED')}
 async function enter(){try{await loadAll();state.settings=await request('/settings');state.authenticated=true;$('auth-layer').classList.add('hidden');renderPage()}catch(e){if(e.status===401)showAuth();else{setConnection('bad','API ERROR');$('content').innerHTML=empty('Unable to load workspace: '+esc(e.message))}}}
@@ -438,9 +636,10 @@ if(action.indexOf('module:')===0){var key=action.slice(7);var item=state.modules
 if(action.indexOf('connector:')===0){var ck=action.slice(10);if(!confirm('Validate HTTPS endpoint configuration for '+ck+'? No external network request will be made.'))return;try{var r=await request('/connectors/'+encodeURIComponent(ck)+'/validate',{method:'POST',body:'{}'});toast(r.message||'Configuration validation completed.');await refresh()}catch(e){toast('Validation failed: '+e.message)}return}
 }
 try{var savedGroups=JSON.parse(localStorage.getItem('trampillera.control.nav.v1')||'{}');document.querySelectorAll('.nav-group').forEach(function(g,i){if(Object.prototype.hasOwnProperty.call(savedGroups,i))g.open=!!savedGroups[i];g.addEventListener('toggle',function(){var current={};document.querySelectorAll('.nav-group').forEach(function(x,j){current[j]=x.open});try{localStorage.setItem('trampillera.control.nav.v1',JSON.stringify(current))}catch(_e){}})});}catch(_e){}
-document.addEventListener('click',function(e){var ct=e.target.closest('[data-comms-tab]');if(ct){commsTab=ct.getAttribute('data-comms-tab');renderPage();return}var p=e.target.closest('[data-page]');if(p){var group=p.closest('details.nav-group');if(group)group.open=true;state.page=p.getAttribute('data-page');renderPage();return}var a=e.target.closest('[data-action]');if(a)action(a.getAttribute('data-action'))});
+document.addEventListener('click',function(e){var cs=e.target.closest('[data-comms-thread]');if(cs){var list=cs.parentElement;list.querySelectorAll('[data-comms-thread]').forEach(function(x){x.classList.toggle('selected',x===cs)});var title=$('comms-active-title');if(title)title.textContent=cs.getAttribute('data-comms-thread');return}var ct=e.target.closest('[data-comms-tab]');if(ct){commsTab=ct.getAttribute('data-comms-tab');renderPage();return}var p=e.target.closest('[data-page]');if(p){var group=p.closest('details.nav-group');if(group)group.open=true;state.page=p.getAttribute('data-page');renderPage();return}var a=e.target.closest('[data-action]');if(a)action(a.getAttribute('data-action'))});
 async function runAuthDiagnostics(prefix){var out=$('auth-diagnostics-output');if(!out)return;out.style.display='block';out.textContent=(prefix?prefix+'\n':'')+'Checking server session…';try{var r=await fetch('/api/auth/diagnostics',{credentials:'same-origin',cache:'no-store'});var d=await r.json().catch(function(){return {error:'Unreadable diagnostics response'}});out.textContent=(prefix?prefix+'\n':'')+'GET /api/auth/diagnostics → HTTP '+r.status+'\n'+JSON.stringify(d,null,2)}catch(err){out.textContent=(prefix?prefix+'\n':'')+'Diagnostics request failed: '+err.message}}
 $('auth-diagnostics-btn').addEventListener('click',function(){runAuthDiagnostics('Manual diagnostic check')});
+document.addEventListener('input',function(e){if(e.target.id==='comms-search'){var q=e.target.value.toLowerCase();document.querySelectorAll('.comms-thread').forEach(function(row){row.style.display=row.textContent.toLowerCase().includes(q)?'flex':'none'})}});
 document.addEventListener('submit',function(e){if(e.target.id==='comms-compose'){e.preventDefault();var input=$('comms-message-input');var value=input&&input.value.trim();if(value){commsMessages.push({who:'You',time:'NOW',text:value,mine:true});renderPage();toast('Local preview updated. Message was not sent.')}return}if(e.target.id==='tp-login'){e.preventDefault();$('login-error').textContent='';fetch('/api/auth/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('password').value})}).then(async function(r){var d=await r.json().catch(function(){return {}});await runAuthDiagnostics('POST /api/auth/login → HTTP '+r.status);if(!r.ok)throw new Error(d.error||'Sign-in failed');$('password').value='';await enter();if(!state.authenticated)await runAuthDiagnostics('Login accepted, but workspace loading did not complete')}).catch(async function(err){$('login-error').textContent=err.message;await runAuthDiagnostics('Login flow error: '+err.message)});return}if(e.target.matches('[data-form]')){e.preventDefault();submitForm(e.target).catch(function(err){toast(err.message)})}});
 $('refresh-btn').addEventListener('click',refresh);
 $('logout-btn').addEventListener('click',async function(){try{await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin'});showAuth();toast('Signed out.')}catch(e){toast('Sign-out request failed.')}});
