@@ -158,6 +158,29 @@ app.get("/api/modules", asyncRoute(async (_req,res) => {
   const result = await pool.query("SELECT key,name,version,status,description FROM platform_modules ORDER BY key");
   res.json({ items:result.rows });
 }));
+app.get("/api/auth/diagnostics", (req,res) => {
+  res.set("Cache-Control", "no-store");
+  const cookieHeader = req.headers.cookie || "";
+  const sessionCookieReceived = cookieHeader.split(";").some(part => part.trim().startsWith("trampillera_session="));
+  res.json({
+    timestamp: new Date().toISOString(),
+    request: {
+      protocol: req.protocol,
+      secure: req.secure,
+      host: req.get("host") || null
+    },
+    session: {
+      cookieReceived: sessionCookieReceived,
+      authenticated: req.session?.authenticated === true
+    },
+    configuration: {
+      trustProxy: trustProxy ? "enabled" : "disabled",
+      cookieSecure: process.env.COOKIE_SECURE === "true",
+      cookieSameSite: "strict",
+      cookiePath: "/"
+    }
+  });
+});
 app.post("/api/auth/login", asyncRoute(async (req,res) => {
   const password = typeof req.body?.password === "string" ? req.body.password : "";
   const expected = Buffer.from(ADMIN_PASSWORD);
