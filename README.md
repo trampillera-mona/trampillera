@@ -57,6 +57,22 @@ npm run dev
 - The Control Plane requires administrator authentication. The public platform interface remains accessible.
 - Back up the `trampillera_pgdata` Docker volume regularly.
 
+## Licensing and community distribution
+
+The software code in this repository is released under the MIT License; see [LICENSE](./LICENSE). This is intentional: developers may inspect, copy, modify, self-host, and redistribute the code, including in commercial projects, provided they comply with the license notice requirements.
+
+The MIT License does **not** grant permission to use the TRAMPILLERA name, logos, product marks, domain identity, or other brand identifiers as if a fork or derivative project were an official TRAMPILLERA release. See [TRADEMARKS.md](./TRADEMARKS.md) for the brand-use rules.
+
+When publishing a modified or independently hosted version:
+- retain the applicable copyright and MIT license notices;
+- clearly identify your version as modified or independently maintained;
+- do not imply that TRAMPILLERA endorses, operates, certifies, or supports it;
+- do not use TRAMPILLERA branding as the name or identity of your own product without written permission.
+
+This repository currently contains one deployable application; it does not yet define a separately licensed proprietary Core or paid Community/Enterprise edition. Any future closed-source modules, hosted services, or commercial add-ons must be clearly separated by file/module scope and accompanied by their own license terms before distribution.
+
+Third-party dependencies and assets may have their own license terms. Those terms remain applicable and are not replaced by this repository's MIT License.
+
 ## Verification
 
 Run `sh scripts/check.sh` for JavaScript syntax validation. After deployment, verify `/api/health`, `/`, `/control/`, and a successful Control Plane sign-in. A healthy container alone does not prove every external integration is configured.
