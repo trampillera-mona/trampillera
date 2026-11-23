@@ -51,6 +51,14 @@ jobs:
           curl --fail --silent http://127.0.0.1:3000/api/platform/status
           curl --fail --silent -c /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"password":"ci-temporary-admin-password-123"}' http://127.0.0.1:3000/api/auth/login
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/overview
+          curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/operations/domains > /tmp/domains.json
+          curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/operations/summary > /tmp/ops-summary.json
+          record=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"domain":"tasks","title":"CI operational record","status":"OPEN","payload":{"owner":"CI"}}' http://127.0.0.1:3000/api/control/operations/records)
+          record_id=$(printf '%s' "$record" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(JSON.parse(s).item.id)))')
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -X PATCH -H 'Content-Type: application/json' -d '{"expectedVersion":1,"status":"IN_PROGRESS"}' "http://127.0.0.1:3000/api/control/operations/records/$record_id" > /tmp/ops-update.json
+          invalid_status=$(curl --silent -o /tmp/ops-invalid.json -w '%{http_code}' -b /tmp/trampillera-cookies.txt -X PATCH -H 'Content-Type: application/json' -d '{"expectedVersion":2,"status":"CANCELLED"}' "http://127.0.0.1:3000/api/control/operations/records/$record_id")
+          test "$invalid_status" = "409"
+          curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/audit | grep -q OPERATIONAL_RECORD_UPDATED
 
       - name: Stop test stack
         if: always()
