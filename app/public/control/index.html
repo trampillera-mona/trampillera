@@ -344,7 +344,29 @@ $('auth-diagnostics-btn').addEventListener('click',function(){runAuthDiagnostics
 document.addEventListener('submit',function(e){if(e.target.id==='tp-login'){e.preventDefault();$('login-error').textContent='';fetch('/api/auth/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('password').value})}).then(async function(r){var d=await r.json().catch(function(){return {}});await runAuthDiagnostics('POST /api/auth/login → HTTP '+r.status);if(!r.ok)throw new Error(d.error||'Sign-in failed');$('password').value='';await enter();if(!state.authenticated)await runAuthDiagnostics('Login accepted, but workspace loading did not complete')}).catch(async function(err){$('login-error').textContent=err.message;await runAuthDiagnostics('Login flow error: '+err.message)});return}if(e.target.matches('[data-form]')){e.preventDefault();submitForm(e.target).catch(function(err){toast(err.message)})}});
 $('refresh-btn').addEventListener('click',refresh);
 $('logout-btn').addEventListener('click',async function(){try{await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin'});showAuth();toast('Signed out.')}catch(e){toast('Sign-out request failed.')}});
-$('content').addEventListener('input',function(e){if(e.target.id!=='activity-filter')return;var q=e.target.value.toLowerCase();var rows=state.audit.filter(function(x){return [x.action,x.entity_type,x.entity_key,x.details,x.created_at].join(' ').toLowerCase().indexOf(q)>=0});var body=$('activity-body');if(body)body.innerHTML=rows.map(function(x){return '<tr><td class="code">'+esc(x.created_at)+'</td><td>'+esc(x.action)+'</td><td>'+esc(x.entity_type)+'<br><span class="muted">'+esc(x.entity_key)+'</span></td><td>'+esc(x.details)+'</td></tr>'}).join('')||'<tr><td colspan="4">No matching events.</td></tr>'});
+$('content').addEventListener('input',function(e){
+if(e.target.id==='activity-filter'){
+var q=e.target.value.toLowerCase();
+var rows=state.audit.filter(function(x){return [x.action,x.entity_type,x.entity_key,x.details,x.created_at].join(' ').toLowerCase().indexOf(q)>=0});
+var body=$('activity-body');
+if(body)body.innerHTML=rows.map(function(x){return '<tr><td class="code">'+esc(x.created_at)+'</td><td>'+esc(x.action)+'</td><td>'+esc(x.entity_type)+'<br><span class="muted">'+esc(x.entity_key)+'</span></td><td>'+esc(x.details)+'</td></tr>'}).join('')||'<tr><td colspan="4">No matching events.</td></tr>';
+return;
+}
+if(e.target.id==='connector-catalog-filter'){
+var q=e.target.value.toLowerCase().trim(),visible=0;
+document.querySelectorAll('[data-connector-card]').forEach(function(card){
+var show=!q||card.getAttribute('data-search').indexOf(q)>=0;
+card.style.display=show?'':'none';
+if(show)visible++;
+});
+document.querySelectorAll('[data-connector-group]').forEach(function(group){
+var any=Array.from(group.querySelectorAll('[data-connector-card]')).some(function(card){return card.style.display!=='none'});
+group.style.display=any?'':'none';
+});
+var emptyState=$('connector-catalog-empty');
+if(emptyState)emptyState.style.display=visible?'none':'block';
+}
+});
 function commandNavigate(){var q=($('command-input').value||'').trim().toLowerCase();if(!q)return;var pages=['Overview','Workspace','Modules','Connectors','Model Registry'].concat(Object.keys(domains)).concat(['Activity Log','Diagnostics','Settings','Runbook']);var hit=pages.find(function(p){return p.toLowerCase()===q||(pageLabels[p]||'').toLowerCase()===q})||pages.find(function(p){return p.toLowerCase().indexOf(q)>=0||(pageLabels[p]||'').toLowerCase().indexOf(q)>=0});if(hit){state.page=hit;renderPage();$('command-input').value=''}else toast('No matching workspace: '+q)}
 $('command-go').addEventListener('click',commandNavigate);$('command-input').addEventListener('keydown',function(e){if(e.key==='Enter')commandNavigate()});
 $('view-mode').addEventListener('change',function(e){if(e.target.value==='spatial'){toast('Spatial / 3D FUI is planned; no spatial runtime is connected.');e.target.value=state.mode;return}state.mode=e.target.value;toast(state.mode==='executive'?'Executive view selected.':'Operational grid selected.')});
