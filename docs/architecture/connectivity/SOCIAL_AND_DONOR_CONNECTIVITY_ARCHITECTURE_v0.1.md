@@ -270,3 +270,99 @@ Do not start with dozens of live integrations. Establish a repeatable adapter co
 - Every implementation stage has API, permission, audit, failure, and recovery tests.
 
 **Governing rule:** Connect broadly, collect deliberately, route transparently, and execute only what policy and evidence permit.
+
+
+## 5.4 Global regional coverage and editorial diversity
+
+The coverage model is **global and multi-polar**. It must not collapse the world into a single “Western / international” feed. The regions below are coverage dimensions, not mutually exclusive political blocs. A source may belong to several regions, languages, markets, or subject domains.
+
+| Coverage group | Required subregional coverage | Candidate source landscape (examples, not verified integrations) |
+|---|---|---|
+| North America | United States, Canada, Mexico, Central America, Caribbean | AP, Reuters, CNN, NPR, PBS, CBC/Radio-Canada, major national and local publishers |
+| Western & Northern Europe | UK, Ireland, France, Germany, Benelux, Nordics | BBC, Reuters, AFP, DW, France 24, RFI, Euronews, national public broadcasters and local press |
+| Central, Eastern & Southern Europe | Balkans, Central Europe, Baltics, Poland, Czechia, Slovakia, Hungary, Romania, Bulgaria, Greece, Italy, Iberia | Regional and national agencies, public broadcasters, independent and specialist publishers |
+| Russia & Eurasian space | Russian Federation, Caucasus, Central Asia, cross-border Eurasian coverage | TASS, RIA Novosti, Interfax, regional Russian outlets, national agencies and independent publications where accessible |
+| Ukraine | National, regional, municipal, language-community and diaspora coverage | Ukrinform, Suspilne, Interfax-Ukraine, Kyiv Independent, local/regional outlets and official public information |
+| China | Mainland China, Hong Kong, Macau, Taiwan tracked as distinct media and legal environments | Xinhua, CGTN, China Daily, Caixin, Sixth Tone, SCMP, CNA and local-language publishers |
+| East Asia | Japan, South Korea, North Korea, Mongolia | NHK, Kyodo, Asahi, Yonhap, KBS, regional outlets, specialist monitoring and attributable official releases |
+| South Asia | India, Pakistan, Bangladesh, Sri Lanka, Nepal, Bhutan, Maldives | PTI, The Hindu, Indian Express, NDTV, BBC Hindi, Dawn, Daily Star and national/local publishers |
+| Southeast Asia | Indonesia, Malaysia, Singapore, Thailand, Vietnam, Philippines, Cambodia, Laos, Myanmar, Brunei, Timor-Leste | Bernama, Antara, VNA, PNA, CNA, Bangkok Post, The Jakarta Post, regional and local-language publishers |
+| BRICS+ and partner-country lens | Track membership and partner status as time-versioned metadata, not a permanent geographic region | Compare national agencies, public media, independent media, business press and research sources across member/partner countries |
+| Middle East & North Africa | Gulf, Levant, Iraq, Iran, Türkiye, Israel/Palestine, North Africa | Al Jazeera, Al Arabiya, Anadolu, IRNA, regional broadcasters, national agencies and independent/local publishers |
+| Sub-Saharan Africa | West, East, Central and Southern Africa; country and city-level sources | Africanews, AllAfrica, regional agencies, public broadcasters, investigative and local-language publishers |
+| Latin America | Mexico, Central America, Caribbean, Andean states, Brazil, Southern Cone | Agência Brasil, EFE, Prensa Latina, teleSUR, El País América, national agencies and local publishers |
+| Oceania | Australia, New Zealand, and Pacific Island states and territories | ABC Australia, SBS, AAP, RNZ, Pacific regional broadcasters and local publishers |
+| Polar, maritime & transnational | Arctic, Antarctic, shipping corridors, diaspora, international institutions | Scientific bodies, maritime agencies, satellite/earth-observation sources, UN and intergovernmental publications |
+
+The source examples are discovery seeds only. Listing a publisher does not imply an API, permission to republish, editorial endorsement, or current technical availability. Each candidate must be evaluated for access method, licensing, reliability, ownership, language, geographic reach and political/editorial context.
+
+**North Korea requires a distinct restricted-coverage profile.** The system should combine only lawfully accessible and attributable material: official state publications, foreign correspondents and specialist monitoring organizations, international-agency reporting, academic research, satellite/remote-sensing analysis and verified third-party testimony. It must label access limitations, translation uncertainty, source proximity and independent corroboration. It must never imply direct in-country access or independent verification where neither exists.
+
+### 5.5 Language coverage and multilingual processing
+
+Language is a first-class property of both source and user profile, not a display preference added after ingestion. The initial language inventory must be extensible and should include, at minimum:
+
+- English, Russian, Ukrainian, Serbian, Croatian, Bosnian, Montenegrin, Slovenian, Macedonian, Bulgarian, Romanian, Greek, Albanian, Hungarian, Polish, Czech, Slovak, German, French, Spanish, Portuguese, Italian, Dutch, Swedish, Norwegian, Danish, Finnish, Icelandic;
+- Simplified and Traditional Chinese, Japanese, Korean, Mongolian;
+- Hindi, Urdu, Bengali, Punjabi, Tamil, Telugu, Marathi, Gujarati, Sinhala, Nepali, Pashto, Persian, Arabic, Hebrew, Turkish, Kurdish;
+- Indonesian, Malay, Vietnamese, Thai, Burmese, Khmer, Lao, Filipino/Tagalog;
+- Swahili, Amharic, Hausa, Yoruba, Igbo, Somali, Oromo, Zulu, Xhosa, Afrikaans and French/Portuguese/Arabic language communities across Africa;
+- Māori and Pacific languages where source coverage and user demand justify them;
+- additional regional, minority and Indigenous languages as the catalogue grows.
+
+This is a coverage baseline, not a claim that every language already has a working translation or speech model. Store language tags using BCP 47 where possible, preserve the original script and text, and distinguish source language, detected language, user-preferred language, and generated translation language.
+
+Multilingual pipeline requirements:
+1. Preserve the original item and its exact source reference.
+2. Detect language with a confidence score; retain UNKNOWN when uncertain.
+3. Normalize metadata without silently rewriting the source text.
+4. Translate only as a derived representation; keep original and translated versions side by side.
+5. Record model/provider, model version, timestamp, target language and translation confidence.
+6. Keep names, dates, numbers, quotations and named entities traceable to the original.
+7. Support transliteration and script variants as separate searchable fields, never as replacements for the original.
+8. Allow cross-language search while showing which terms were translated or expanded.
+9. Route language-specific items to reviewers or models with demonstrated language capability; do not assume equal quality across languages.
+10. Mark machine translation as machine-generated and do not present it as a verified human translation.
+
+### 5.6 Topic, interest and perspective dimensions
+
+Regional coverage must intersect with configurable topic taxonomies rather than produce one undifferentiated global feed. Initial domains include:
+- geopolitics, diplomacy, elections, public policy and international organizations;
+- conflict, security, defense, arms control and humanitarian reporting;
+- economy, finance, trade, sanctions, energy and commodities;
+- technology, AI, telecom, cybersecurity and semiconductors;
+- infrastructure, transport, ports, logistics, cities and territorial development;
+- climate, weather, water, agriculture, food systems and natural resources;
+- health and science reporting (with appropriate safeguards and source-quality controls);
+- culture, education, sport, society, migration and demographics;
+- business, companies, markets, labor and supply chains.
+
+A user's interest profile may select regions, countries, topics, languages, source types, time windows and alert thresholds. Users must also be able to request a balanced regional comparison or deliberately inspect competing narratives. The system must not infer political ideology or sensitive personal traits from reading behavior. Personalization should be based on explicit, editable preferences and task context.
+
+### 5.7 Source plurality, evidence and editorial safeguards
+
+For important or contested claims, the platform should seek geographically and editorially diverse corroboration where available. It should not force artificial symmetry: evidence quality and direct access matter more than a fixed quota of sources. Keep separate fields for:
+- publisher / source identity and ownership where known;
+- country of origin, coverage geography and publication language;
+- source type (wire, public broadcaster, private publisher, state media, local outlet, NGO, academic, official record, eyewitness, satellite or sensor);
+- editorial/political context when supported by transparent evidence, with confidence and provenance;
+- original publication time, ingestion time and last update;
+- direct observation versus quotation, analysis, allegation or opinion;
+- corroborating and contradicting evidence;
+- access limitations, translation status, corrections and retractions.
+
+Do not label a source “true” or “false” solely because of its country, ownership category or political alignment. Assess claims and evidence at item level. Preserve disagreements, uncertainty and missing information. A source's editorial profile is context, not an automatic truth score.
+
+## 5.8 Coverage completeness is measurable, not rhetorical
+
+The Coverage Registry should report, by region × country × language × topic:
+- discovered candidate sources;
+- sources reviewed and accepted into the catalogue;
+- access method and licensing status;
+- configured instances;
+- authorization and capability verification;
+- last successful retrieval with evidence;
+- language detection and translation capability;
+- known gaps and access restrictions.
+
+Coverage percentages must use explicit denominators and show UNKNOWN separately. A region is not “covered” merely because one global publisher mentions it. The target is breadth with traceability, not a misleading claim of total coverage.
