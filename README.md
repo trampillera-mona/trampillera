@@ -79,6 +79,10 @@ Third-party dependencies and assets may have their own license terms. Those term
 - [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) — expectations for respectful project participation.
 - [SECURITY.md](./SECURITY.md) — private vulnerability reporting and responsible disclosure.
 
+## Community distribution
+
+The public community guide is available at [trampillera.com/community](https://trampillera.com/community/). It explains the open distribution model, independent forks, attribution, brand boundaries, and contribution routes.
+
 ## Verification
 
 Run `sh scripts/check.sh` for JavaScript syntax validation. After deployment, verify `/api/health`, `/`, `/control/`, and a successful Control Plane sign-in. A healthy container alone does not prove every external integration is configured.
