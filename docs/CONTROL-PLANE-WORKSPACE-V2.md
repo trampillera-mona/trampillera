@@ -41,3 +41,15 @@ The authenticated Control Plane is an API-backed administration workspace for th
 6. Verify that management actions appear in Activity Log.
 7. Confirm the public platform route `/` remains available.
 8. Review Render deploy logs and the exact deployed commit SHA.
+
+
+## Control Plane v2.1 — Operational Intelligence & Recovery
+
+The authenticated diagnostics endpoint `GET /api/control/diagnostics` reports only process-local and database-query evidence:
+- Node.js runtime version, environment, process uptime and process start timestamp.
+- A live `SELECT 1` database probe, measured query latency and database server timestamp.
+- PostgreSQL client pool counters (total, idle and waiting).
+- Render commit metadata when `RENDER_GIT_COMMIT` is present; otherwise the commit is `UNKNOWN`.
+- Database backup state remains `UNKNOWN`; the application does not inspect Render backup artifacts or perform restore tests.
+
+The Overview and Diagnostics pages display this evidence. Runbook distinguishes source-code recovery, database backup and manual deployment rollback. Sidebar expanded/collapsed state is stored as a browser preference only. No database schema or records are changed by these additions.
