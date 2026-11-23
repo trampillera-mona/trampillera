@@ -26,6 +26,7 @@ jobs:
         run: |
           npm --prefix app run check
           node scripts/verify-preservation.mjs
+          node --input-type=module -e 'import {readFileSync} from "node:fs"; const html=readFileSync("app/public/control/index.html","utf8"); const start=html.indexOf("<script>"); const end=html.indexOf("</script>",start+8); if(start<0||end<0) throw new Error("Control Plane script missing"); new Function(html.slice(start+8,end)); console.log("Control Plane browser JavaScript syntax passed.")'
 
       - name: Validate Compose configuration
         run: |
@@ -51,6 +52,17 @@ jobs:
           curl --fail --silent http://127.0.0.1:3000/api/platform/status
           curl --fail --silent -c /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"password":"ci-temporary-admin-password-123"}' http://127.0.0.1:3000/api/auth/login
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/overview
+          curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/operations/domains > /tmp/domains.json
+          curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/operations/summary > /tmp/ops-summary.json
+          record=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"domain":"tasks","title":"CI operational record","status":"OPEN","payload":{"owner":"CI"}}' http://127.0.0.1:3000/api/control/operations/records)
+          record_id=$(printf '%s' "$record" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(JSON.parse(s).item.id)))')
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -X PATCH -H 'Content-Type: application/json' -d '{"expectedVersion":1,"status":"IN_PROGRESS"}' "http://127.0.0.1:3000/api/control/operations/records/$record_id" > /tmp/ops-update.json
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -X PATCH -H 'Content-Type: application/json' -d '{"expectedVersion":2,"title":"CI updated record","payload":{"owner":"CI edited"}}' "http://127.0.0.1:3000/api/control/operations/records/$record_id" > /tmp/ops-edit.json
+          stale_version=$(curl --silent -o /tmp/ops-stale.json -w '%{http_code}' -b /tmp/trampillera-cookies.txt -X PATCH -H 'Content-Type: application/json' -d '{"expectedVersion":1,"status":"IN_PROGRESS"}' "http://127.0.0.1:3000/api/control/operations/records/$record_id")
+          test "$stale_version" = "409"
+          invalid_status=$(curl --silent -o /tmp/ops-invalid.json -w '%{http_code}' -b /tmp/trampillera-cookies.txt -X PATCH -H 'Content-Type: application/json' -d '{"expectedVersion":3,"status":"CANCELLED"}' "http://127.0.0.1:3000/api/control/operations/records/$record_id")
+          test "$invalid_status" = "409"
+          curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/audit | grep -q OPERATIONAL_RECORD_UPDATED
 
       - name: Stop test stack
         if: always()
