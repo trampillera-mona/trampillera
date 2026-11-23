@@ -73,6 +73,12 @@ This repository currently contains one deployable application; it does not yet d
 
 Third-party dependencies and assets may have their own license terms. Those terms remain applicable and are not replaced by this repository's MIT License.
 
+## Community and responsible disclosure
+
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — contribution workflow, attribution, forks, and commercial redistribution.
+- [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) — expectations for respectful project participation.
+- [SECURITY.md](./SECURITY.md) — private vulnerability reporting and responsible disclosure.
+
 ## Verification
 
 Run `sh scripts/check.sh` for JavaScript syntax validation. After deployment, verify `/api/health`, `/`, `/control/`, and a successful Control Plane sign-in. A healthy container alone does not prove every external integration is configured.
