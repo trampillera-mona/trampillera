@@ -43,27 +43,7 @@ const TRANSITIONS = {
   ip:{DRAFT:["IN_REVIEW","ARCHIVED"],IN_REVIEW:["DRAFT","APPROVED"],APPROVED:["LICENSED","ARCHIVED"],LICENSED:["ARCHIVED"],ARCHIVED:[]},
   governance:{OPEN:["IN_REVIEW"],IN_REVIEW:["MITIGATED","ACCEPTED","CLOSED"],MITIGATED:["IN_REVIEW","CLOSED"],ACCEPTED:["CLOSED"],CLOSED:[]}
 };
-const TRANSITIONS = {
-analytics:{PLANNED:["READY","FAILED"],READY:["RUNNING","PAUSED"],RUNNING:["PAUSED","FAILED"],PAUSED:["RUNNING","FAILED"],FAILED:["PLANNED"]},
-connectors:{DISCOVERED:["CONFIGURED","DISABLED"],CONFIGURED:["CONNECTED","DISABLED"],CONNECTED:["DEGRADED","DISABLED"],DEGRADED:["CONNECTED","DISABLED"],DISABLED:["CONFIGURED"]},
-ai:{DISCOVERED:["CONFIGURED","DISABLED"],CONFIGURED:["AVAILABLE","DEGRADED","DISABLED"],AVAILABLE:["DEGRADED","DISABLED"],DEGRADED:["AVAILABLE","DISABLED"],DISABLED:["CONFIGURED"]},
-property:{DRAFT:["IN_REVIEW","ARCHIVED"],IN_REVIEW:["DRAFT","VERIFIED"],VERIFIED:["IN_REVIEW","PUBLISHED"],PUBLISHED:["ARCHIVED"],ARCHIVED:[]},
-auctions:{DRAFT:["SCHEDULED","CANCELLED"],SCHEDULED:["OPEN","CANCELLED"],OPEN:["CLOSED","CANCELLED"],CLOSED:[],CANCELLED:[]},
-commerce:{DRAFT:["ACTIVE","CANCELLED"],ACTIVE:["PAUSED","FULFILMENT"],PAUSED:["ACTIVE","CANCELLED"],FULFILMENT:["COMPLETED","CANCELLED"],COMPLETED:[],CANCELLED:[]},
-adtech:{DRAFT:["SCHEDULED"],SCHEDULED:["RUNNING","PAUSED"],RUNNING:["PAUSED","COMPLETED"],PAUSED:["RUNNING","COMPLETED"],COMPLETED:[]},
-communications:{DRAFT:["ACTIVE","ARCHIVED"],ACTIVE:["MODERATED","ARCHIVED"],MODERATED:["ACTIVE","ARCHIVED"],ARCHIVED:[]},
-support:{OPEN:["IN_PROGRESS","CLOSED"],IN_PROGRESS:["WAITING","RESOLVED"],WAITING:["IN_PROGRESS","RESOLVED"],RESOLVED:["CLOSED","IN_PROGRESS"],CLOSED:[]},
-media:{IDEA:["PLANNED"],PLANNED:["IN_PRODUCTION"],IN_PRODUCTION:["REVIEW"],REVIEW:["IN_PRODUCTION","PUBLISHED"],PUBLISHED:["ARCHIVED"],ARCHIVED:[]},
-worlds:{DRAFT:["BUILDING"],BUILDING:["TESTING"],TESTING:["BUILDING","PUBLISHED"],PUBLISHED:["PAUSED"],PAUSED:["BUILDING"]},
-engineering:{IDEA:["SPECIFICATION"],SPECIFICATION:["IN_PROGRESS"],IN_PROGRESS:["BLOCKED","TESTING"],BLOCKED:["IN_PROGRESS"],TESTING:["IN_PROGRESS","VERIFIED"],VERIFIED:[]},
-infrastructure:{PLANNED:["PROVISIONING"],PROVISIONING:["AVAILABLE","DEGRADED"],AVAILABLE:["DEGRADED","MAINTENANCE","RETIRED"],DEGRADED:["AVAILABLE","MAINTENANCE"],MAINTENANCE:["AVAILABLE","RETIRED"],RETIRED:[]},
-people:{INVITED:["ACTIVE","DISABLED"],ACTIVE:["ON_LEAVE","DISABLED"],ON_LEAVE:["ACTIVE","DISABLED"],DISABLED:[]},
-tasks:{OPEN:["IN_PROGRESS","BLOCKED","CANCELLED"],IN_PROGRESS:["BLOCKED","REVIEW","DONE"],BLOCKED:["IN_PROGRESS","CANCELLED"],REVIEW:["IN_PROGRESS","DONE"],DONE:[],CANCELLED:[]},
-treasury:{DRAFT:["SUBMITTED"],SUBMITTED:["APPROVED","REJECTED"],APPROVED:[],REJECTED:["DRAFT"]},
-payroll:{DRAFT:["SUBMITTED"],SUBMITTED:["APPROVED","REJECTED"],APPROVED:[],REJECTED:["DRAFT"]},
-ip:{DRAFT:["IN_REVIEW","ARCHIVED"],IN_REVIEW:["DRAFT","APPROVED"],APPROVED:["LICENSED","ARCHIVED"],LICENSED:["ARCHIVED"],ARCHIVED:[]},
-governance:{OPEN:["IN_REVIEW"],IN_REVIEW:["MITIGATED","ACCEPTED","CLOSED"],MITIGATED:["IN_REVIEW","CLOSED"],ACCEPTED:["CLOSED"],CLOSED:[]}
-};
+
 const cleanText=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
 const validDomain=(d)=>Object.hasOwn(OPERATIONAL_DOMAINS,d);
 const safePayload=(v)=>v&&typeof v==="object"&&!Array.isArray(v)?v:{};
@@ -116,7 +96,7 @@ export function createOperationsRouter({pool}){
     if(status!==definition.statuses[0])return res.status(400).json({error:"New records must start in the first lifecycle state: "+definition.statuses[0]});
     if(JSON.stringify(payload).length>12000)return res.status(400).json({error:"Record payload is too large."});
     if(["treasury","payroll"].includes(domain)&&payload.amount!==undefined&&(!Number.isFinite(Number(payload.amount))||Number(payload.amount)<0))return res.status(400).json({error:"Financial amount must be a non-negative number."});
-    if(["treasury","payroll"].includes(domain)&&payload.amount!==undefined&&(!Number.isFinite(Number(payload.amount))||Number(payload.amount)<0))return res.status(400).json({error:"Financial amount must be a non-negative number."});
+
     const key=randomUUID(),client=await pool.connect();
     try{
       await client.query("BEGIN");
@@ -133,13 +113,13 @@ export function createOperationsRouter({pool}){
     const title=req.body?.title===undefined?undefined:cleanText(req.body.title,180),status=req.body?.status===undefined?undefined:cleanText(req.body.status,40),patch=req.body?.payload===undefined?undefined:safePayload(req.body.payload);
     if(title!==undefined&&!title)return res.status(400).json({error:"Title cannot be empty."});
     if(patch!==undefined&&JSON.stringify(patch).length>12000)return res.status(400).json({error:"Record payload is too large."});
-    if(patch!==undefined&&["treasury","payroll"].includes(req.body?.domain)&&patch.amount!==undefined&&(!Number.isFinite(Number(patch.amount))||Number(patch.amount)<0))return res.status(400).json({error:"Financial amount must be a non-negative number."});
     const client=await pool.connect();
     try{
       await client.query("BEGIN");
       const current=await client.query("SELECT * FROM control_records WHERE id=$1 FOR UPDATE",[id]);
       if(!current.rowCount){await client.query("ROLLBACK");return res.status(404).json({error:"Record not found."})}
       const row=current.rows[0];
+      if(patch!==undefined&&["treasury","payroll"].includes(row.domain)&&patch.amount!==undefined&&(!Number.isFinite(Number(patch.amount))||Number(patch.amount)<0)){await client.query("ROLLBACK");return res.status(400).json({error:"Financial amount must be a non-negative number."})}
       if(patch!==undefined&&["treasury","payroll"].includes(row.domain)&&patch.amount!==undefined&&(!Number.isFinite(Number(patch.amount))||Number(patch.amount)<0)){await client.query("ROLLBACK");return res.status(400).json({error:"Financial amount must be a non-negative number."})}
       if(row.version!==expectedVersion){await client.query("ROLLBACK");return res.status(409).json({error:"Record changed since it was loaded. Refresh and retry.",currentVersion:row.version})}
       const definition=OPERATIONAL_DOMAINS[row.domain];
