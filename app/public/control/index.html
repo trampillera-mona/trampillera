@@ -144,10 +144,13 @@ return pageHead('Platform overview','Live registry counts and operational signal
 '<section class="panel"><div class="panel-head"><h3>Runtime & recovery signals</h3>'+button('Open diagnostics','page:Diagnostics','secondary')+'</div><div class="grid3"><div class="mini"><small>DATABASE PROBE</small><b>'+(state.diagnostics&&state.diagnostics.database?esc(state.diagnostics.database.status):'UNKNOWN')+'</b><p>'+(state.diagnostics&&state.diagnostics.database?esc(String(state.diagnostics.database.latencyMs)+' ms query latency'):'No diagnostic evidence')+'</p></div><div class="mini"><small>DEPLOYED COMMIT</small><b class="code">'+(state.diagnostics&&state.diagnostics.deployment&&state.diagnostics.deployment.commit?esc(state.diagnostics.deployment.commit.slice(0,12)):'UNKNOWN')+'</b><p>Render runtime metadata only</p></div><div class="mini"><small>DATABASE BACKUP</small><b>UNKNOWN</b><p>Backup and restore are not verified by this service.</p></div></div></section><section class="panel"><div class="panel-head"><h3>Recent audit events</h3>'+button('Open activity log','page:Activity Log','secondary')+'</div>'+(recent.length?'<div class="list">'+recent.map(function(x){return record('≋',x.action,(x.entity_type||'')+' · '+(x.entity_key||'')+' · '+(x.created_at||''),x.details,'', '')}).join('')+'</div>':empty('No audit events returned.'))+'</section>';
 }
 function renderModules(){
-var list=state.modules.map(function(m){var next=transitions[m.status];var act=next?button('Transition → '+next,'module:'+m.key):'';return record('▦',m.name,m.key+' · v'+m.version,m.description,m.status,act)}).join('');
-return pageHead('Module lifecycle registry','Create registry entries and review lifecycle states. A transition writes a lifecycle event to the server audit log.',button('＋ Register module','show:module-form'))+
+var counts={DISCOVERED:0,INSTALLED:0,CONFIGURED:0,DISABLED:0,OTHER:0};
+state.modules.forEach(function(m){if(Object.prototype.hasOwnProperty.call(counts,m.status))counts[m.status]++;else counts.OTHER++});
+var list=state.modules.map(function(m){var next=transitions[m.status];var act=next?button('Transition → '+next,'module:'+m.key):'';return record('▦',m.name,m.key+' · v'+m.version+' · registry lifecycle: '+m.status,m.description+' Runtime deployment and health are not inferred from this registry record.','',act)}).join('');
+return pageHead('Module lifecycle registry','Server-backed inventory of registered module records. Lifecycle and runtime health are separate dimensions.',button('＋ Register module','show:module-form'))+
+'<div class="stats">'+stat('REGISTERED',state.modules.length,'PostgreSQL records')+stat('DISCOVERED',counts.DISCOVERED,'Registry state')+stat('INSTALLED',counts.INSTALLED,'Registry state only')+stat('CONFIGURED',counts.CONFIGURED,'Registry state only')+'</div>'+
 '<div id="form-slot"></div><div class="list">'+(list||empty('No modules are registered.'))+'</div>'+
-'<div class="notice warn"><strong>Lifecycle note:</strong> the current API advances through DISCOVERED → INSTALLED → CONFIGURED → DISABLED → INSTALLED. These are registry lifecycle labels; they do not prove that module code is deployed, enabled, or healthy.</div>';
+'<div class="notice warn"><strong>Important:</strong> DISCOVERED, INSTALLED, CONFIGURED and DISABLED are registry lifecycle labels. None of them proves that module code is deployed, enabled, reachable, or healthy. Runtime health requires a separate probe and timestamped evidence.</div>';
 }
 function renderConnectors(){
 var list=state.connectors.map(function(c){var act=button('Validate configuration','connector:'+c.key,'secondary');return record('⇄',c.name,c.provider+' · '+c.key,c.endpoint||'No endpoint configured',c.status,act)}).join('');
@@ -169,16 +172,41 @@ return pageHead('Audit & activity log','Latest persisted events returned by the 
 '<div class="notice warn"><strong>Audit integrity status:</strong> this is a persisted event view, not proof of append-only storage, tamper resistance, or atomic coupling between state changes and audit inserts.</div>';
 }
 async function renderDiagnostics(){
-var checks=await Promise.allSettled([publicRequest('/api/health'),publicRequest('/ready'),request('/settings'),request('/diagnostics')]);
-function check(name,result,detail){var ok=result.status==='fulfilled';var value=ok?(result.value.status||result.value.ready?'PASS':'RESPONDED'):'UNKNOWN';var msg=ok?detail(result.value):result.reason.message;return '<div class="record"><div class="record-icon">⌁</div><div class="record-info"><b>'+name+'</b><small>'+esc(msg)+'</small></div>'+tag(ok?value:'UNKNOWN')+'</div>'}
-var health=checks[0],ready=checks[1],settings=checks[2],diag=checks[3];
-var parts=check('Application + database health',health,function(v){return 'GET /api/health · '+(v.database||'database status unavailable')+' · '+(v.timestamp||'')})+
-check('Readiness endpoint',ready,function(v){return 'GET /ready · ready='+String(v.ready)})+
-check('Control Plane settings API',settings,function(v){return 'GET /api/control/settings · '+v.database+' · '+v.environment})+
- check('Runtime diagnostics API',diag,function(v){return 'GET /api/control/diagnostics · runtime '+v.runtime.nodeVersion+' · DB probe '+v.database.latencyMs+' ms'});
-return pageHead('Diagnostics & verification','Read-only checks against the running service. A PASS means only that the specific endpoint responded as described.',button('↻ Run checks','refresh'))+
-'<div class="list">'+parts+'</div><section class="panel"><h3>Live registry snapshot</h3><div class="stats" style="margin-top:12px">'+stat('MODULES',state.overview.modules,'API count')+stat('CONNECTORS',state.overview.connectors,'API count')+stat('MODEL PROVIDERS',state.overview.models,'API count')+stat('AUDIT EVENTS',state.overview.auditEvents,'API count')+'</div></section>'+
-'<section class="panel"><h3>Runtime evidence</h3><div class="grid3" style="margin-top:12px"><div class="mini"><small>PROCESS UPTIME</small><b>'+(state.diagnostics?esc(String(state.diagnostics.runtime.uptimeSeconds)+' s'):'UNKNOWN')+'</b><p>Since current process start</p></div><div class="mini"><small>DB CONNECTION POOL</small><b>'+(state.diagnostics?esc(String(state.diagnostics.connectionPool.total)+' total / '+String(state.diagnostics.connectionPool.idle)+' idle'):'UNKNOWN')+'</b><p>'+(state.diagnostics?esc(String(state.diagnostics.connectionPool.waiting)+' waiting'):'No pool telemetry')+'</p></div><div class="mini"><small>DEPLOYED COMMIT</small><b class="code">'+(state.diagnostics&&state.diagnostics.deployment.commit?esc(state.diagnostics.deployment.commit):'UNKNOWN')+'</b><p>Commit supplied by Render runtime environment</p></div></div><div class="notice warn" style="margin-top:12px"><strong>Backup status: UNKNOWN.</strong> This endpoint does not inspect Render backups and does not perform a restore test.</div></section><div class="notice warn"><strong>Not tested here:</strong> external connector reachability, AI inference, deployment rollback, PostgreSQL backup/restore, schema constraints, audit immutability, and full end-to-end runtime tests.</div>';
+var checkedAt=new Date().toISOString();
+var checks=await Promise.allSettled([
+publicRequest('/api/health'),
+publicRequest('/ready'),
+publicRequest('/api/auth/me'),
+publicRequest('/api/auth/diagnostics'),
+request('/settings'),
+request('/diagnostics')
+]);
+function check(name,result,detail,success){
+var ok=result.status==='fulfilled';
+var value=ok?result.value:null;
+var passed=ok&&(success?success(value):true);
+var status=!ok?'UNKNOWN':(passed?'PASS':'RESPONDED');
+var msg=ok?detail(value):result.reason.message;
+return '<div class="record"><div class="record-icon">⌁</div><div class="record-info"><b>'+esc(name)+'</b><small>'+esc(msg)+'</small></div>'+tag(status)+'</div>';
+}
+var health=checks[0],ready=checks[1],auth=checks[2],authDiag=checks[3],settings=checks[4],diag=checks[5];
+var parts=
+check('Application + database health',health,function(v){return 'GET /api/health · '+(v.database||'database status unavailable')+' · '+(v.timestamp||'')},function(v){return v.status==='ok'&&v.database==='connected'})+
+check('Readiness endpoint',ready,function(v){return 'GET /ready · ready='+String(v.ready)},function(v){return v.ready===true})+
+check('Administrator session',auth,function(v){return 'GET /api/auth/me · authenticated='+String(v.authenticated)},function(v){return v.authenticated===true})+
+check('Session cookie diagnostics',authDiag,function(v){return 'Cookie received='+String(!!(v.session&&v.session.cookieReceived))+' · authenticated='+String(!!(v.session&&v.session.authenticated))+' · Secure='+String(!!(v.configuration&&v.configuration.cookieSecure))+' · proxy='+((v.configuration&&v.configuration.trustProxy)||'UNKNOWN')},function(v){return !!(v.session&&v.session.authenticated)})+
+check('Control Plane settings API',settings,function(v){return 'GET /api/control/settings · database='+v.database+' · environment='+v.environment})+
+check('Runtime diagnostics API',diag,function(v){return 'GET /api/control/diagnostics · runtime '+(v.runtime&&v.runtime.nodeVersion||'UNKNOWN')+' · DB probe '+(v.database&&v.database.latencyMs!=null?v.database.latencyMs+' ms':'UNKNOWN')},function(v){return !!(v.runtime&&v.database&&v.database.status==='PASS')});
+var moduleRows=state.modules.map(function(m){return record('▦',m.name,m.key+' · v'+m.version+' · registry lifecycle: '+m.status,'Registry entry only. No module runtime health probe is currently attached.','')}).join('');
+var d=state.diagnostics||{};
+return pageHead('System Health & Recovery Desk','Read-only operational evidence from the running service. Each PASS applies only to the explicitly named check.',button('↻ Run checks','refresh'))+
+'<div class="notice warn"><strong>Evidence boundary:</strong> endpoint response is not full platform verification. External connectors, AI inference, media streams, backup restoration and module-specific health are not tested by these checks.</div>'+
+'<div class="toolbar"><span class="tag">CHECKED '+esc(checkedAt)+'</span><span class="tag">READ-ONLY</span></div>'+
+'<div class="list">'+parts+'</div>'+
+'<section class="panel"><h3>Module registry snapshot</h3><p class="muted">These are persisted registry records, not live runtime health results.</p><div class="stats" style="margin-top:12px">'+stat('REGISTERED MODULES',state.overview.modules,'PostgreSQL count')+stat('CONNECTORS',state.overview.connectors,'Registry count')+stat('MODEL PROVIDERS',state.overview.models,'Registry count')+stat('AUDIT EVENTS',state.overview.auditEvents,'Persisted event count')+'</div><div class="list" style="margin-top:12px">'+(moduleRows||empty('No module registry records returned.'))+'</div></section>'+
+'<section class="panel"><h3>Runtime evidence</h3><div class="grid3" style="margin-top:12px"><div class="mini"><small>PROCESS UPTIME</small><b>'+(d.runtime?esc(String(d.runtime.uptimeSeconds)+' s'):'UNKNOWN')+'</b><p>Since current process start</p></div><div class="mini"><small>DB CONNECTION POOL</small><b>'+(d.connectionPool?esc(String(d.connectionPool.total)+' total / '+String(d.connectionPool.idle)+' idle'):'UNKNOWN')+'</b><p>'+(d.connectionPool?esc(String(d.connectionPool.waiting)+' waiting'):'No pool telemetry')+'</p></div><div class="mini"><small>DEPLOYED COMMIT</small><b class="code">'+(d.deployment&&d.deployment.commit?esc(d.deployment.commit):'UNKNOWN')+'</b><p>Commit supplied by Render runtime environment</p></div></div><div class="notice warn" style="margin-top:12px"><strong>Backup status: UNKNOWN.</strong> The application does not inspect Render backup inventory and no successful restore test is recorded here.</div></section>'+
+'<section class="panel"><h3>Recovery verification checklist</h3><div class="list">'+record('◇','Backup inventory','NOT VERIFIED','Identify the actual backup source, retention, timestamp and ownership.','UNKNOWN')+record('◇','Restore test','NOT VERIFIED','Restore into an isolated target and verify schema, row counts and application access.','UNKNOWN')+record('◇','Rollback target','NOT VERIFIED','Record a known-good commit and deployment rollback procedure.','UNKNOWN')+'</div></section>'+
+'<div class="notice warn"><strong>Not tested:</strong> external connector reachability, AI inference, radio/video playback, deployment rollback, PostgreSQL backup/restore, schema constraints, audit immutability, or full end-to-end runtime tests.</div>';
 }
 function renderSettings(){
 var s=state.settings||{};

@@ -143,3 +143,18 @@ The current architecture is a **modular monolith in deployment**, but the public
 ## 11. Review boundary
 
 This inventory reflects source inspection of the listed repository paths on 2026-11-23. It does not prove that Render is currently healthy, that the custom domain resolves, that external media streams are reachable, that third-party credentials are configured, or that backups are restorable. Those require separate runtime checks and evidence.
+
+
+## 12. Implementation delta — System Health & Recovery Desk v0.1
+
+The feature branch `feature/system-health-module-registry-v0.1` adds a read-only Control Plane Diagnostics experience with:
+- Application/database health endpoint check.
+- Database readiness endpoint check.
+- Current administrator session check through `/api/auth/me`.
+- Safe cookie/session configuration check through `/api/auth/diagnostics`; cookie contents and secrets are never displayed.
+- Existing Control Plane settings and runtime diagnostics checks.
+- Timestamp for each diagnostic run.
+- Live display of persisted module registry records with an explicit warning that registry lifecycle is not runtime health.
+- Recovery checklist entries for backup inventory, restore test, and rollback target, all remaining `UNKNOWN` until evidence is recorded.
+
+This is a **PARTIAL** operational desk, not a full observability or recovery system. It does not inspect Render backup inventory, execute restore operations, probe external connectors, run AI inference, test radio/video streams, or perform deployment rollback. No database schema or server API changes are introduced by this feature branch.
