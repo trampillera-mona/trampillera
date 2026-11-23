@@ -1,0 +1,94 @@
+name: Community Registry submission
+description: Submit an independent deployment, fork, integration, extension, research project or community service for review.
+title: "[Registry] "
+labels:
+  - community-registry
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for contributing to the TRAMPILLERA Community Registry. Submissions are reviewed before publication. A listing is not an endorsement, certification or security audit. Do not include passwords, API keys, personal customer data or confidential information.
+  - type: input
+    id: project_name
+    attributes:
+      label: Project name
+      placeholder: Independent project name
+    validations:
+      required: true
+  - type: input
+    id: project_url
+    attributes:
+      label: Public project URL
+      description: Website, public repository or public demonstration.
+      placeholder: https://
+    validations:
+      required: true
+  - type: input
+    id: source_url
+    attributes:
+      label: Source repository URL
+      description: If different from the project URL. Enter "Not public" if the source is unavailable.
+      placeholder: https://github.com/...
+    validations:
+      required: false
+  - type: dropdown
+    id: category
+    attributes:
+      label: Listing category
+      options:
+        - Independent deployment
+        - Fork or derivative
+        - Integration or connector
+        - Extension, plugin or theme
+        - Research or experiment
+        - Community service
+        - Compatible project
+    validations:
+      required: true
+  - type: input
+    id: maintainer
+    attributes:
+      label: Maintainer or organization
+      description: Public name of the responsible maintainer or organization.
+    validations:
+      required: true
+  - type: textarea
+    id: relationship
+    attributes:
+      label: Relationship to TRAMPILLERA
+      description: Explain what code, interfaces or concepts are used. State clearly whether this is an independent fork, integration or compatible project.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: license
+    attributes:
+      label: Project license
+      description: Include version or a link to the license where possible.
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Short description
+      description: What does the project do, who is it for and what is its current status?
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification notes
+      description: What has actually been tested or verified? Mention known limitations. Do not claim certification without evidence.
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I am authorized to submit this project and the links are intended for public display.
+          required: true
+        - label: This project is independently maintained unless explicitly stated otherwise.
+          required: true
+        - label: I understand that a registry listing is not an endorsement, certification or security audit.
+          required: true
