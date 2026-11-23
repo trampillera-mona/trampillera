@@ -11,6 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const NODE_ENV = process.env.NODE_ENV || "development";
+const APP_STARTED_AT = new Date();
 const DATABASE_URL = process.env.DATABASE_URL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const SESSION_SECRET = process.env.SESSION_SECRET;
@@ -255,6 +256,37 @@ app.get("/api/control/settings", (_req,res) => res.json({
   aiProvider:process.env.OPENAI_API_KEY?"configured":"not_configured",
   realtime:"HTTP API (WebSocket integration not enabled in this release)"
 }));
+app.get("/api/control/diagnostics", asyncRoute(async (_req,res) => {
+  const started = Date.now();
+  const result = await pool.query("SELECT 1 AS ok, NOW() AS database_time");
+  const latencyMs = Date.now() - started;
+  const commit = process.env.RENDER_GIT_COMMIT || null;
+  res.json({
+    runtime: {
+      status: "PASS",
+      nodeVersion: process.version,
+      environment: NODE_ENV,
+      uptimeSeconds: Math.floor(process.uptime()),
+      startedAt: APP_STARTED_AT.toISOString()
+    },
+    database: {
+      status: result.rows[0]?.ok === 1 ? "PASS" : "UNKNOWN",
+      latencyMs,
+      serverTime: result.rows[0]?.database_time || null
+    },
+    connectionPool: {
+      total: pool.totalCount,
+      idle: pool.idleCount,
+      waiting: pool.waitingCount
+    },
+    deployment: {
+      commit: commit && /^[0-9a-f]{7,40}$/i.test(commit) ? commit : null,
+      source: commit ? "RENDER_GIT_COMMIT" : "UNKNOWN"
+    },
+    backup: { status: "UNKNOWN", evidence: "No backup or restore verification is available to this application." }
+  });
+}));
+
 app.post("/api/control/ai/chat", asyncRoute(async (req,res) => {
   const message=clean(req.body?.message,4000);
   if(!message) return res.status(400).json({error:"Message is required."});
