@@ -59,6 +59,8 @@ assert.ok(server.includes("ORDER BY created_at DESC,id DESC LIMIT 200"),"mission
 assert.ok(cityTeam.includes("setInterval") && cityTeam.includes("clearInterval"),"active mission discussions must refresh and stop polling on logout");
 console.log("Mission discussion recency and refresh checks passed.");
 assert.ok(server.includes("Request origin could not be verified."),"state-changing API requests without Origin or Referer must be rejected");
+assert.ok(server.includes('status:"available"') && server.includes('scope:"application_and_postgresql_registry"'),"platform status must state its verified scope");
+assert.ok(server.includes('externalIntegrations:"UNKNOWN"') && server.includes('providerConnectivity:"UNKNOWN"'),"unprobed integrations must remain UNKNOWN");
 assert.ok(server.includes('clean(process.env.AI_PROVIDER,32).toLowerCase() || "qwen"'),"Qwen must be the default AI provider");
 assert.ok(server.includes("process.env.QWEN_API_KEY") && server.includes("process.env.QWEN_API_URL"),"Qwen credentials and endpoint must be read only by the server");
 assert.ok(server.includes("AbortSignal.timeout(30_000)"),"AI provider calls must have a bounded timeout");
