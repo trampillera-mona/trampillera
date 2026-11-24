@@ -17,15 +17,18 @@ A single deployable application that serves the full TRAMPILLERA platform interf
 
 ## ITY CITY integrated environment
 
-The ITY CITY entry route is a lightweight module launcher. It keeps three independently runnable interfaces available inside one employee-facing shell:
+The ITY CITY entry route is a module launcher for four employee-facing experiences:
 
-- `/city/workspace/` — the previous employee workspace prototype, preserved from the first release.
-- `/city/campus/` — the Corporate Campus spatial/organizational environment.
-- `/city/multiverse/` — the Corporate Multiverse environment with missions, progression and learning surfaces.
+- `/city/workspace/` — personal workspace prototype and visual layout builder.
+- `/city/campus/` — Corporate Campus spatial/organizational environment.
+- `/city/multiverse/` — Corporate Multiverse, learning and world exploration.
+- `/city/team/` — server-backed employee accounts, team missions, shared mission discussions, submissions and verified XP.
 
-The two supplied Corporate Campus and Corporate Multiverse source snapshots are retained under `app/public/city/source/`. The deployed module copies use isolated IndexedDB database names and namespaced localStorage keys so the two applications do not overwrite each other's browser data. The launcher uses an iframe boundary to keep their CSS and JavaScript globals separate.
+The two supplied Corporate Campus and Corporate Multiverse source snapshots are retained under `app/public/city/source/`. Their launchable copies use isolated IndexedDB database names and namespaced localStorage keys. The launcher uses same-origin iframe isolation for the full-page source applications.
 
-This is an integrated frontend prototype, not yet a production employee platform. Employee identity, HR records, server-side mission registry, shared progression, verified XP awards, multi-user synchronization, live messaging, and live engine integrations are not implemented. Each source module continues to own its local demo state. Demo activity is not employee performance data.
+Team identity and mission state are stored in PostgreSQL. Administrators manage employee accounts, publish missions, review submissions and verify XP at `/control/team/`, linked from the existing Control Plane. Employee passwords use salted scrypt hashes and employees must replace one-time temporary passwords on first sign-in. XP is awarded only when an administrator verifies a submitted result.
+
+This is a functional first collaboration loop, not a complete HR or project-management platform. Email invitations, attachments, WebSocket presence, multi-level approvals, configurable fine-grained permissions, external evidence integrations and server-synchronized personal workspace layouts are not included. Mission notes are self-reported and administrator-reviewed. XP is a learning and collaboration mechanic, not an employee performance or compensation metric.
 
 ## Architecture
 
