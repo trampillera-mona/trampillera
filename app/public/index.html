@@ -1951,6 +1951,7 @@ function toggleAmbientRadio(channel = null) {
 function selectGlobalLanguage(code) {
   const upper = String(code || 'EN').toUpperCase();
   UNIFIED_STATE.lang = LANGUAGES.some(l => l.code === upper) ? upper : 'EN';
+  try { localStorage.setItem('trampillera.locale.v1', UNIFIED_STATE.lang); } catch (_) {}
   playTactileSound('snap');
 
   const sel = document.getElementById('global-lang');
@@ -3635,7 +3636,7 @@ const MischiefNavigator = {
     body.innerHTML += `<div class="nav-bubble ai">${esc(reply)}</div>`;
     body.scrollTop = body.scrollHeight;
     if (this.speakOn && 'speechSynthesis' in window) {
-      try { const u = new SpeechSynthesisUtterance(reply); u.lang = UNIFIED_STATE.lang === 'RU' ? 'ru-RU' : 'en-US'; speechSynthesis.speak(u); } catch (e) {}
+      try { const u = new SpeechSynthesisUtterance(reply); u.lang = (window.TrampilleraLocale && window.TrampilleraLocale.locale()) || (UNIFIED_STATE.lang === 'RU' ? 'ru-RU' : 'en-US'); speechSynthesis.speak(u); } catch (e) {}
     }
   },
   initDrag() {
@@ -3848,7 +3849,7 @@ const JarvisOrchestrator = (() => {
     if (state.muted || !('speechSynthesis' in window)) return;
     try {
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'en-US'; u.rate = 1.05;
+      u.lang = (window.TrampilleraLocale && window.TrampilleraLocale.locale()) || 'en-US'; u.rate = 1.05;
       speechSynthesis.cancel(); speechSynthesis.speak(u);
     } catch (e) {}
   }
@@ -3858,7 +3859,8 @@ const JarvisOrchestrator = (() => {
   if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SR();
-    recognition.lang = 'en-US'; recognition.interimResults = false; recognition.continuous = false;
+    recognition.lang = (window.TrampilleraLocale && window.TrampilleraLocale.locale()) || 'en-US'; recognition.interimResults = false; recognition.continuous = false;
+    window.addEventListener('trampillera:locale-change', e => { if (e.detail && e.detail.locale) recognition.lang = e.detail.locale; });
     recognition.onresult = e => {
       const text = e.results[0][0].transcript;
       handleVoiceCommand(text);
@@ -4507,9 +4509,11 @@ document.addEventListener('DOMContentLoaded', () => {
   safeStartup('FUI windows', () => renderAllFUIWindows());
   safeStartup('Main animation loop', () => startMainLoop());
 
-  // Default: English + Cinematic Intro as start page
-  UNIFIED_STATE.lang = 'EN';
-  if (typeof selectGlobalLanguage === 'function') selectGlobalLanguage('EN');
+  // Restore the shared locale; use the browser language only on first visit.
+  let savedLocale = 'EN';
+  try { savedLocale = localStorage.getItem('trampillera.locale.v1') || (window.TrampilleraLocale ? window.TrampilleraLocale.codeForBrowser() : 'EN'); } catch (_) {}
+  UNIFIED_STATE.lang = LANGUAGES.some(l => l.code === String(savedLocale).toUpperCase()) ? String(savedLocale).toUpperCase() : 'EN';
+  if (typeof selectGlobalLanguage === 'function') selectGlobalLanguage(UNIFIED_STATE.lang);
   RealmRouter.switchRealm('intro');
   try { if (typeof FUIWorkspace !== 'undefined') FUIWorkspace.load(true); } catch(e){}
 
@@ -4624,7 +4628,8 @@ const SnapshotStore = (() => {
 
 const SpeechBridge = (() => {
   let recog=null, listening=false;
-  function init(){ const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR) return; recog=new SR(); recog.continuous=false; recog.interimResults=true; recog.lang='en-US'; recog.onresult=e=>{ let final='',interim=''; for(let i=e.resultIndex;i<e.results.length;i++){ const t=e.results[i][0].transcript; if(e.results[i].isFinal) final+=t; else interim+=t; } const text=(final||interim).trim(); if(text){ const input=document.getElementById('nav-input'); if(input) input.value=text; const status=document.getElementById('speech-status'); if(status) status.textContent=final?'Recognized':'Listening…'; if(final&&typeof MischiefNavigator!=='undefined') setTimeout(()=>MischiefNavigator.submitInput(),300); } }; recog.onend=()=>{listening=false;updateUI();}; recog.onerror=()=>{listening=false;updateUI();}; }
+  function init(){ const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR) return; recog=new SR(); recog.continuous=false; recog.interimResults=true; recog.lang=(window.TrampilleraLocale && window.TrampilleraLocale.locale()) || 'en-US';
+    window.addEventListener('trampillera:locale-change',e=>{if(e.detail&&e.detail.locale&&recog)recog.lang=e.detail.locale;}); recog.onresult=e=>{ let final='',interim=''; for(let i=e.resultIndex;i<e.results.length;i++){ const t=e.results[i][0].transcript; if(e.results[i].isFinal) final+=t; else interim+=t; } const text=(final||interim).trim(); if(text){ const input=document.getElementById('nav-input'); if(input) input.value=text; const status=document.getElementById('speech-status'); if(status) status.textContent=final?'Recognized':'Listening…'; if(final&&typeof MischiefNavigator!=='undefined') setTimeout(()=>MischiefNavigator.submitInput(),300); } }; recog.onend=()=>{listening=false;updateUI();}; recog.onerror=()=>{listening=false;updateUI();}; }
   function toggle(){ if(!recog){ showToast('Speech recognition not supported in this browser'); return; } if(listening){ recog.stop(); listening=false; } else { try{ recog.start(); listening=true; }catch(e){ showToast('Microphone permission needed'); } } updateUI(); }
   function updateUI(){ const btn=document.getElementById('speech-toggle-btn'); if(btn) btn.textContent=listening?'🛑 Stop':'🎤 Speak'; const st=document.getElementById('speech-status'); if(st) st.textContent=listening?'Listening…':'Ready'; }
   return { init, toggle, get listening(){return listening;} };
@@ -4695,5 +4700,6 @@ const MediaIntel = (() => {
   })();
   </script>
 
+<script src="/shared/trampillera-global-controls.js"></script>
 </body>
 </html>
