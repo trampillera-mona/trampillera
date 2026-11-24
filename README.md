@@ -6,17 +6,26 @@ A single deployable application that serves the full TRAMPILLERA platform interf
 
 - `/` — full TRAMPILLERA Media / Unified Reality OS interface.
 - `/control/` — authenticated Control Plane.
-- `/city/` — ITY CITY employee digital environment and corporate game prototype.
+- `/city/` — ITY CITY module launcher and employee digital environment.
+- `/city/workspace/` — preserved employee workspace prototype.
+- `/city/campus/` — Corporate Campus source application.
+- `/city/multiverse/` — Corporate Multiverse source application.
 - `/api/health` — database-aware health check.
 - `/api/platform/status` — public platform status summary.
 - `/api/modules` — public module inventory.
 - `/api/control/*` — authenticated management API.
 
-## ITY CITY prototype boundary
+## ITY CITY integrated environment
 
-The first ITY CITY release is a static, self-contained frontend served by the existing Express static directory at `app/public/city/`. It includes a personal workspace, local no-code widget layout editor, department-oriented template gallery, interactive 2D campus directory, technology engine catalogue, missions, XP and achievements, Academy and team-space previews.
+The ITY CITY entry route is a lightweight module launcher. It keeps three independently runnable interfaces available inside one employee-facing shell:
 
-This is a frontend prototype, not a production employee platform. Profile, missions, XP, achievements and workspace layout use sample data and/or browser-local storage. It does not implement employee authentication, multi-user synchronization, HR records, real-time messaging, video conferencing, live engine integrations, server-side mission verification, or a navigable 3D campus. The UI labels these boundaries explicitly. Do not interpret demo XP or mission completion as employee performance data.
+- `/city/workspace/` — the previous employee workspace prototype, preserved from the first release.
+- `/city/campus/` — the Corporate Campus spatial/organizational environment.
+- `/city/multiverse/` — the Corporate Multiverse environment with missions, progression and learning surfaces.
+
+The two supplied Corporate Campus and Corporate Multiverse source snapshots are retained under `app/public/city/source/`. The deployed module copies use isolated IndexedDB database names and namespaced localStorage keys so the two applications do not overwrite each other's browser data. The launcher uses an iframe boundary to keep their CSS and JavaScript globals separate.
+
+This is an integrated frontend prototype, not yet a production employee platform. Employee identity, HR records, server-side mission registry, shared progression, verified XP awards, multi-user synchronization, live messaging, and live engine integrations are not implemented. Each source module continues to own its local demo state. Demo activity is not employee performance data.
 
 ## Architecture
 
@@ -92,4 +101,4 @@ The public community guide is available at [trampillera.com/community](https://t
 
 ## Verification
 
-Run `sh scripts/check.sh` for JavaScript syntax validation. After deployment, verify `/api/health`, `/`, `/control/`, and `/city/`. A healthy container alone does not prove every external integration is configured.
+Run `sh scripts/check.sh` for JavaScript syntax validation. After deployment, verify `/api/health`, `/`, `/control/`, `/city/`, `/city/campus/`, and `/city/multiverse/`. A healthy container alone does not prove every external integration is configured.
