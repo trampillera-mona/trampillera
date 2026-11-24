@@ -71,7 +71,8 @@ jobs:
           printf '%s' "$LOGIN2_JSON" | jq -e '.mustChangePassword == true'
           curl --fail --silent -b /tmp/ity-employee-two-cookies.txt -H 'Content-Type: application/json' -d '{"newPassword":"ci-test-personal-password-456"}' http://127.0.0.1:3000/api/auth/change-password
           echo "CI: publish shared mission"
-          MISSION_JSON=$(curl --fail --silent --show-error -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d "{\"title\":\"CI cooperative mission\",\"description\":\"Verify the complete employee mission lifecycle in CI.\",\"category\":\"QA\",\"xpReward\":75,\"employeeIds\":[$EMPLOYEE_ID,$EMPLOYEE2_ID]}" http://127.0.0.1:3000/api/control/team/missions)
+          MISSION_JSON=$(curl --silent --show-error -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d "{\"title\":\"CI cooperative mission\",\"description\":\"Verify the complete employee mission lifecycle in CI.\",\"category\":\"QA\",\"xpReward\":75,\"employeeIds\":[$EMPLOYEE_ID,$EMPLOYEE2_ID]}" http://127.0.0.1:3000/api/control/team/missions)
+          printf '%s\\n' "$MISSION_JSON" | jq -e '.item.id != null'
           MISSION_ID=$(printf '%s' "$MISSION_JSON" | jq -r '.item.id')
           curl --fail --silent -b /tmp/ity-employee-two-cookies.txt -H 'Content-Type: application/json' -d '{"body":"Message from teammate two"}' "http://127.0.0.1:3000/api/team/missions/$MISSION_ID/messages"
           curl --fail --silent -b /tmp/ity-employee-cookies.txt "http://127.0.0.1:3000/api/team/missions/$MISSION_ID/messages" | jq -e '.items | length == 1'
