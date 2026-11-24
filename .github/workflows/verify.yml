@@ -25,6 +25,7 @@ jobs:
       - name: Static checks and source preservation
         run: |
           npm --prefix app run check
+          node --test scripts/ai-provider.test.mjs
           node scripts/verify-preservation.mjs
 
       - name: Validate Compose configuration
