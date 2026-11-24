@@ -22,7 +22,7 @@
 | Scene Studio | 2D/3D browser prototype inside `/control/` | Drafts stored in browser `localStorage`; no server persistence |
 | JARVISER Core | Registry entry in `platform_modules` | Discovered/catalogued; not an executing orchestrator in this build |
 | Connectors | Registry in `platform_connectors` | Configuration catalogue; validation checks HTTPS syntax only, not live connectivity |
-| Model providers | Registry in `model_providers` | Catalogue; not a provider-neutral inference router |
+| Model providers | Registry in `model_providers` plus isolated Qwen/OpenAI adapters | Catalogue records do not dynamically load adapters or prove configured/reachable providers |
 | AI chat | Isolated Qwen-first server-side adapter with OpenAI alternative | `app/ai-provider.js` normalizes configuration, request bodies, responses and usage; Qwen is default, OpenAI Responses / Chat Completions selectable. Adapter unit tests, 30-second timeout, 12/minute route limit; audit excludes prompts/completions |
 | PostgreSQL | Shared persistent database | Stores platform registries, audit events and Team Game state |
 | Render | Docker web service + attached PostgreSQL | Deployment target; this audit does not deploy or alter it |
