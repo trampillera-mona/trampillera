@@ -10,11 +10,17 @@ const growth = await readFile(new URL("../app/public/control/growth/index.html",
 test("visitor analytics uses aggregate first-party identifiers without raw IP storage", () => {
   assert.match(server, /CREATE TABLE IF NOT EXISTS site_visitors/);
   assert.match(server, /CREATE TABLE IF NOT EXISTS site_pageviews/);
+  assert.match(server, /audience\.growth/);
+  assert.match(server, /utm_source/);
+  assert.match(server, /utm_medium/);
   assert.match(server, /createHmac\("sha256",SESSION_SECRET\)/);
   assert.match(server, /\/api\/analytics\/visit/);
   assert.match(server, /\/api\/analytics\/counter/);
   assert.doesNotMatch(server, /INSERT INTO site_visitors[^\n]*ip_address/i);
   assert.match(tracker, /localStorage/);
+  assert.match(tracker, /trampillera\.analytics\.consent\.v1/);
+  assert.match(tracker, /removeItem\(storageKey\)/);
+  assert.match(portal, /visitor-consent/);
   assert.match(tracker, /utm_campaign/);
   assert.match(portal, /trampillera-analytics\.js/);
   assert.match(portal, /visitor-counter-value/);
