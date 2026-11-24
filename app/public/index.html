@@ -3636,7 +3636,10 @@ const MischiefNavigator = {
     body.innerHTML += `<div class="nav-bubble ai">${esc(reply)}</div>`;
     body.scrollTop = body.scrollHeight;
     if (this.speakOn && 'speechSynthesis' in window) {
-      try { const u = new SpeechSynthesisUtterance(reply); if (window.TrampilleraLocale) { window.TrampilleraLocale.speak(reply); } else { u.lang = (UNIFIED_STATE.lang === 'RU' ? 'ru-RU' : 'en-US'); speechSynthesis.speak(u); } speechSynthesis.speak(u); } catch (e) {}
+      try {
+        if (window.TrampilleraLocale) window.TrampilleraLocale.speak(reply);
+        else { const u = new SpeechSynthesisUtterance(reply); u.lang = (UNIFIED_STATE.lang === 'RU' ? 'ru-RU' : 'en-US'); speechSynthesis.speak(u); }
+      } catch (e) {}
     }
   },
   initDrag() {
