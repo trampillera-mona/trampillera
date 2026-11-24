@@ -34,6 +34,7 @@ jobs:
 
       - name: Build and start application with PostgreSQL
         run: |
+          trap 'docker compose logs app db || true' ERR
           docker compose up -d --build db app
           for attempt in $(seq 1 45); do
             if curl --fail --silent http://127.0.0.1:3000/api/health; then
@@ -69,7 +70,11 @@ jobs:
           LOGIN2_JSON=$(curl --fail --silent -c /tmp/ity-employee-two-cookies.txt -H 'Content-Type: application/json' -d "{\"email\":\"ci-teammate-two@example.test\",\"password\":\"$TEMP_PASSWORD2\"}" http://127.0.0.1:3000/api/auth/employee-login)
           printf '%s' "$LOGIN2_JSON" | jq -e '.mustChangePassword == true'
           curl --fail --silent -b /tmp/ity-employee-two-cookies.txt -H 'Content-Type: application/json' -d '{"newPassword":"ci-test-personal-password-456"}' http://127.0.0.1:3000/api/auth/change-password
-          MISSION_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d "{\"title\":\"CI cooperative mission\",\"description\":\"Verify the complete employee mission lifecycle in CI.\",\"category\":\"QA\",\"xpReward\":75,\"employeeIds\":[$EMPLOYEE_ID,$EMPLOYEE2_ID]}" http://127.0.0.1:3000/api/control/team/missions)
+          echo "CI: publish shared mission"
+          MISSION_RESPONSE=$(curl --silent --show-error --write-out '\\nHTTP_STATUS:%{http_code}' -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d "{\"title\":\"CI cooperative mission\",\"description\":\"Verify the complete employee mission lifecycle in CI.\",\"category\":\"QA\",\"xpReward\":75,\"employeeIds\":[$EMPLOYEE_ID,$EMPLOYEE2_ID]}" http://127.0.0.1:3000/api/control/team/missions)
+          MISSION_HTTP_STATUS=$(printf '%s' "$MISSION_RESPONSE" | tail -n 1 | sed 's/^HTTP_STATUS://')
+          MISSION_JSON=$(printf '%s' "$MISSION_RESPONSE" | sed '$d')
+          if [ "$MISSION_HTTP_STATUS" != "201" ]; then printf 'Mission creation HTTP %s: %s\\n' "$MISSION_HTTP_STATUS" "$MISSION_JSON"; docker compose logs app db; exit 1; fi
           MISSION_ID=$(printf '%s' "$MISSION_JSON" | jq -r '.item.id')
           curl --fail --silent -b /tmp/ity-employee-two-cookies.txt -H 'Content-Type: application/json' -d '{"body":"Message from teammate two"}' "http://127.0.0.1:3000/api/team/missions/$MISSION_ID/messages"
           curl --fail --silent -b /tmp/ity-employee-cookies.txt "http://127.0.0.1:3000/api/team/missions/$MISSION_ID/messages" | jq -e '.items | length == 1'
