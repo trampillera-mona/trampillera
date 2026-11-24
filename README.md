@@ -11,7 +11,7 @@ A single deployable application that serves the full TRAMPILLERA platform interf
 - `/city/campus/` — Corporate Campus source application.
 - `/city/multiverse/` — Corporate Multiverse source application.
 - `/api/health` — database-aware health check.
-- `/api/platform/status` — public platform status summary.
+- `/api/platform/status` — API/PostgreSQL registry availability summary; external integration health remains `UNKNOWN` until probed.
 - `/api/modules` — public module inventory.
 - `/api/control/*` — authenticated management API.
 
@@ -70,7 +70,9 @@ npm run dev
 - Change all example secrets before exposing the service to the internet. Set `COOKIE_SECURE=true` when serving over HTTPS; keep it `false` only for local HTTP development.
 - Use HTTPS through a trusted reverse proxy or managed ingress. Do not expose PostgreSQL publicly.
 - The application port is bound to localhost; public traffic should enter through the optional Caddy HTTPS ingress. Set `TRUST_PROXY=true` only when Caddy or another trusted reverse proxy overwrites forwarding headers.
-- `OPENAI_API_KEY` is optional and remains server-side. The AI endpoint returns an explicit configuration error when no key is set.
+- The AI adapter is provider-neutral at the application boundary and defaults to Qwen Model Studio. Configure `AI_PROVIDER=qwen`, `QWEN_API_KEY`, `QWEN_API_URL`, and optionally `QWEN_MODEL`; the API key remains server-side.
+- OpenAI is an optional alternative with `AI_PROVIDER=openai`, `OPENAI_API_KEY`, and optional `OPENAI_API_URL` / `OPENAI_MODEL`. The adapter supports OpenAI Responses and Chat Completions endpoints.
+- AI requests are rate-limited, time-bounded, and logged without storing prompts or completions. A missing provider key or endpoint returns an explicit configuration state.
 - The preserved platform uses Tailwind's browser CDN runtime, so the Content Security Policy allows inline scripts and `unsafe-eval` for compatibility; a production-hardening pass should replace that runtime with a locally compiled stylesheet.
 - Connector validation checks HTTPS URL syntax only; it does not claim external connectivity or perform outbound requests.
 - The Control Plane requires administrator authentication. The public platform interface remains accessible.
@@ -104,4 +106,4 @@ The public community guide is available at [trampillera.com/community](https://t
 
 ## Verification
 
-Run `sh scripts/check.sh` for JavaScript syntax validation. After deployment, verify `/api/health`, `/`, `/control/`, `/city/`, `/city/campus/`, and `/city/multiverse/`. A healthy container alone does not prove every external integration is configured.
+Run `sh scripts/check.sh` for JavaScript syntax checks, AI provider adapter unit tests and source-preservation checks. After deployment, verify `/api/health`, `/`, `/control/`, `/city/`, `/city/campus/`, and `/city/multiverse/`. A healthy container alone does not prove every external integration is configured.

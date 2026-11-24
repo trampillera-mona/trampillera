@@ -37,7 +37,7 @@ The current repository contains a single Node.js / Express application serving t
 - `model_providers`
 - `audit_events`
 
-Current API includes public health/status/module endpoints, administrator login/session endpoints, Control Plane CRUD and diagnostics endpoints, and one AI chat endpoint. The AI endpoint currently calls an OpenAI-compatible Responses API using `OPENAI_API_KEY`, `OPENAI_API_URL`, and `OPENAI_MODEL`; this is not yet a general multi-provider adapter registry.
+Current API includes public health/status/module endpoints, administrator login/session endpoints, Control Plane CRUD and diagnostics endpoints, and one AI chat endpoint. The server-side AI boundary now defaults to a Qwen Model Studio Chat Completions adapter and supports OpenAI Responses or Chat Completions as an explicitly selected alternative. Provider selection and credentials are server-side environment configuration; this is a two-adapter implementation, not a dynamically extensible provider registry or agent orchestrator.
 
 Current operational facts:
 - `/api/health` checks PostgreSQL with `SELECT 1`.
@@ -193,7 +193,7 @@ Use a transactional outbox when a database write must reliably trigger asynchron
 
 JARVISER must use a provider adapter interface. The UI must not call vendor APIs directly or store provider secrets in browser storage as the production credential source.
 
-Initial provider strategy: support a Qwen-compatible provider adapter first, with additional providers such as OpenAI added through the same interface. Provider selection must be configuration-driven and replaceable.
+Initial provider strategy: Qwen-compatible Chat Completions is the default adapter. OpenAI Responses and Chat Completions are supported as an explicitly selected alternative. Provider selection must remain configuration-driven and replaceable; additional providers require a new adapter and contract tests.
 
 Minimum provider contract:
 - `provider_key`
@@ -249,7 +249,8 @@ Every release must include:
 - Add migrations and deployment checks.
 
 ### Phase 2 — JARVISER provider adapters
-- Implement provider interface and Qwen-compatible first adapter.
+- Extend the provider interface with additional adapters, health probes and capability declarations.
+- Add durable execution traces, usage/cost records and explicit human approval points.
 - Add real provider health checks, execution traces, usage records, and job handling.
 - Keep browser vault explicitly local/personal until a reviewed server-side secrets design exists.
 

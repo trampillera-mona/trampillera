@@ -28,6 +28,9 @@ const city=readFileSync(new URL("../app/public/city/index.html",import.meta.url)
 const cityTeam=readFileSync(new URL("../app/public/city/team/index.html",import.meta.url),"utf8");
 const controlTeam=readFileSync(new URL("../app/public/control/team/index.html",import.meta.url),"utf8");
 const server=readFileSync(new URL("../app/server.js",import.meta.url),"utf8");
+const aiProvider=readFileSync(new URL("../app/ai-provider.js",import.meta.url),"utf8");
+const compose=readFileSync(new URL("../docker-compose.yml",import.meta.url),"utf8");
+const envExample=readFileSync(new URL("../.env.example",import.meta.url),"utf8");
 for (const route of ["/city/workspace/","/city/campus/","/city/multiverse/","/city/team/"]) assert.ok(city.includes(route),"ITY CITY launcher missing "+route);
 for (const table of ["employees","team_missions","mission_assignments","mission_messages"]) assert.ok(server.includes("CREATE TABLE IF NOT EXISTS "+table),"Database table missing: "+table);
 for (const route of ["/api/auth/employee-login","/api/team/dashboard","/api/team/missions","/api/control/team/employees","/api/control/team/missions","/api/control/team/submissions"]) assert.ok(server.includes(route),"API route missing: "+route);
@@ -57,3 +60,15 @@ assert.ok(server.includes("ORDER BY created_at DESC,id DESC LIMIT 200"),"mission
 assert.ok(cityTeam.includes("setInterval") && cityTeam.includes("clearInterval"),"active mission discussions must refresh and stop polling on logout");
 console.log("Mission discussion recency and refresh checks passed.");
 assert.ok(server.includes("Request origin could not be verified."),"state-changing API requests without Origin or Referer must be rejected");
+assert.ok(server.includes('status:"available"') && server.includes('scope:"application_and_postgresql_registry"'),"platform status must state its verified scope");
+assert.ok(server.includes('externalIntegrations:"UNKNOWN"') && server.includes('providerConnectivity:"UNKNOWN"'),"unprobed integrations must remain UNKNOWN");
+assert.ok(aiProvider.includes('env.AI_PROVIDER || "qwen"'),"Qwen must be the default AI provider");
+assert.ok(aiProvider.includes("env.QWEN_API_KEY") && aiProvider.includes("env.QWEN_API_URL"),"Qwen credentials and endpoint must be read only by the server");
+assert.ok(server.includes('from "./ai-provider.js"'),"server must use the isolated AI provider module");
+assert.ok(server.includes("AbortSignal.timeout(30_000)"),"AI provider calls must have a bounded timeout");
+assert.ok(server.includes("limit:12"),"AI requests must have a dedicated rate limit");
+assert.ok(server.includes("extractAIReply(data,config.protocol)"),"AI response parsing must be normalized by provider protocol");
+assert.ok(server.includes("qwen.model-studio"),"Qwen must exist in the model provider catalogue");
+assert.ok(compose.includes("QWEN_API_KEY") && compose.includes("QWEN_API_URL"),"Docker Compose must pass Qwen configuration to the server");
+assert.ok(envExample.includes("AI_PROVIDER=qwen") && envExample.includes("QWEN_API_KEY"),"environment example must document Qwen-first configuration");
+console.log("Qwen-first provider adapter, server-only credentials, timeout, rate limit and deployment configuration checks passed.");

@@ -1,4 +1,5 @@
 import express from "express";
+import { resolveAIProviderConfig, getAIProviderStatus, buildAIRequestBody, extractAIReply, extractAIUsage } from "./ai-provider.js";
 import helmet from "helmet";
 import cookieSession from "cookie-session";
 import rateLimit from "express-rate-limit";
@@ -226,11 +227,17 @@ async function initializeDatabase() {
   if (models.rows[0].n === 0) {
     await pool.query(
       `INSERT INTO model_providers(key,name,org,region,deployment,modal,spec,status) VALUES
+       ('qwen.model-studio','Qwen Model Studio','Alibaba Cloud','Cloud / workspace region','CLOUD','text','Qwen-compatible chat completions','DISCOVERED'),
        ('openai.gpt','OpenAI GPT provider','OpenAI','US / Cloud','CLOUD','text · vision','general reasoning · coding','DISCOVERED'),
        ('local.llama','Local LLM runtime','Local deployment','On-premise','LOCAL','text','offline inference','DISCOVERED')
        ON CONFLICT DO NOTHING`
     );
   }
+  await pool.query(
+    `INSERT INTO model_providers(key,name,org,region,deployment,modal,spec,status)
+     VALUES('qwen.model-studio','Qwen Model Studio','Alibaba Cloud','Cloud / workspace region','CLOUD','text','Qwen-compatible chat completions','DISCOVERED')
+     ON CONFLICT(key) DO NOTHING`
+  );
 }
 async function audit(action, type, key="", details="", actor="admin") {
   await pool.query("INSERT INTO audit_events(action,entity_type,entity_key,details,actor) VALUES($1,$2,$3,$4,$5)", [action,type,key,details,actor]);
@@ -307,7 +314,17 @@ app.get("/api/platform/status", asyncRoute(async (_req,res) => {
     pool.query("SELECT COUNT(*)::int AS n FROM platform_connectors"),
     pool.query("SELECT COUNT(*)::int AS n FROM model_providers")
   ]);
-  res.json({ status:"operational", modules:m.rows[0].n, connectors:c.rows[0].n, modelProviders:p.rows[0].n, controlPlane:"available" });
+  res.json({
+    status:"available",
+    scope:"application_and_postgresql_registry",
+    modules:m.rows[0].n,
+    connectors:c.rows[0].n,
+    modelProviders:p.rows[0].n,
+    controlPlane:"available",
+    externalIntegrations:"UNKNOWN",
+    connectorConnectivity:"UNKNOWN",
+    providerConnectivity:"UNKNOWN"
+  });
 }));
 app.get("/api/modules", asyncRoute(async (_req,res) => {
   const result = await pool.query("SELECT key,name,version,status,description FROM platform_modules ORDER BY key");
@@ -448,7 +465,7 @@ app.get("/api/control/audit", asyncRoute(async (_req,res) => {
 }));
 app.get("/api/control/settings", (_req,res) => res.json({
   environment:NODE_ENV, database:"PostgreSQL", authentication:"Administrator session cookie",
-  aiProvider:process.env.OPENAI_API_KEY?"configured":"not_configured",
+  aiProvider:getAIProviderStatus(),
   realtime:"HTTP API (WebSocket integration not enabled in this release)"
 }));
 app.get("/api/control/diagnostics", asyncRoute(async (_req,res) => {
@@ -482,19 +499,41 @@ app.get("/api/control/diagnostics", asyncRoute(async (_req,res) => {
   });
 }));
 
-app.post("/api/control/ai/chat", asyncRoute(async (req,res) => {
+app.post("/api/control/ai/chat", rateLimit({windowMs:60_000,limit:12,standardHeaders:"draft-8",legacyHeaders:false}), asyncRoute(async (req,res) => {
   const message=clean(req.body?.message,4000);
   if(!message) return res.status(400).json({error:"Message is required."});
-  if(!process.env.OPENAI_API_KEY) return res.status(503).json({error:"AI provider is not configured. Set OPENAI_API_KEY on the server to enable AI requests."});
-  const response=await fetch(process.env.OPENAI_API_URL||"https://api.openai.com/v1/responses",{
-    method:"POST",headers:{"Authorization":`Bearer ${process.env.OPENAI_API_KEY}`,"Content-Type":"application/json"},
-    body:JSON.stringify({model:process.env.OPENAI_MODEL||"gpt-4.1-mini",input:message})
-  });
+  const config=resolveAIProviderConfig();
+  if(!config.configured) {
+    const hint=config.provider==="qwen"?"Set QWEN_API_KEY and QWEN_API_URL on the server.":config.provider==="openai"?"Set OPENAI_API_KEY on the server.":"Set AI_PROVIDER to qwen or openai.";
+    return res.status(503).json({error:`AI provider "${config.provider}" is not configured. ${hint}`});
+  }
+  const requestBody=buildAIRequestBody(config,message);
+  let response;
+  try {
+    response=await fetch(config.endpoint,{
+      method:"POST",
+      headers:{"Authorization":`Bearer ${config.apiKey}`,"Content-Type":"application/json"},
+      body:JSON.stringify(requestBody),
+      signal:AbortSignal.timeout(30_000)
+    });
+  } catch(err) {
+    const timedOut=err.name==="TimeoutError"||err.name==="AbortError";
+    await audit("AI_REQUEST_FAILED","ai",config.provider,`model=${config.model}; error=${timedOut?"timeout":"network"}`);
+    return res.status(timedOut?504:502).json({error:timedOut?"AI provider request timed out.":"AI provider could not be reached."});
+  }
   const data=await response.json().catch(()=>({}));
-  if(!response.ok) return res.status(502).json({error:data.error?.message||"AI provider request failed."});
-  const output=(data.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==="output_text").map(x=>x.text).join("\n");
-  await audit("AI_REQUEST_COMPLETED","ai","provider","AI response received from configured provider");
-  res.json({reply:output||"The provider returned no text output."});
+  if(!response.ok) {
+    await audit("AI_REQUEST_FAILED","ai",config.provider,`model=${config.model}; provider_status=${response.status}`);
+    return res.status(502).json({error:"AI provider returned an error. Check server logs and provider configuration."});
+  }
+  const output=extractAIReply(data,config.protocol);
+  if(!output) {
+    await audit("AI_REQUEST_FAILED","ai",config.provider,`model=${config.model}; error=empty_response`);
+    return res.status(502).json({error:"AI provider returned no text output."});
+  }
+  const usage=extractAIUsage(data);
+  await audit("AI_REQUEST_COMPLETED","ai",config.provider,`model=${config.model}; input_tokens=${usage.inputTokens}; output_tokens=${usage.outputTokens}`);
+  res.json({reply:output,provider:config.provider,model:config.model});
 }));
 
 

@@ -44,8 +44,8 @@ The current architecture is a **modular monolith in deployment**, but the public
 | Module / experience | Current status | Source evidence / current boundary | Recommended next action |
 |---|---|---|---|
 | JARVISER assistant UI | PARTIAL | Assistant UI, model cards, roles, logs, and triage/analysis/synthesis concepts exist. | Separate interface from execution engine; show actual run IDs and stages. |
-| AI server endpoint | PARTIAL | `POST /api/control/ai/chat` uses `OPENAI_API_KEY`, optional `OPENAI_API_URL`, and `OPENAI_MODEL`; one request/response path. | Introduce provider adapter interface; Qwen-compatible adapter first, then other providers. |
-| Multi-provider registry | PARTIAL | PostgreSQL `model_providers` table and Control Plane CRUD exist; registry records do not by themselves execute providers. | Connect provider records to adapters and live health checks. |
+| AI server endpoint | PARTIAL | `app/ai-provider.js` isolates Qwen Model Studio Chat Completions and OpenAI Responses / Chat Completions adapters; `POST /api/control/ai/chat` uses the module. Keys remain server-side; requests are time-bounded/rate-limited and pure adapter contracts have unit tests. | Add live provider health checks, durable execution traces, usage/cost accounting and conversation state. |
+| Multi-provider registry | PARTIAL | PostgreSQL `model_providers` table and Control Plane CRUD exist; Qwen is seeded in the catalogue, but registry records do not dynamically load or execute adapters. | Connect provider records to adapter capabilities and separately evidenced live health checks. |
 | Multi-agent orchestration | DEMO / NOT IMPLEMENTED | Three-stage pipeline is represented in UI; no durable workflow/job execution engine was found. | Implement task records, stages, queue, retries, approvals, and execution trace. |
 | Local Ollama / FastAPI proxy | PARTIAL | Browser-side configurable proxy health probe exists. | Treat probe as reachability only; add authenticated server-side adapter if required. |
 | JARVISER encrypted vault | PARTIAL | Browser CryptoVault encrypts locally and stores data in localStorage. | Keep explicitly local; do not treat as server secret management. Design a separate server-side secrets boundary if needed. |
@@ -79,7 +79,7 @@ The current architecture is a **modular monolith in deployment**, but the public
 |---|---|---|---|
 | Public platform health | REAL (limited scope) | `GET /api/health` checks PostgreSQL with `SELECT 1`. | Keep scope explicit: app route + database query only. |
 | Readiness endpoint | REAL (limited scope) | `GET /ready` checks database query. | Add deployment orchestration semantics only if needed. |
-| Platform status API | REAL (limited scope) | `GET /api/platform/status` returns registry counts and Control Plane availability. | Avoid returning generic `operational` if module/provider checks are not performed. |
+| Platform status API | REAL (limited scope) | `GET /api/platform/status` reports application/PostgreSQL registry availability and returns `UNKNOWN` for unprobed external integrations, connector reachability and provider reachability. | Add explicit health probes with timestamps, timeouts and attributable evidence; do not promote catalogue state to runtime health. |
 | Public module inventory API | REAL | `GET /api/modules` reads PostgreSQL module rows. | Add manifest version, dependencies, health, and evidence fields. |
 | Control Plane authentication | REAL | Session-cookie login, `/api/auth/me`, logout, and protected `/api/control/*` routes exist. | Preserve; add roles, CSRF review, session tests, and security regression tests. |
 | Authentication diagnostics | REAL (limited scope) | `GET /api/auth/diagnostics` reports request/session/cookie configuration without exposing cookie contents. | Keep restricted details minimal; add regression test for secure cookie behavior. |

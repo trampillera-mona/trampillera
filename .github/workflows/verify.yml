@@ -25,6 +25,7 @@ jobs:
       - name: Static checks and source preservation
         run: |
           npm --prefix app run check
+          node --test scripts/ai-provider.test.mjs
           node scripts/verify-preservation.mjs
 
       - name: Validate Compose configuration
@@ -50,13 +51,17 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:3000/
           curl --fail --silent http://127.0.0.1:3000/control/ > /dev/null
-          curl --fail --silent http://127.0.0.1:3000/api/platform/status
+          curl --fail --silent http://127.0.0.1:3000/api/platform/status | jq -e '.status == "available" and .scope == "application_and_postgresql_registry" and .externalIntegrations == "UNKNOWN" and .providerConnectivity == "UNKNOWN"'
           CSRF_STATUS=$(command curl --silent --output /dev/null --write-out '%{http_code}' -H 'Origin: https://attacker.example' -H 'Content-Type: application/json' -d '{"password":"not-a-real-password"}' http://127.0.0.1:3000/api/auth/login)
           test "$CSRF_STATUS" = "403"
           MISSING_ORIGIN_STATUS=$(command curl --silent --output /dev/null --write-out '%{http_code}' -H 'Content-Type: application/json' -d '{"password":"not-a-real-password"}' http://127.0.0.1:3000/api/auth/login)
           test "$MISSING_ORIGIN_STATUS" = "403"
           curl --fail --silent -c /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"password":"ci-temporary-admin-password-123"}' http://127.0.0.1:3000/api/auth/login
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/overview
+          curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/models | jq -e '.items[] | select(.key == "qwen.model-studio")'
+          curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/settings | jq -e '.aiProvider | startswith("qwen")'
+          AI_NOT_CONFIGURED_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"message":"CI provider configuration check"}' http://127.0.0.1:3000/api/control/ai/chat)
+          test "$AI_NOT_CONFIGURED_STATUS" = "503"
           EMPLOYEE_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"name":"CI Teammate","email":"ci-teammate@example.test","department":"QA","jobTitle":"Tester"}' http://127.0.0.1:3000/api/control/team/employees)
           EMPLOYEE_ID=$(printf '%s' "$EMPLOYEE_JSON" | jq -r '.item.id')
           TEMP_PASSWORD=$(printf '%s' "$EMPLOYEE_JSON" | jq -r '.temporaryPassword')
