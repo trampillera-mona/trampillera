@@ -52,3 +52,4 @@ console.log("Session lifecycle, CSRF defense, transaction/audit integrity and da
 assert.ok(server.includes("ORDER BY created_at DESC,id DESC LIMIT 200"),"mission chat must load the latest 200 messages");
 assert.ok(cityTeam.includes("setInterval") && cityTeam.includes("clearInterval"),"active mission discussions must refresh and stop polling on logout");
 console.log("Mission discussion recency and refresh checks passed.");
+assert.ok(server.includes("Request origin could not be verified."),"state-changing API requests without Origin or Referer must be rejected");
