@@ -71,6 +71,7 @@ PostgreSQL
 |---|---|---|
 | A newly created employee could call Team APIs directly before changing the temporary password | First-login policy enforced only by UI | Server-side employee middleware now returns `PASSWORD_CHANGE_REQUIRED` until the password is changed |
 | Password reset or password change did not revoke other signed employee cookies | Old sessions could remain usable | Added `auth_version`; login stores its version, protected requests compare it to PostgreSQL, and password change/reset/disable increments it |
+| Administrator sessions were not revocable after the admin password changed | Previously issued signed admin cookies remained valid until expiry | Added a PostgreSQL admin auth-version record bound to an HMAC fingerprint of the configured password; credential rotation increments the version and every admin API request verifies it |
 | Employee sessions had no server-enforced idle timeout | A replayed signed cookie could outlive intended inactivity | Added 30-minute idle and 8-hour absolute expiry checks |
 | State-changing APIs relied mainly on SameSite cookies | Same-site sibling origins and weak browser contexts needed another boundary | Added Fetch Metadata rejection for cross-site requests and mandatory Origin/Referer verification for every state-changing API request |
 | Authenticated API responses could be cached by intermediaries or browsers | Sensitive response data could persist in caches | Added `Cache-Control: no-store` to API responses |
@@ -102,6 +103,7 @@ This audit branch extends the tests to prove:
 - Cross-origin and source-less state-changing API requests are rejected.
 - An employee with a temporary password cannot use Team APIs before changing it.
 - Password reset invalidates the employee's existing session.
+- An administrator cookie is rejected after the stored admin auth version changes.
 - The new schema, session expiry, authorization, audit transaction and pool-error invariants remain present.
 
 A passing CI run is required before merge. A passing CI run does not replace a post-deployment smoke test against the actual Render service.
@@ -110,12 +112,11 @@ A passing CI run is required before merge. A passing CI run does not replace a p
 
 ### Priority 1 — security and operational controls
 
-1. **Administrator session revocation:** admin sessions still use signed client-side cookies without a server-side session registry or admin auth-version. Changing `ADMIN_PASSWORD` does not immediately revoke every previously issued admin cookie.
-2. **MFA / SSO:** the administrator identity boundary is a single environment-provided password. No MFA or organization identity provider is implemented.
-3. **Rate-limit durability:** the current rate limiter uses its default in-process store. Limits are not shared across multiple instances and reset on process restart. A shared store and account+IP strategy are future work.
-4. **Content Security Policy:** legacy interfaces still require inline scripts and `unsafe-eval`; this broadens the impact of a future XSS flaw. A safe reduction requires extracting/building legacy scripts and styles, then browser regression testing.
-5. **Backups and restore:** the application diagnostics correctly report backup status as UNKNOWN. No backup schedule, retention evidence or restore drill is wired into this repository.
-6. **Secrets and deployment controls:** production secret rotation, access review and Render environment configuration require a separate authorized operational audit.
+1. **MFA / SSO:** the administrator identity boundary is a single environment-provided password. No MFA or organization identity provider is implemented.
+2. **Rate-limit durability:** the current rate limiter uses its default in-process store. Limits are not shared across multiple instances and reset on process restart. A shared store and account+IP strategy are future work.
+3. **Content Security Policy:** legacy interfaces still require inline scripts and `unsafe-eval`; this broadens the impact of a future XSS flaw. A safe reduction requires extracting/building legacy scripts and styles, then browser regression testing.
+4. **Backups and restore:** the application diagnostics correctly report backup status as UNKNOWN. No backup schedule, retention evidence or restore drill is wired into this repository.
+5. **Secrets and deployment controls:** production secret rotation, access review and Render environment configuration require a separate authorized operational audit. Admin password rotation now increments the database auth version at startup, invalidating previously issued admin sessions.
 
 ### Priority 2 — integration and product completeness
 
@@ -136,7 +137,7 @@ A passing CI run is required before merge. A passing CI run does not replace a p
 2. Merge only after all checks pass.
 3. Give the operator the manual Render deployment instruction; do not deploy automatically.
 4. After the operator deploys, verify the deployed commit, `/ready`, public routes, Control Plane login and Team Game flow without creating or changing real employee records.
-5. Next hardening pass: admin session store/revocation, persistent rate limiting, backup/restore evidence, and browser-level tests.
+5. Next hardening pass: persistent rate limiting, backup/restore evidence, and browser-level tests.
 6. Integration pass: provider adapter interface, connector health contracts, and an explicit shared identity/state/event contract for Workspace, Campus, Multiverse and Team Game.
 
 ## 7. External practices consulted

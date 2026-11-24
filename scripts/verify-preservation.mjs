@@ -47,6 +47,10 @@ assert.ok(server.includes("PASSWORD_CHANGE_REQUIRED"),"temporary passwords must 
 assert.ok(server.includes("auth_version=auth_version+1"),"password changes, resets and disable actions must revoke old employee sessions");
 assert.ok(server.includes("auditWithClient"),"critical team state transitions must write audit records in their transaction");
 assert.ok(server.includes('pool.on("error"'),"PostgreSQL idle pool errors must be observed");
+assert.ok(server.includes("CREATE TABLE IF NOT EXISTS admin_auth_state"),"administrator auth version state must be persisted");
+assert.ok(server.includes("adminAuthVersion"),"administrator sessions must be bound to the current auth version");
+assert.ok(server.includes("ADMIN_CREDENTIAL_ROTATED"),"administrator credential rotation must be audited");
+assert.ok(server.includes("Number(req.session.adminAuthVersion) !== Number(r.rows[0].auth_version)"),"stale administrator sessions must be rejected against PostgreSQL");
 assert.ok(server.indexOf('app.use("/api/control", requireAuth, requireAdmin);') < server.indexOf('app.get("/api/control/team/employees"'),"team administration APIs must remain behind the administrator guard");
 console.log("Session lifecycle, CSRF defense, transaction/audit integrity and database runtime checks passed.");
 assert.ok(server.includes("ORDER BY created_at DESC,id DESC LIMIT 200"),"mission chat must load the latest 200 messages");
