@@ -5,15 +5,16 @@
 
 ## Purpose
 
-Provide TRAMPILLERA with a first-party, privacy-conscious view of portal traffic and a small operational promotion desk. The module is an independent capability exposed through APIs and a Control Plane surface; it does not become the owner of other modules or their content.
+Provide TRAMPILLERA with a first-party, privacy-conscious view of portal traffic and a small operational promotion desk. The module is an independent capability exposed through APIs and a Control Plane surface and registered as audience.growth; it does not become the owner of other modules or their content.
 
 ## Components
 
+- **Module Registry:** registers the capability as audience.growth in the shared module inventory.
 - **Audience Counter:** public aggregate counts for lifetime distinct browser visitors, today's distinct visitors, and recorded page views.
 - **Analytics Collector:** records page path, UTM source/medium/campaign, referrer hostname, and timestamp after visitor opt-in.
 - **Audience Intelligence Desk:** authenticated reporting for selected 7/30/90-day windows, daily traffic, popular paths, and acquisition sources.
 - **Promotion Campaign Studio:** create, pause, and activate tracked campaign links.
-- **Attribution Redirect:** /go/:slug records a click and redirects to the campaign destination with utm_campaign attribution.
+- **Attribution Redirect:** /go/:slug records a click and redirects to the campaign destination with utm_campaign, utm_source, and utm_medium attribution.
 
 ## Data and privacy boundaries
 
