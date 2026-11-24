@@ -480,7 +480,7 @@ app.post("/api/control/team/employees/:id/status", asyncRoute(async (req,res) =>
   if(!r.rowCount) return res.status(404).json({error:"Employee not found."});
   await audit("EMPLOYEE_STATUS_CHANGED","employee",String(req.params.id),\`active=\${active}\`);
   res.json({item:r.rows[0]});
-}))
+}));
 app.post("/api/control/team/employees/:id/reset-password", asyncRoute(async (req,res) => {
   const temporaryPassword=crypto.randomBytes(18).toString("base64url");
   const r=await pool.query("UPDATE employees SET password_hash=$2,must_change_password=TRUE,updated_at=NOW() WHERE id=$1 AND active=TRUE RETURNING id,email,display_name",[req.params.id,passwordHash(temporaryPassword)]);
