@@ -12,6 +12,9 @@ A single deployable application that serves the full TRAMPILLERA platform interf
 - `/city/multiverse/` — Corporate Multiverse source application.
 - `/api/health` — database-aware health check.
 - `/api/platform/status` — API/PostgreSQL registry availability summary; external integration health remains `UNKNOWN` until probed.
+- `/api/analytics/counter` — aggregate public visitor and page-view counters.
+- `/control/growth/` — authenticated Audience Intelligence and Growth Desk.
+- `/go/:slug` — tracked campaign redirect with UTM attribution.
 - `/api/modules` — public module inventory.
 - `/api/control/*` — authenticated management API.
 
@@ -32,7 +35,7 @@ This is a functional first collaboration loop, not a complete HR or project-mana
 
 ## Architecture
 
-The application is a single Node.js service. It serves both preserved interfaces and exposes the API consumed by the Control Plane. PostgreSQL stores modules, connectors, model providers, and audit events. Docker Compose starts the application and database together.
+The application is a single Node.js service. It serves both preserved interfaces and exposes the API consumed by the Control Plane. PostgreSQL stores modules, connectors, model providers, audit events, consent-based pseudonymous visitor aggregates, page views, and promotion campaign events. Docker Compose starts the application and database together.
 
 The uploaded source HTML files are preserved byte-for-byte in `originals/`. The deployed platform page has one intentional navigation adjustment so its administrator shortcut opens `/control/`. The Control Plane preview is connected to authenticated API calls and persistent server-side data. Its status badge changes to `AUTHENTICATED · LIVE DATA` only after the server confirms the session.
 
@@ -64,6 +67,10 @@ npm install
 # Set DATABASE_URL, ADMIN_PASSWORD and SESSION_SECRET in your shell.
 npm run dev
 ```
+
+## Audience intelligence and promotion
+
+The public portal offers optional, consent-based first-party audience measurement. After explicit opt-in, a random browser token is stored locally and only an HMAC-derived identifier is stored server-side. Raw IP addresses and full referrer URLs are not stored; only the referrer hostname, page path, UTM source/medium/campaign and timestamps are recorded. Visitors can choose Essential only and continue using the site. The Control Plane links to `/control/growth/`, where administrators can review traffic, sources and tracked promotion campaigns. Campaign links count redirects and attributable page views; this module does not purchase ads, publish content, send newsletters, or claim conversions.
 
 ## Security and deployment notes
 

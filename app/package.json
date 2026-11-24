@@ -7,7 +7,7 @@
     "start": "node server.js",
     "dev": "NODE_ENV=development node --watch server.js",
     "check": "node --check server.js && node --check ai-provider.js",
-    "test": "node --test ../scripts/ai-provider.test.mjs && node ../scripts/verify-preservation.mjs && node --test ../scripts/locale-voice.test.mjs"
+    "test": "node --test ../scripts/ai-provider.test.mjs && node ../scripts/verify-preservation.mjs && node --test ../scripts/locale-voice.test.mjs && node --test ../scripts/analytics-growth.test.mjs"
   },
   "engines": {
     "node": ">=20"
