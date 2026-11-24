@@ -27,6 +27,9 @@ const pool = new pg.Pool({
   connectionTimeoutMillis: 5000,
   ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: true } : undefined
 });
+pool.on("error", (err) => {
+  console.error(JSON.stringify({ level: "error", event: "postgres_idle_client_error", message: err.message }));
+});
 
 app.disable("x-powered-by");
 // Render and production ingress sit behind one trusted reverse-proxy hop.
@@ -62,6 +65,46 @@ app.use(cookieSession({
   maxAge: 8 * 60 * 60 * 1000,
   path: "/"
 }));
+
+const SESSION_ABSOLUTE_MS = 8 * 60 * 60 * 1000;
+const SESSION_IDLE_MS = 30 * 60 * 1000;
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/")) res.set("Cache-Control", "no-store");
+  const session = req.session;
+  if (session?.authenticated === true) {
+    const now = Date.now();
+    const issuedAt = Number(session.issuedAt);
+    const lastSeenAt = Number(session.lastSeenAt ?? session.issuedAt);
+    const invalidClock = !Number.isFinite(issuedAt) || !Number.isFinite(lastSeenAt) || issuedAt > now + 60_000 || lastSeenAt > now + 60_000;
+    if (invalidClock || now - issuedAt > SESSION_ABSOLUTE_MS || now - lastSeenAt > SESSION_IDLE_MS) {
+      req.session = null;
+    } else {
+      session.lastSeenAt = now;
+    }
+  }
+  next();
+});
+
+function sameOriginGuard(req, res, next) {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+  if (req.get("sec-fetch-site") === "cross-site") {
+    return res.status(403).json({ error: "Cross-site state-changing requests are not allowed." });
+  }
+  const source = req.get("origin") || req.get("referer");
+  if (source) {
+    try {
+      const expectedOrigin = `${req.protocol}://${req.get("host")}`;
+      if (new URL(source).origin !== expectedOrigin) {
+        return res.status(403).json({ error: "Request origin does not match this application." });
+      }
+    } catch {
+      return res.status(403).json({ error: "Request origin is invalid." });
+    }
+  }
+  next();
+}
+
+app.use("/api", sameOriginGuard);
 app.use("/api", rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-8", legacyHeaders: false }));
 app.use("/api/auth/login", rateLimit({ windowMs: 15 * 60_000, limit: 8, standardHeaders: "draft-8", legacyHeaders: false }));
 
@@ -98,7 +141,7 @@ async function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS employees (
       id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL,
       department TEXT NOT NULL DEFAULT '', job_title TEXT NOT NULL DEFAULT '',
-      password_hash TEXT NOT NULL, active BOOLEAN NOT NULL DEFAULT TRUE,
+      password_hash TEXT NOT NULL, auth_version INTEGER NOT NULL DEFAULT 1, active BOOLEAN NOT NULL DEFAULT TRUE,
       must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
@@ -127,6 +170,7 @@ async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS mission_assignments_status_idx ON mission_assignments(status,submitted_at DESC);
     CREATE INDEX IF NOT EXISTS mission_messages_mission_idx ON mission_messages(mission_id,created_at);
   `);
+  await pool.query("ALTER TABLE employees ADD COLUMN IF NOT EXISTS auth_version INTEGER NOT NULL DEFAULT 1");
   const count = await pool.query("SELECT COUNT(*)::int AS n FROM platform_modules");
   if (count.rows[0].n === 0) {
     await pool.query(
@@ -159,21 +203,29 @@ async function initializeDatabase() {
 async function audit(action, type, key="", details="", actor="admin") {
   await pool.query("INSERT INTO audit_events(action,entity_type,entity_key,details,actor) VALUES($1,$2,$3,$4,$5)", [action,type,key,details,actor]);
 }
+async function auditWithClient(client, action, type, key="", details="", actor="admin") {
+  await client.query("INSERT INTO audit_events(action,entity_type,entity_key,details,actor) VALUES($1,$2,$3,$4,$5)", [action,type,key,details,actor]);
+}
 function requireAdmin(req,res,next) {
   if (req.session?.role === "admin" || (req.session?.authenticated === true && !req.session?.role)) return next();
   return res.status(403).json({ error: "Administrator access required." });
 }
-async function requireEmployee(req,res,next) {
+async function verifyEmployeeSession(req,res,next,allowPasswordChange=false) {
   if (req.session?.authenticated !== true || req.session?.role !== "employee" || !req.session?.employeeId) {
     return res.status(403).json({ error: "Employee session required." });
   }
-  const r=await pool.query("SELECT active FROM employees WHERE id=$1",[req.session.employeeId]);
-  if(!r.rowCount || !r.rows[0].active) {
+  const r=await pool.query("SELECT active,must_change_password,auth_version FROM employees WHERE id=$1",[req.session.employeeId]);
+  if(!r.rowCount || !r.rows[0].active || Number(req.session.authVersion)!==Number(r.rows[0].auth_version)) {
     req.session=null;
-    return res.status(401).json({ error: "Employee account is disabled or unavailable." });
+    return res.status(401).json({ error: "Employee session is no longer valid. Sign in again." });
+  }
+  if(!allowPasswordChange && r.rows[0].must_change_password) {
+    return res.status(403).json({ error: "Change your temporary password before using the team workspace.", code: "PASSWORD_CHANGE_REQUIRED" });
   }
   next();
 }
+const requireEmployee = (req,res,next) => verifyEmployeeSession(req,res,next,false);
+const requireEmployeeSetup = (req,res,next) => verifyEmployeeSession(req,res,next,true);
 function passwordHash(password) {
   const salt=crypto.randomBytes(16).toString("hex");
   const hash=crypto.scryptSync(password,salt,64).toString("hex");
@@ -246,15 +298,16 @@ app.post("/api/auth/login", asyncRoute(async (req,res) => {
   const supplied = Buffer.from(password);
   const ok = expected.length === supplied.length && crypto.timingSafeEqual(expected,supplied);
   if (!ok) return res.status(401).json({ error:"Invalid administrator password." });
-  req.session = { authenticated:true, role:"admin", actor:"admin", issuedAt:Date.now() };
+  const now=Date.now();
+  req.session = { authenticated:true, role:"admin", actor:"admin", issuedAt:now, lastSeenAt:now };
   await audit("AUTH_LOGIN","security","admin","Administrator session created");
   res.json({ authenticated:true });
 }));
 app.get("/api/auth/me", asyncRoute(async (req,res) => {
   if(req.session?.authenticated !== true) return res.json({authenticated:false});
   if(req.session.role === "employee" && req.session.employeeId) {
-    const r=await pool.query("SELECT id,email,display_name,department,job_title,must_change_password,active FROM employees WHERE id=$1",[req.session.employeeId]);
-    if(!r.rowCount || !r.rows[0].active) { req.session=null; return res.json({authenticated:false}); }
+    const r=await pool.query("SELECT id,email,display_name,department,job_title,must_change_password,active,auth_version FROM employees WHERE id=$1",[req.session.employeeId]);
+    if(!r.rowCount || !r.rows[0].active || Number(req.session.authVersion)!==Number(r.rows[0].auth_version)) { req.session=null; return res.json({authenticated:false}); }
     const e=r.rows[0];
     return res.json({authenticated:true,role:"employee",employee:{id:e.id,email:e.email,name:e.display_name,department:e.department,jobTitle:e.job_title,mustChangePassword:e.must_change_password}});
   }
@@ -399,19 +452,30 @@ app.post("/api/auth/employee-login", rateLimit({windowMs:15*60_000,limit:8,stand
   const email=clean(req.body?.email,254).toLowerCase();
   const password=typeof req.body?.password==="string"?req.body.password:"";
   if(!email || !password) return res.status(400).json({error:"Email and password are required."});
-  const r=await pool.query("SELECT id,email,display_name,department,job_title,password_hash,active,must_change_password FROM employees WHERE email=$1",[email]);
+  const r=await pool.query("SELECT id,email,display_name,department,job_title,password_hash,active,must_change_password,auth_version FROM employees WHERE email=$1",[email]);
   const employee=r.rows[0];
   if(!employee || !employee.active || !passwordMatches(password,employee.password_hash)) return res.status(401).json({error:"Email or password is incorrect."});
-  req.session={authenticated:true,role:"employee",employeeId:employee.id,actor:`employee:${employee.id}`,issuedAt:Date.now()};
+  const now=Date.now();
+  req.session={authenticated:true,role:"employee",employeeId:employee.id,authVersion:employee.auth_version,actor:`employee:${employee.id}`,issuedAt:now,lastSeenAt:now};
   await audit("EMPLOYEE_LOGIN","employee",String(employee.id),"Employee session created",String(employee.id));
   res.json({authenticated:true,role:"employee",mustChangePassword:employee.must_change_password,name:employee.display_name});
 }));
-app.post("/api/auth/change-password", requireEmployee, asyncRoute(async (req,res) => {
+app.post("/api/auth/change-password", requireEmployeeSetup, asyncRoute(async (req,res) => {
   if(req.session?.role!=="employee") return res.status(403).json({error:"Employee session required."});
   const password=typeof req.body?.newPassword==="string"?req.body.newPassword:"";
   if(password.length<12 || password.length>200) return res.status(400).json({error:"New password must contain at least 12 characters."});
-  await pool.query("UPDATE employees SET password_hash=$2,must_change_password=FALSE,updated_at=NOW() WHERE id=$1",[req.session.employeeId,passwordHash(password)]);
-  await audit("EMPLOYEE_PASSWORD_CHANGED","employee",String(req.session.employeeId),"Employee changed initial or current password",String(req.session.employeeId));
+  const client=await pool.connect();
+  let authVersion;
+  try {
+    await client.query("BEGIN");
+    const updated=await client.query("UPDATE employees SET password_hash=$2,must_change_password=FALSE,auth_version=auth_version+1,updated_at=NOW() WHERE id=$1 RETURNING auth_version",[req.session.employeeId,passwordHash(password)]);
+    if(!updated.rowCount) throw new Error("Employee account is unavailable.");
+    authVersion=updated.rows[0].auth_version;
+    await auditWithClient(client,"EMPLOYEE_PASSWORD_CHANGED","employee",String(req.session.employeeId),"Employee changed initial or current password",String(req.session.employeeId));
+    await client.query("COMMIT");
+  } catch(err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
+  req.session.authVersion=authVersion;
+  req.session.lastSeenAt=Date.now();
   res.json({changed:true});
 }));
 app.get("/api/team/dashboard", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
@@ -433,18 +497,28 @@ app.get("/api/team/missions", requireAuth, requireEmployee, asyncRoute(async (re
   res.json({items:r.rows});
 }));
 app.post("/api/team/missions/:id/start", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
-  const r=await pool.query("UPDATE mission_assignments SET status='IN_PROGRESS',updated_at=NOW() WHERE mission_id=$1 AND employee_id=$2 AND status IN ('ASSIGNED','REJECTED') RETURNING id,status",[req.params.id,req.session.employeeId]);
-  if(!r.rowCount) return res.status(409).json({error:"This mission cannot be started in its current state."});
-  await audit("MISSION_STARTED","mission",String(req.params.id),"Employee started an assigned mission",String(req.session.employeeId));
-  res.json({item:r.rows[0]});
+  const client=await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const r=await client.query("UPDATE mission_assignments SET status='IN_PROGRESS',updated_at=NOW() WHERE mission_id=$1 AND employee_id=$2 AND status IN ('ASSIGNED','REJECTED') RETURNING id,status",[req.params.id,req.session.employeeId]);
+    if(!r.rowCount){await client.query("ROLLBACK");return res.status(409).json({error:"This mission cannot be started in its current state."});}
+    await auditWithClient(client,"MISSION_STARTED","mission",String(req.params.id),"Employee started an assigned mission",String(req.session.employeeId));
+    await client.query("COMMIT");
+    res.json({item:r.rows[0]});
+  } catch(err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
 }));
 app.post("/api/team/missions/:id/submit", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
   const note=clean(req.body?.note,3000);
   if(note.length<8) return res.status(400).json({error:"Add a short result note (at least 8 characters) before submitting."});
-  const r=await pool.query("UPDATE mission_assignments SET status='SUBMITTED',submission_note=$3,submitted_at=NOW(),review_note='',updated_at=NOW() WHERE mission_id=$1 AND employee_id=$2 AND status='IN_PROGRESS' RETURNING id,status,submitted_at",[req.params.id,req.session.employeeId,note]);
-  if(!r.rowCount) return res.status(409).json({error:"Start the mission before submitting it."});
-  await audit("MISSION_SUBMITTED","mission",String(req.params.id),"Employee submitted a result for review",String(req.session.employeeId));
-  res.json({item:r.rows[0],message:"Submitted for review. XP is awarded only after administrator verification."});
+  const client=await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const r=await client.query("UPDATE mission_assignments SET status='SUBMITTED',submission_note=$3,submitted_at=NOW(),review_note='',updated_at=NOW() WHERE mission_id=$1 AND employee_id=$2 AND status='IN_PROGRESS' RETURNING id,status,submitted_at",[req.params.id,req.session.employeeId,note]);
+    if(!r.rowCount){await client.query("ROLLBACK");return res.status(409).json({error:"Start the mission before submitting it."});}
+    await auditWithClient(client,"MISSION_SUBMITTED","mission",String(req.params.id),"Employee submitted a result for review",String(req.session.employeeId));
+    await client.query("COMMIT");
+    res.json({item:r.rows[0],message:"Submitted for review. XP is awarded only after administrator verification."});
+  } catch(err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
 }));
 async function employeeCanAccessMission(missionId,employeeId) {
   const r=await pool.query("SELECT 1 FROM mission_assignments WHERE mission_id=$1 AND employee_id=$2",[missionId,employeeId]);
@@ -452,16 +526,21 @@ async function employeeCanAccessMission(missionId,employeeId) {
 }
 app.get("/api/team/missions/:id/messages", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
   if(!await employeeCanAccessMission(req.params.id,req.session.employeeId)) return res.status(404).json({error:"Mission not found."});
-  const r=await pool.query("SELECT mm.id,mm.body,mm.created_at,e.display_name,e.id AS employee_id FROM mission_messages mm JOIN employees e ON e.id=mm.employee_id WHERE mm.mission_id=$1 ORDER BY mm.created_at ASC LIMIT 200",[req.params.id]);
+  const r=await pool.query("SELECT mm.id,mm.body,mm.created_at,e.display_name,e.id AS employee_id FROM (SELECT id,body,created_at,employee_id FROM mission_messages WHERE mission_id=$1 ORDER BY created_at DESC,id DESC LIMIT 200) mm JOIN employees e ON e.id=mm.employee_id ORDER BY mm.created_at ASC,mm.id ASC",[req.params.id]);
   res.json({items:r.rows});
 }));
 app.post("/api/team/missions/:id/messages", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
   const body=clean(req.body?.body,2000);
   if(body.length<1) return res.status(400).json({error:"Message cannot be empty."});
-  if(!await employeeCanAccessMission(req.params.id,req.session.employeeId)) return res.status(404).json({error:"Mission not found."});
-  const r=await pool.query("INSERT INTO mission_messages(mission_id,employee_id,body) VALUES($1,$2,$3) RETURNING id,body,created_at",[req.params.id,req.session.employeeId,body]);
-  await audit("MISSION_MESSAGE_POSTED","mission",String(req.params.id),"Employee posted a mission discussion message",String(req.session.employeeId));
-  res.status(201).json({item:r.rows[0]});
+  const client=await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const r=await client.query("INSERT INTO mission_messages(mission_id,employee_id,body) SELECT $1,$2,$3 WHERE EXISTS (SELECT 1 FROM mission_assignments WHERE mission_id=$1 AND employee_id=$2) RETURNING id,body,created_at",[req.params.id,req.session.employeeId,body]);
+    if(!r.rowCount){await client.query("ROLLBACK");return res.status(404).json({error:"Mission not found."});}
+    await auditWithClient(client,"MISSION_MESSAGE_POSTED","mission",String(req.params.id),"Employee posted a mission discussion message",String(req.session.employeeId));
+    await client.query("COMMIT");
+    res.status(201).json({item:r.rows[0]});
+  } catch(err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
 }));
 app.get("/api/control/team/employees", asyncRoute(async (_req,res) => {
   const r=await pool.query(`SELECT e.id,e.email,e.display_name,e.department,e.job_title,e.active,e.must_change_password,e.created_at,
@@ -474,26 +553,43 @@ app.post("/api/control/team/employees", asyncRoute(async (req,res) => {
   const department=clean(req.body?.department,120),jobTitle=clean(req.body?.jobTitle,120);
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !name) return res.status(400).json({error:"A valid email and employee name are required."});
   const temporaryPassword=crypto.randomBytes(18).toString("base64url");
+  const client=await pool.connect();
   try {
-    const r=await pool.query("INSERT INTO employees(email,display_name,department,job_title,password_hash) VALUES($1,$2,$3,$4,$5) RETURNING id,email,display_name,department,job_title,active,must_change_password,created_at",[email,name,department,jobTitle,passwordHash(temporaryPassword)]);
-    await audit("EMPLOYEE_CREATED","employee",String(r.rows[0].id),`Created employee account for ${email}`);
+    await client.query("BEGIN");
+    const r=await client.query("INSERT INTO employees(email,display_name,department,job_title,password_hash) VALUES($1,$2,$3,$4,$5) RETURNING id,email,display_name,department,job_title,active,must_change_password,created_at",[email,name,department,jobTitle,passwordHash(temporaryPassword)]);
+    await auditWithClient(client,"EMPLOYEE_CREATED","employee",String(r.rows[0].id),`Created employee account for ${email}`);
+    await client.query("COMMIT");
     res.status(201).json({item:r.rows[0],temporaryPassword,warning:"Copy this temporary password now. It will not be shown again; the employee must change it at first sign-in."});
-  } catch(err) { if(err.code==="23505") return res.status(409).json({error:"An employee with this email already exists."}); throw err; }
+  } catch(err) {
+    await client.query("ROLLBACK");
+    if(err.code==="23505") return res.status(409).json({error:"An employee with this email already exists."});
+    throw err;
+  } finally { client.release(); }
 }));
 app.post("/api/control/team/employees/:id/status", asyncRoute(async (req,res) => {
   const active=req.body?.active;
   if(typeof active!=="boolean") return res.status(400).json({error:"active must be true or false."});
-  const r=await pool.query("UPDATE employees SET active=$2,updated_at=NOW() WHERE id=$1 RETURNING id,email,display_name,active",[req.params.id,active]);
-  if(!r.rowCount) return res.status(404).json({error:"Employee not found."});
-  await audit("EMPLOYEE_STATUS_CHANGED","employee",String(req.params.id),`active=${active}`);
-  res.json({item:r.rows[0]});
+  const client=await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const r=await client.query("UPDATE employees SET active=$2,auth_version=CASE WHEN $2=FALSE THEN auth_version+1 ELSE auth_version END,updated_at=NOW() WHERE id=$1 RETURNING id,email,display_name,active",[req.params.id,active]);
+    if(!r.rowCount){await client.query("ROLLBACK");return res.status(404).json({error:"Employee not found."});}
+    await auditWithClient(client,"EMPLOYEE_STATUS_CHANGED","employee",String(req.params.id),`active=${active}`);
+    await client.query("COMMIT");
+    res.json({item:r.rows[0]});
+  } catch(err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
 }));
 app.post("/api/control/team/employees/:id/reset-password", asyncRoute(async (req,res) => {
   const temporaryPassword=crypto.randomBytes(18).toString("base64url");
-  const r=await pool.query("UPDATE employees SET password_hash=$2,must_change_password=TRUE,updated_at=NOW() WHERE id=$1 AND active=TRUE RETURNING id,email,display_name",[req.params.id,passwordHash(temporaryPassword)]);
-  if(!r.rowCount) return res.status(404).json({error:"Active employee account not found."});
-  await audit("EMPLOYEE_PASSWORD_RESET","employee",String(req.params.id),"Administrator issued a new temporary password");
-  res.json({item:r.rows[0],temporaryPassword,warning:"Copy this temporary password now. It will not be shown again; the employee must change it at next sign-in."});
+  const client=await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const r=await client.query("UPDATE employees SET password_hash=$2,must_change_password=TRUE,auth_version=auth_version+1,updated_at=NOW() WHERE id=$1 AND active=TRUE RETURNING id,email,display_name",[req.params.id,passwordHash(temporaryPassword)]);
+    if(!r.rowCount){await client.query("ROLLBACK");return res.status(404).json({error:"Active employee account not found."});}
+    await auditWithClient(client,"EMPLOYEE_PASSWORD_RESET","employee",String(req.params.id),"Administrator issued a new temporary password");
+    await client.query("COMMIT");
+    res.json({item:r.rows[0],temporaryPassword,warning:"Copy this temporary password now. It will not be shown again; the employee must change it at next sign-in."});
+  } catch(err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
 }));
 ;
 app.get("/api/control/team/missions", asyncRoute(async (_req,res) => {
@@ -516,8 +612,8 @@ app.post("/api/control/team/missions", asyncRoute(async (req,res) => {
     if(employees.rowCount!==ids.length){await client.query("ROLLBACK");return res.status(400).json({error:"One or more selected employee accounts are missing or inactive."});}
     const m=await client.query("INSERT INTO team_missions(title,description,category,xp_reward,due_at,created_by,status) VALUES($1,$2,$3,$4,$5,'admin','PUBLISHED') RETURNING *",[title,description,category,xp,dueAt]);
     for(const id of ids) await client.query("INSERT INTO mission_assignments(mission_id,employee_id) VALUES($1,$2)",[m.rows[0].id,id]);
+    await auditWithClient(client,"MISSION_PUBLISHED","mission",String(m.rows[0].id),`Published to ${ids.length} employee(s)`);
     await client.query("COMMIT");
-    await audit("MISSION_PUBLISHED","mission",String(m.rows[0].id),`Published to ${ids.length} employee(s)`);
     res.status(201).json({item:m.rows[0],assigned:ids.length});
   } catch(err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
 }));
@@ -540,9 +636,9 @@ app.post("/api/control/team/submissions/:id/review", asyncRoute(async (req,res) 
       FROM team_missions m WHERE a.id=$1 AND a.mission_id=m.id AND a.status='SUBMITTED'
       RETURNING a.id,a.status,a.employee_id,a.mission_id,a.xp_awarded`,[req.params.id,decision,note]);
     if(!r.rowCount){await client.query("ROLLBACK");return res.status(409).json({error:"Submission is no longer awaiting review."});}
-    await client.query("COMMIT");
     const item=r.rows[0];
-    await audit(decision==="VERIFIED"?"MISSION_VERIFIED":"MISSION_RETURNED","mission",String(item.mission_id),decision==="VERIFIED"?`Verified; ${item.xp_awarded} XP awarded`:"Returned for revision");
+    await auditWithClient(client,decision==="VERIFIED"?"MISSION_VERIFIED":"MISSION_RETURNED","mission",String(item.mission_id),decision==="VERIFIED"?`Verified; ${item.xp_awarded} XP awarded`:"Returned for revision");
+    await client.query("COMMIT");
     res.json({item,message:decision==="VERIFIED"?`Verified. ${item.xp_awarded} XP awarded.`:"Returned to employee for revision."});
   } catch(err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
 }));
