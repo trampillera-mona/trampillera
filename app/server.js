@@ -27,6 +27,9 @@ const pool = new pg.Pool({
   connectionTimeoutMillis: 5000,
   ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: true } : undefined
 });
+pool.on("error", (err) => {
+  console.error(JSON.stringify({ level: "error", event: "postgres_idle_client_error", message: err.message }));
+});
 
 app.disable("x-powered-by");
 // Render and production ingress sit behind one trusted reverse-proxy hop.
@@ -62,6 +65,46 @@ app.use(cookieSession({
   maxAge: 8 * 60 * 60 * 1000,
   path: "/"
 }));
+
+const SESSION_ABSOLUTE_MS = 8 * 60 * 60 * 1000;
+const SESSION_IDLE_MS = 30 * 60 * 1000;
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/")) res.set("Cache-Control", "no-store");
+  const session = req.session;
+  if (session?.authenticated === true) {
+    const now = Date.now();
+    const issuedAt = Number(session.issuedAt);
+    const lastSeenAt = Number(session.lastSeenAt ?? session.issuedAt);
+    const invalidClock = !Number.isFinite(issuedAt) || !Number.isFinite(lastSeenAt) || issuedAt > now + 60_000 || lastSeenAt > now + 60_000;
+    if (invalidClock || now - issuedAt > SESSION_ABSOLUTE_MS || now - lastSeenAt > SESSION_IDLE_MS) {
+      req.session = null;
+    } else {
+      session.lastSeenAt = now;
+    }
+  }
+  next();
+});
+
+function sameOriginGuard(req, res, next) {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+  if (req.get("sec-fetch-site") === "cross-site") {
+    return res.status(403).json({ error: "Cross-site state-changing requests are not allowed." });
+  }
+  const source = req.get("origin") || req.get("referer");
+  if (source) {
+    try {
+      const expectedOrigin = `${req.protocol}://${req.get("host")}`;
+      if (new URL(source).origin !== expectedOrigin) {
+        return res.status(403).json({ error: "Request origin does not match this application." });
+      }
+    } catch {
+      return res.status(403).json({ error: "Request origin is invalid." });
+    }
+  }
+  next();
+}
+
+app.use("/api", sameOriginGuard);
 app.use("/api", rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-8", legacyHeaders: false }));
 app.use("/api/auth/login", rateLimit({ windowMs: 15 * 60_000, limit: 8, standardHeaders: "draft-8", legacyHeaders: false }));
 
@@ -98,7 +141,7 @@ async function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS employees (
       id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL,
       department TEXT NOT NULL DEFAULT '', job_title TEXT NOT NULL DEFAULT '',
-      password_hash TEXT NOT NULL, active BOOLEAN NOT NULL DEFAULT TRUE,
+      password_hash TEXT NOT NULL, auth_version INTEGER NOT NULL DEFAULT 1, active BOOLEAN NOT NULL DEFAULT TRUE,
       must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
@@ -127,6 +170,7 @@ async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS mission_assignments_status_idx ON mission_assignments(status,submitted_at DESC);
     CREATE INDEX IF NOT EXISTS mission_messages_mission_idx ON mission_messages(mission_id,created_at);
   `);
+  await pool.query("ALTER TABLE employees ADD COLUMN IF NOT EXISTS auth_version INTEGER NOT NULL DEFAULT 1");
   const count = await pool.query("SELECT COUNT(*)::int AS n FROM platform_modules");
   if (count.rows[0].n === 0) {
     await pool.query(
@@ -163,17 +207,22 @@ function requireAdmin(req,res,next) {
   if (req.session?.role === "admin" || (req.session?.authenticated === true && !req.session?.role)) return next();
   return res.status(403).json({ error: "Administrator access required." });
 }
-async function requireEmployee(req,res,next) {
+async async function verifyEmployeeSession(req,res,next,allowPasswordChange=false) {
   if (req.session?.authenticated !== true || req.session?.role !== "employee" || !req.session?.employeeId) {
     return res.status(403).json({ error: "Employee session required." });
   }
-  const r=await pool.query("SELECT active FROM employees WHERE id=$1",[req.session.employeeId]);
-  if(!r.rowCount || !r.rows[0].active) {
+  const r=await pool.query("SELECT active,must_change_password,auth_version FROM employees WHERE id=$1",[req.session.employeeId]);
+  if(!r.rowCount || !r.rows[0].active || Number(req.session.authVersion)!==Number(r.rows[0].auth_version)) {
     req.session=null;
-    return res.status(401).json({ error: "Employee account is disabled or unavailable." });
+    return res.status(401).json({ error: "Employee session is no longer valid. Sign in again." });
+  }
+  if(!allowPasswordChange && r.rows[0].must_change_password) {
+    return res.status(403).json({ error: "Change your temporary password before using the team workspace.", code: "PASSWORD_CHANGE_REQUIRED" });
   }
   next();
 }
+const requireEmployee = (req,res,next) => verifyEmployeeSession(req,res,next,false);
+const requireEmployeeSetup = (req,res,next) => verifyEmployeeSession(req,res,next,true);
 function passwordHash(password) {
   const salt=crypto.randomBytes(16).toString("hex");
   const hash=crypto.scryptSync(password,salt,64).toString("hex");
@@ -246,15 +295,16 @@ app.post("/api/auth/login", asyncRoute(async (req,res) => {
   const supplied = Buffer.from(password);
   const ok = expected.length === supplied.length && crypto.timingSafeEqual(expected,supplied);
   if (!ok) return res.status(401).json({ error:"Invalid administrator password." });
-  req.session = { authenticated:true, role:"admin", actor:"admin", issuedAt:Date.now() };
+  const now=Date.now();
+  req.session = { authenticated:true, role:"admin", actor:"admin", issuedAt:now, lastSeenAt:now };
   await audit("AUTH_LOGIN","security","admin","Administrator session created");
   res.json({ authenticated:true });
 }));
 app.get("/api/auth/me", asyncRoute(async (req,res) => {
   if(req.session?.authenticated !== true) return res.json({authenticated:false});
   if(req.session.role === "employee" && req.session.employeeId) {
-    const r=await pool.query("SELECT id,email,display_name,department,job_title,must_change_password,active FROM employees WHERE id=$1",[req.session.employeeId]);
-    if(!r.rowCount || !r.rows[0].active) { req.session=null; return res.json({authenticated:false}); }
+    const r=await pool.query("SELECT id,email,display_name,department,job_title,must_change_password,active,auth_version FROM employees WHERE id=$1",[req.session.employeeId]);
+    if(!r.rowCount || !r.rows[0].active || Number(req.session.authVersion)!==Number(r.rows[0].auth_version)) { req.session=null; return res.json({authenticated:false}); }
     const e=r.rows[0];
     return res.json({authenticated:true,role:"employee",employee:{id:e.id,email:e.email,name:e.display_name,department:e.department,jobTitle:e.job_title,mustChangePassword:e.must_change_password}});
   }
@@ -399,19 +449,22 @@ app.post("/api/auth/employee-login", rateLimit({windowMs:15*60_000,limit:8,stand
   const email=clean(req.body?.email,254).toLowerCase();
   const password=typeof req.body?.password==="string"?req.body.password:"";
   if(!email || !password) return res.status(400).json({error:"Email and password are required."});
-  const r=await pool.query("SELECT id,email,display_name,department,job_title,password_hash,active,must_change_password FROM employees WHERE email=$1",[email]);
+  const r=await pool.query("SELECT id,email,display_name,department,job_title,password_hash,active,must_change_password,auth_version FROM employees WHERE email=$1",[email]);
   const employee=r.rows[0];
   if(!employee || !employee.active || !passwordMatches(password,employee.password_hash)) return res.status(401).json({error:"Email or password is incorrect."});
-  req.session={authenticated:true,role:"employee",employeeId:employee.id,actor:`employee:${employee.id}`,issuedAt:Date.now()};
+  const now=Date.now();
+  req.session={authenticated:true,role:"employee",employeeId:employee.id,authVersion:employee.auth_version,actor:`employee:${employee.id}`,issuedAt:now,lastSeenAt:now};
   await audit("EMPLOYEE_LOGIN","employee",String(employee.id),"Employee session created",String(employee.id));
   res.json({authenticated:true,role:"employee",mustChangePassword:employee.must_change_password,name:employee.display_name});
 }));
-app.post("/api/auth/change-password", requireEmployee, asyncRoute(async (req,res) => {
+app.post("/api/auth/change-password", requireEmployeeSetup, asyncRoute(async (req,res) => {
   if(req.session?.role!=="employee") return res.status(403).json({error:"Employee session required."});
   const password=typeof req.body?.newPassword==="string"?req.body.newPassword:"";
   if(password.length<12 || password.length>200) return res.status(400).json({error:"New password must contain at least 12 characters."});
-  await pool.query("UPDATE employees SET password_hash=$2,must_change_password=FALSE,updated_at=NOW() WHERE id=$1",[req.session.employeeId,passwordHash(password)]);
+  const updated=await pool.query("UPDATE employees SET password_hash=$2,must_change_password=FALSE,auth_version=auth_version+1,updated_at=NOW() WHERE id=$1 RETURNING auth_version",[req.session.employeeId,passwordHash(password)]);
   await audit("EMPLOYEE_PASSWORD_CHANGED","employee",String(req.session.employeeId),"Employee changed initial or current password",String(req.session.employeeId));
+  req.session.authVersion=updated.rows[0].auth_version;
+  req.session.lastSeenAt=Date.now();
   res.json({changed:true});
 }));
 app.get("/api/team/dashboard", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
@@ -490,7 +543,7 @@ app.post("/api/control/team/employees/:id/status", asyncRoute(async (req,res) =>
 }));
 app.post("/api/control/team/employees/:id/reset-password", asyncRoute(async (req,res) => {
   const temporaryPassword=crypto.randomBytes(18).toString("base64url");
-  const r=await pool.query("UPDATE employees SET password_hash=$2,must_change_password=TRUE,updated_at=NOW() WHERE id=$1 AND active=TRUE RETURNING id,email,display_name",[req.params.id,passwordHash(temporaryPassword)]);
+  const r=await pool.query("UPDATE employees SET password_hash=$2,must_change_password=TRUE,auth_version=auth_version+1,updated_at=NOW() WHERE id=$1 AND active=TRUE RETURNING id,email,display_name",[req.params.id,passwordHash(temporaryPassword)]);
   if(!r.rowCount) return res.status(404).json({error:"Active employee account not found."});
   await audit("EMPLOYEE_PASSWORD_RESET","employee",String(req.params.id),"Administrator issued a new temporary password");
   res.json({item:r.rows[0],temporaryPassword,warning:"Copy this temporary password now. It will not be shown again; the employee must change it at next sign-in."});
