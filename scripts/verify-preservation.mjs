@@ -23,3 +23,20 @@ assert.match(platform,/href="\/control\/"/,"platform shortcut must target Contro
 assert.match(control,/\/api\/control/,"Control Plane must call the shared API");
 assert.match(control,/tp-login/,"Control Plane must include authentication gate");
 console.log("Interface integration checks passed.");
+
+const city=readFileSync(new URL("../app/public/city/index.html",import.meta.url),"utf8");
+const cityTeam=readFileSync(new URL("../app/public/city/team/index.html",import.meta.url),"utf8");
+const controlTeam=readFileSync(new URL("../app/public/control/team/index.html",import.meta.url),"utf8");
+const server=readFileSync(new URL("../app/server.js",import.meta.url),"utf8");
+for (const route of ["/city/workspace/","/city/campus/","/city/multiverse/","/city/team/"]) assert.ok(city.includes(route),"ITY CITY launcher missing "+route);
+for (const table of ["employees","team_missions","mission_assignments","mission_messages"]) assert.ok(server.includes("CREATE TABLE IF NOT EXISTS "+table),"Database table missing: "+table);
+for (const route of ["/api/auth/employee-login","/api/team/dashboard","/api/team/missions","/api/control/team/employees","/api/control/team/missions","/api/control/team/submissions"]) assert.ok(server.includes(route),"API route missing: "+route);
+assert.ok(server.includes("\"frame-ancestors\": [\"'self'\"]"),"same-origin app shell framing must be allowed by CSP");
+assert.ok(server.includes('frameguard: { action: "sameorigin" }'),"same-origin app shell framing must be allowed by X-Frame-Options");
+assert.ok(server.includes('app.use("/api/control", requireAuth, requireAdmin);'),"Control Plane API must remain administrator-only");
+assert.ok(server.includes("passwordHash(password)"),"Employee passwords must be stored as password hashes");
+assert.ok(server.includes("xp_awarded=CASE WHEN $2='VERIFIED' THEN m.xp_reward ELSE 0 END"),"XP must be awarded only on verified submissions");
+assert.ok(cityTeam.includes("/api/auth/employee-login"),"Employee portal must use server authentication");
+assert.ok(controlTeam.includes("/api/control/team/submissions"),"Team admin must load server-side submissions");
+console.log("ITY CITY team identity, mission workflow, verified XP and same-origin module checks passed.");
+
