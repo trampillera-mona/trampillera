@@ -372,7 +372,17 @@ app.get("/api/platform/status", asyncRoute(async (_req,res) => {
     pool.query("SELECT COUNT(*)::int AS n FROM platform_connectors"),
     pool.query("SELECT COUNT(*)::int AS n FROM model_providers")
   ]);
-  res.json({ status:"operational", modules:m.rows[0].n, connectors:c.rows[0].n, modelProviders:p.rows[0].n, controlPlane:"available" });
+  res.json({
+    status:"available",
+    scope:"application_and_postgresql_registry",
+    modules:m.rows[0].n,
+    connectors:c.rows[0].n,
+    modelProviders:p.rows[0].n,
+    controlPlane:"available",
+    externalIntegrations:"UNKNOWN",
+    connectorConnectivity:"UNKNOWN",
+    providerConnectivity:"UNKNOWN"
+  });
 }));
 app.get("/api/modules", asyncRoute(async (_req,res) => {
   const result = await pool.query("SELECT key,name,version,status,description FROM platform_modules ORDER BY key");
