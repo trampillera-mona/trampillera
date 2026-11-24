@@ -2,6 +2,8 @@
   "use strict";
   const endpoint = "/api/analytics";
   const storageKey = "trampillera.analytics.visitor.v1";
+  const consentKey = "trampillera.analytics.consent.v1";
+  const banner = document.getElementById("visitor-consent");
   const counter = document.getElementById("visitor-counter-value");
   const getVisitorId = () => {
     try {
@@ -25,7 +27,7 @@
     counter.title = "Unique first-party browser visitors: " + counter.textContent +
       " · Today: " + Number(data.today || 0).toLocaleString() +
       " · Page views: " + Number(data.pageviews || 0).toLocaleString() +
-      ". Anonymous audience measurement; raw IP addresses are not stored.";
+      ". Pseudonymous first-party audience measurement; raw IP addresses are not stored.";
   };
   const readCounter = () => fetch(endpoint + "/counter", {
     credentials: "same-origin", cache: "no-store"
@@ -58,7 +60,30 @@
       keepalive: true
     }).then(r => r.ok ? r.json() : null).then(render).catch(readCounter);
   };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", track, { once: true });
-  else track();
+  const start = () => {
+    readCounter();
+    let consent = null;
+    try { consent = localStorage.getItem(consentKey); } catch (_) {}
+    if (consent === "yes") track();
+    if (banner && consent !== "yes" && consent !== "no") banner.hidden = false;
+    const accept = document.getElementById("visitor-consent-accept");
+    const decline = document.getElementById("visitor-consent-decline");
+    const settings = document.getElementById("visitor-privacy-settings");
+    if (accept) accept.addEventListener("click", () => {
+      try { localStorage.setItem(consentKey, "yes"); } catch (_) {}
+      if (banner) banner.hidden = true;
+      track();
+    });
+    if (decline) decline.addEventListener("click", () => {
+      try { localStorage.setItem(consentKey, "no"); } catch (_) {}
+      if (banner) banner.hidden = true;
+      readCounter();
+    });
+    if (settings) settings.addEventListener("click", () => {
+      if (banner) banner.hidden = false;
+    });
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
+  else start();
   window.setInterval(readCounter, 60000);
 })();
