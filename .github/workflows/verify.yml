@@ -63,13 +63,13 @@ jobs:
           printf '%s' "$LOGIN_JSON" | jq -e '.mustChangePassword == true'
           PENDING_ACCESS_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/ity-employee-cookies.txt http://127.0.0.1:3000/api/team/dashboard)
           test "$PENDING_ACCESS_STATUS" = "403"
-          curl --fail --silent -b /tmp/ity-employee-cookies.txt -H 'Content-Type: application/json' -d '{"newPassword":"ci-test-personal-password-123"}' http://127.0.0.1:3000/api/auth/change-password
+          curl --fail --silent -b /tmp/ity-employee-cookies.txt -c /tmp/ity-employee-cookies.txt -H 'Content-Type: application/json' -d '{"newPassword":"ci-test-personal-password-123"}' http://127.0.0.1:3000/api/auth/change-password
           EMPLOYEE2_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"name":"CI Teammate Two","email":"ci-teammate-two@example.test","department":"QA","jobTitle":"Collaborator"}' http://127.0.0.1:3000/api/control/team/employees)
           EMPLOYEE2_ID=$(printf '%s' "$EMPLOYEE2_JSON" | jq -r '.item.id')
           TEMP_PASSWORD2=$(printf '%s' "$EMPLOYEE2_JSON" | jq -r '.temporaryPassword')
           LOGIN2_JSON=$(curl --fail --silent -c /tmp/ity-employee-two-cookies.txt -H 'Content-Type: application/json' -d "{\"email\":\"ci-teammate-two@example.test\",\"password\":\"$TEMP_PASSWORD2\"}" http://127.0.0.1:3000/api/auth/employee-login)
           printf '%s' "$LOGIN2_JSON" | jq -e '.mustChangePassword == true'
-          curl --fail --silent -b /tmp/ity-employee-two-cookies.txt -H 'Content-Type: application/json' -d '{"newPassword":"ci-test-personal-password-456"}' http://127.0.0.1:3000/api/auth/change-password
+          curl --fail --silent -b /tmp/ity-employee-two-cookies.txt -c /tmp/ity-employee-two-cookies.txt -H 'Content-Type: application/json' -d '{"newPassword":"ci-test-personal-password-456"}' http://127.0.0.1:3000/api/auth/change-password
           echo "CI: publish shared mission"
           MISSION_JSON=$(curl --silent --show-error -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d "{\"title\":\"CI cooperative mission\",\"description\":\"Verify the complete employee mission lifecycle in CI.\",\"category\":\"QA\",\"xpReward\":75,\"employeeIds\":[$EMPLOYEE_ID,$EMPLOYEE2_ID]}" http://127.0.0.1:3000/api/control/team/missions)
           echo "CI mission API response: $MISSION_JSON"
@@ -95,7 +95,7 @@ jobs:
           RESET2_OLD_SESSION_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/ity-employee-two-cookies.txt http://127.0.0.1:3000/api/team/dashboard)
           test "$RESET2_OLD_SESSION_STATUS" = "401"
           curl --fail --silent -c /tmp/ity-employee-two-reset-cookies.txt -H 'Content-Type: application/json' -d "{\"email\":\"ci-teammate-two@example.test\",\"password\":\"$RESET2_PASSWORD\"}" http://127.0.0.1:3000/api/auth/employee-login | jq -e '.mustChangePassword == true'
-          curl --fail --silent -b /tmp/ity-employee-two-reset-cookies.txt -H 'Content-Type: application/json' -d '{"newPassword":"ci-test-reset-password-789"}' http://127.0.0.1:3000/api/auth/change-password
+          curl --fail --silent -b /tmp/ity-employee-two-reset-cookies.txt -c /tmp/ity-employee-two-reset-cookies.txt -H 'Content-Type: application/json' -d '{"newPassword":"ci-test-reset-password-789"}' http://127.0.0.1:3000/api/auth/change-password
           curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"active":false}' "http://127.0.0.1:3000/api/control/team/employees/$EMPLOYEE_ID/status"
           DISABLED_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/ity-employee-cookies.txt http://127.0.0.1:3000/api/team/dashboard)
           test "$DISABLED_STATUS" = "401"
