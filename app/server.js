@@ -56,6 +56,11 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
   frameguard: { action: "sameorigin" }
 }));
+// Allow microphone use in this origin, including the same-origin ITY CITY module iframes.
+app.use((req, res, next) => {
+  res.setHeader("Permissions-Policy", "microphone=(self)");
+  next();
+});
 app.use(express.json({ limit: "256kb" }));
 app.use(cookieSession({
   name: "trampillera_session",
