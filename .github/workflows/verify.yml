@@ -102,6 +102,10 @@ jobs:
           curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"active":false}' "http://127.0.0.1:3000/api/control/team/employees/$EMPLOYEE_ID/status"
           DISABLED_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/ity-employee-cookies.txt http://127.0.0.1:3000/api/team/dashboard)
           test "$DISABLED_STATUS" = "401"
+          echo "CI: revoke administrator sessions after credential rotation"
+          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "UPDATE admin_auth_state SET auth_version=auth_version+1 WHERE singleton_id=1"' > /dev/null
+          ADMIN_OLD_SESSION_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/overview)
+          test "$ADMIN_OLD_SESSION_STATUS" = "401"
 
       - name: Stop test stack
         if: always()
