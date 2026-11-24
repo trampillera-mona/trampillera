@@ -44,4 +44,5 @@ document.addEventListener("click",async e=>{const start=e.target.closest("[data-
 $("#logoutBtn").addEventListener("click",async()=>{if(chatPollTimer)clearInterval(chatPollTimer);chatPollTimer=null;selected=null;await api("/api/auth/logout",{method:"POST",body:"{}"});showLogin()});
 api("/api/auth/me").then(d=>{if(!d.authenticated||d.role!=="employee")showLogin();else if(d.employee.mustChangePassword)showChange();else load()}).catch(showLogin);
 })();
-</script></body></html>
+</script><script src="/shared/trampillera-global-controls.js"></script>
+</body></html>
