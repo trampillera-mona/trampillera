@@ -49,3 +49,6 @@ assert.ok(server.includes("auditWithClient"),"critical team state transitions mu
 assert.ok(server.includes('pool.on("error"'),"PostgreSQL idle pool errors must be observed");
 assert.ok(server.indexOf('app.use("/api/control", requireAuth, requireAdmin);') < server.indexOf('app.get("/api/control/team/employees"'),"team administration APIs must remain behind the administrator guard");
 console.log("Session lifecycle, CSRF defense, transaction/audit integrity and database runtime checks passed.");
+assert.ok(server.includes("ORDER BY created_at DESC,id DESC LIMIT 200"),"mission chat must load the latest 200 messages");
+assert.ok(cityTeam.includes("setInterval") && cityTeam.includes("clearInterval"),"active mission discussions must refresh and stop polling on logout");
+console.log("Mission discussion recency and refresh checks passed.");
