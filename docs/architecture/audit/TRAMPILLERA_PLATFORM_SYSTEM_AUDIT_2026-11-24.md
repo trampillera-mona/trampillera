@@ -113,10 +113,10 @@ A passing CI run is required before merge. A passing CI run does not replace a p
 ### Priority 1 — security and operational controls
 
 1. **MFA / SSO:** the administrator identity boundary is a single environment-provided password. No MFA or organization identity provider is implemented.
-3. **Rate-limit durability:** the current rate limiter uses its default in-process store. Limits are not shared across multiple instances and reset on process restart. A shared store and account+IP strategy are future work.
-4. **Content Security Policy:** legacy interfaces still require inline scripts and `unsafe-eval`; this broadens the impact of a future XSS flaw. A safe reduction requires extracting/building legacy scripts and styles, then browser regression testing.
-5. **Backups and restore:** the application diagnostics correctly report backup status as UNKNOWN. No backup schedule, retention evidence or restore drill is wired into this repository.
-6. **Secrets and deployment controls:** production secret rotation, access review and Render environment configuration require a separate authorized operational audit. Admin password rotation now increments the database auth version at startup, invalidating previously issued admin sessions.
+2. **Rate-limit durability:** the current rate limiter uses its default in-process store. Limits are not shared across multiple instances and reset on process restart. A shared store and account+IP strategy are future work.
+3. **Content Security Policy:** legacy interfaces still require inline scripts and `unsafe-eval`; this broadens the impact of a future XSS flaw. A safe reduction requires extracting/building legacy scripts and styles, then browser regression testing.
+4. **Backups and restore:** the application diagnostics correctly report backup status as UNKNOWN. No backup schedule, retention evidence or restore drill is wired into this repository.
+5. **Secrets and deployment controls:** production secret rotation, access review and Render environment configuration require a separate authorized operational audit. Admin password rotation now increments the database auth version at startup, invalidating previously issued admin sessions.
 
 ### Priority 2 — integration and product completeness
 
