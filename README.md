@@ -22,7 +22,7 @@ The ITY CITY entry route is a module launcher for four employee-facing experienc
 - `/city/workspace/` — personal workspace prototype and visual layout builder.
 - `/city/campus/` — Corporate Campus spatial/organizational environment.
 - `/city/multiverse/` — Corporate Multiverse, learning and world exploration.
-- `/city/team/` — server-backed employee accounts, team missions, shared mission discussions, submissions and verified XP.
+- `/city/team/` — server-backed employee accounts, team missions, shared mission discussions (8-second visible-tab refresh), submissions and verified XP.
 
 The two supplied Corporate Campus and Corporate Multiverse source snapshots are retained under `app/public/city/source/`. Their launchable copies use isolated IndexedDB database names and namespaced localStorage keys. The launcher uses same-origin iframe isolation for the full-page source applications.
 
