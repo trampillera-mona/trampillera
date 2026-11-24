@@ -91,15 +91,16 @@ function sameOriginGuard(req, res, next) {
     return res.status(403).json({ error: "Cross-site state-changing requests are not allowed." });
   }
   const source = req.get("origin") || req.get("referer");
-  if (source) {
-    try {
-      const expectedOrigin = `${req.protocol}://${req.get("host")}`;
-      if (new URL(source).origin !== expectedOrigin) {
-        return res.status(403).json({ error: "Request origin does not match this application." });
-      }
-    } catch {
-      return res.status(403).json({ error: "Request origin is invalid." });
+  if (!source) {
+    return res.status(403).json({ error: "Request origin could not be verified." });
+  }
+  try {
+    const expectedOrigin = `${req.protocol}://${req.get("host")}`;
+    if (new URL(source).origin !== expectedOrigin) {
+      return res.status(403).json({ error: "Request origin does not match this application." });
     }
+  } catch {
+    return res.status(403).json({ error: "Request origin is invalid." });
   }
   next();
 }
