@@ -19,7 +19,7 @@
 | JARVISER Core | Registry entry in `platform_modules` | Discovered/catalogued; not an executing orchestrator in this build |
 | Connectors | Registry in `platform_connectors` | Configuration catalogue; validation checks HTTPS syntax only, not live connectivity |
 | Model providers | Registry in `model_providers` | Catalogue; not a provider-neutral inference router |
-| AI chat | Optional server-side OpenAI-compatible request | One configured endpoint path; not yet a modular multi-provider adapter |
+| AI chat | Qwen-first server-side adapter with OpenAI alternative | Qwen Chat Completions is the default; OpenAI Responses / Chat Completions are selectable. No browser key exposure, 30-second timeout, 12/minute route limit, and audit records exclude prompts/completions |
 | PostgreSQL | Shared persistent database | Stores platform registries, audit events and Team Game state |
 | Render | Docker web service + attached PostgreSQL | Deployment target; this audit does not deploy or alter it |
 
@@ -120,7 +120,7 @@ A passing CI run is required before merge. A passing CI run does not replace a p
 
 ### Priority 2 — integration and product completeness
 
-1. **Provider abstraction:** the model registry is catalogue data, not a pluggable inference router. The current AI endpoint is OpenAI-compatible and does not yet implement a provider adapter layer.
+1. **Provider registry and orchestration:** Qwen and OpenAI request adapters now exist, but the model registry remains catalogue data rather than a dynamic adapter loader. Provider reachability checks, capability negotiation, durable conversations, workflow execution and usage/cost ledger are not implemented.
 2. **Connectors:** connector validation confirms URL syntax and HTTPS only; it does not prove authentication, network reachability, schema compatibility or successful data exchange.
 3. **Workspace/Campus/Multiverse synchronization:** these remain isolated browser-side applications. They do not yet share employee identity, server persistence, permissions, activity events or a common object/state model with Team Game.
 4. **JARVISER orchestration:** the registry entry does not mean a working orchestrator, task queue, agent runtime or tool-permission system is connected.
@@ -138,7 +138,7 @@ A passing CI run is required before merge. A passing CI run does not replace a p
 3. Give the operator the manual Render deployment instruction; do not deploy automatically.
 4. After the operator deploys, verify the deployed commit, `/ready`, public routes, Control Plane login and Team Game flow without creating or changing real employee records.
 5. Next hardening pass: persistent rate limiting, backup/restore evidence, and browser-level tests.
-6. Integration pass: provider adapter interface, connector health contracts, and an explicit shared identity/state/event contract for Workspace, Campus, Multiverse and Team Game.
+6. Integration pass: provider health/evidence contracts, connector health contracts, and an explicit shared identity/state/event contract for Workspace, Campus, Multiverse and Team Game.
 
 ## 7. External practices consulted
 
