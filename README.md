@@ -6,10 +6,17 @@ A single deployable application that serves the full TRAMPILLERA platform interf
 
 - `/` — full TRAMPILLERA Media / Unified Reality OS interface.
 - `/control/` — authenticated Control Plane.
+- `/city/` — ITY CITY employee digital environment and corporate game prototype.
 - `/api/health` — database-aware health check.
 - `/api/platform/status` — public platform status summary.
 - `/api/modules` — public module inventory.
 - `/api/control/*` — authenticated management API.
+
+## ITY CITY prototype boundary
+
+The first ITY CITY release is a static, self-contained frontend served by the existing Express static directory at `app/public/city/`. It includes a personal workspace, local no-code widget layout editor, department-oriented template gallery, interactive 2D campus directory, technology engine catalogue, missions, XP and achievements, Academy and team-space previews.
+
+This is a frontend prototype, not a production employee platform. Profile, missions, XP, achievements and workspace layout use sample data and/or browser-local storage. It does not implement employee authentication, multi-user synchronization, HR records, real-time messaging, video conferencing, live engine integrations, server-side mission verification, or a navigable 3D campus. The UI labels these boundaries explicitly. Do not interpret demo XP or mission completion as employee performance data.
 
 ## Architecture
 
@@ -30,7 +37,7 @@ The uploaded source HTML files are preserved byte-for-byte in `originals/`. The 
    docker compose logs -f app
    ```
 
-5. Open `http://localhost:3000/` and `http://localhost:3000/control/`.
+5. Open `http://localhost:3000/`, `http://localhost:3000/control/`, and `http://localhost:3000/city/`.
 6. Sign in to Control Plane using `ADMIN_PASSWORD` from `.env`.
 
 For production HTTPS, point your domain to the host, set `TRAMPILLERA_DOMAIN`, `COOKIE_SECURE=true`, and `TRUST_PROXY=true` in `.env`, then start the optional Caddy ingress with `docker compose --profile edge up -d caddy`. Caddy obtains and renews certificates automatically.
@@ -85,4 +92,4 @@ The public community guide is available at [trampillera.com/community](https://t
 
 ## Verification
 
-Run `sh scripts/check.sh` for JavaScript syntax validation. After deployment, verify `/api/health`, `/`, `/control/`, and a successful Control Plane sign-in. A healthy container alone does not prove every external integration is configured.
+Run `sh scripts/check.sh` for JavaScript syntax validation. After deployment, verify `/api/health`, `/`, `/control/`, and `/city/`. A healthy container alone does not prove every external integration is configured.
