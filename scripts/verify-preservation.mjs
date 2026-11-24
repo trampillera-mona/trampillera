@@ -39,4 +39,13 @@ assert.ok(server.includes("xp_awarded=CASE WHEN $2='VERIFIED' THEN m.xp_reward E
 assert.ok(cityTeam.includes("/api/auth/employee-login"),"Employee portal must use server authentication");
 assert.ok(controlTeam.includes("/api/control/team/submissions"),"Team admin must load server-side submissions");
 console.log("ITY CITY team identity, mission workflow, verified XP and same-origin module checks passed.");
-
+assert.ok(server.includes("auth_version INTEGER NOT NULL DEFAULT 1"),"employee session version column must exist");
+assert.ok(server.includes("ALTER TABLE employees ADD COLUMN IF NOT EXISTS auth_version"),"existing employee databases must migrate without reset");
+assert.ok(server.includes("SESSION_IDLE_MS") && server.includes("SESSION_ABSOLUTE_MS"),"server must enforce idle and absolute session expiry");
+assert.ok(server.includes("sameOriginGuard") && server.includes("sec-fetch-site"),"state-changing API requests must validate request origin metadata");
+assert.ok(server.includes("PASSWORD_CHANGE_REQUIRED"),"temporary passwords must gate employee APIs until changed");
+assert.ok(server.includes("auth_version=auth_version+1"),"password changes, resets and disable actions must revoke old employee sessions");
+assert.ok(server.includes("auditWithClient"),"critical team state transitions must write audit records in their transaction");
+assert.ok(server.includes('pool.on("error"'),"PostgreSQL idle pool errors must be observed");
+assert.ok(server.indexOf('app.use("/api/control", requireAuth, requireAdmin);') < server.indexOf('app.get("/api/control/team/employees"'),"team administration APIs must remain behind the administrator guard");
+console.log("Session lifecycle, CSRF defense, transaction/audit integrity and database runtime checks passed.");
