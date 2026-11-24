@@ -35,6 +35,7 @@ jobs:
       - name: Build and start application with PostgreSQL
         run: |
           trap 'docker compose logs app db || true' ERR
+          curl() { command curl -H 'Origin: http://127.0.0.1:3000' "$@"; }
           docker compose up -d --build db app
           for attempt in $(seq 1 45); do
             if curl --fail --silent http://127.0.0.1:3000/api/health; then
@@ -50,8 +51,10 @@ jobs:
           curl --fail --silent http://127.0.0.1:3000/
           curl --fail --silent http://127.0.0.1:3000/control/ > /dev/null
           curl --fail --silent http://127.0.0.1:3000/api/platform/status
-          CSRF_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Origin: https://attacker.example' -H 'Content-Type: application/json' -d '{"password":"not-a-real-password"}' http://127.0.0.1:3000/api/auth/login)
+          CSRF_STATUS=$(command curl --silent --output /dev/null --write-out '%{http_code}' -H 'Origin: https://attacker.example' -H 'Content-Type: application/json' -d '{"password":"not-a-real-password"}' http://127.0.0.1:3000/api/auth/login)
           test "$CSRF_STATUS" = "403"
+          MISSING_ORIGIN_STATUS=$(command curl --silent --output /dev/null --write-out '%{http_code}' -H 'Content-Type: application/json' -d '{"password":"not-a-real-password"}' http://127.0.0.1:3000/api/auth/login)
+          test "$MISSING_ORIGIN_STATUS" = "403"
           curl --fail --silent -c /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"password":"ci-temporary-admin-password-123"}' http://127.0.0.1:3000/api/auth/login
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/overview
           EMPLOYEE_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"name":"CI Teammate","email":"ci-teammate@example.test","department":"QA","jobTitle":"Tester"}' http://127.0.0.1:3000/api/control/team/employees)
