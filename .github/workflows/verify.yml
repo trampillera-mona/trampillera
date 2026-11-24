@@ -60,6 +60,8 @@ jobs:
           curl --fail --silent --dump-header /tmp/trampillera-headers.txt --output /dev/null http://127.0.0.1:3000/api/health
           grep -qi '^Permissions-Policy: microphone=(self)' /tmp/trampillera-headers.txt
           curl --fail --silent http://127.0.0.1:3000/control/ > /dev/null
+          curl --fail --silent -H 'Content-Type: application/json' -d '{"visitorId":"11111111-1111-4111-8111-111111111111","path":"/","source":"ci","medium":"test","campaign":""}' http://127.0.0.1:3000/api/analytics/visit | jq -e '.visitors == 1 and .today == 1 and .pageviews == 1'
+          curl --fail --silent http://127.0.0.1:3000/api/analytics/counter | jq -e '.visitors == 1 and .today == 1 and .pageviews == 1'
           curl --fail --silent http://127.0.0.1:3000/api/platform/status | jq -e '.status == "available" and .scope == "application_and_postgresql_registry" and .externalIntegrations == "UNKNOWN" and .providerConnectivity == "UNKNOWN"'
           CSRF_STATUS=$(command curl --silent --output /dev/null --write-out '%{http_code}' -H 'Origin: https://attacker.example' -H 'Content-Type: application/json' -d '{"password":"not-a-real-password"}' http://127.0.0.1:3000/api/auth/login)
           test "$CSRF_STATUS" = "403"
@@ -67,6 +69,19 @@ jobs:
           test "$MISSING_ORIGIN_STATUS" = "403"
           curl --fail --silent -c /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"password":"ci-temporary-admin-password-123"}' http://127.0.0.1:3000/api/auth/login
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/overview
+          curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/analytics/summary?days=7 | jq -e '.totals.visitors == 1 and (.daily | length == 7)'
+          CAMPAIGN_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"name":"CI Growth Campaign","channel":"SOCIAL","objective":"Verify campaign attribution","destinationUrl":"https://example.com/landing","budget":0}' http://127.0.0.1:3000/api/control/growth/campaigns)
+          CAMPAIGN_ID=$(printf '%s' "$CAMPAIGN_JSON" | jq -r '.item.id')
+          CAMPAIGN_SLUG=$(printf '%s' "$CAMPAIGN_JSON" | jq -r '.item.slug')
+          test -n "$CAMPAIGN_ID"
+          test -n "$CAMPAIGN_SLUG"
+          REDIRECT_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' "http://127.0.0.1:3000/go/$CAMPAIGN_SLUG")
+          test "$REDIRECT_STATUS" = "302"
+          curl --fail --silent -H 'Content-Type: application/json' -d "{\"visitorId\":\"22222222-2222-4222-8222-222222222222\",\"path\":\"/landing\",\"source\":\"social\",\"medium\":\"campaign\",\"campaign\":\"$CAMPAIGN_SLUG\"}" http://127.0.0.1:3000/api/analytics/visit > /dev/null
+          curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/analytics/summary?days=7 | jq -e --arg slug "$CAMPAIGN_SLUG" '.campaigns[] | select(.slug == $slug and .clicks == 1 and .visits == 1 and .visitors == 1)'
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -X PATCH -H 'Content-Type: application/json' -d '{"status":"PAUSED"}' "http://127.0.0.1:3000/api/control/growth/campaigns/$CAMPAIGN_ID" | jq -e '.item.status == "PAUSED"'
+          PAUSED_REDIRECT_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' "http://127.0.0.1:3000/go/$CAMPAIGN_SLUG")
+          test "$PAUSED_REDIRECT_STATUS" = "404"
           INVALID_LIFECYCLE_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"status":"DISABLED","note":"Attempt to skip required states"}' http://127.0.0.1:3000/api/control/modules/jarviser.core/lifecycle)
           test "$INVALID_LIFECYCLE_STATUS" = "409"
           MISSING_LIFECYCLE_NOTE_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"status":"INSTALLED"}' http://127.0.0.1:3000/api/control/modules/jarviser.core/lifecycle)
