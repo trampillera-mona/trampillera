@@ -60,6 +60,11 @@ assert.ok(server.includes("ORDER BY created_at DESC,id DESC LIMIT 200"),"mission
 assert.ok(cityTeam.includes("setInterval") && cityTeam.includes("clearInterval"),"active mission discussions must refresh and stop polling on logout");
 console.log("Mission discussion recency and refresh checks passed.");
 assert.ok(server.includes("Request origin could not be verified."),"state-changing API requests without Origin or Referer must be rejected");
+assert.ok(server.includes("MODULE_LIFECYCLE_TRANSITIONS"),"module lifecycle must use an explicit state machine");
+assert.ok(server.includes("SELECT status FROM platform_modules WHERE key=$1 FOR UPDATE"),"module lifecycle transitions must lock the current registry state");
+assert.ok(server.includes('auditWithClient(client,"MODULE_LIFECYCLE_CHANGED"'),"module lifecycle changes and audit records must share a transaction");
+assert.ok(control.includes("Transition reason (at least 5 characters)"),"Control Plane must collect a lifecycle transition note");
+assert.ok(city.includes('key==="team"?"SERVER-BACKED · TEAM GAME":"PROTOTYPE · LOCAL MODULE DATA"'),"ITY CITY must distinguish the server-backed Team Game from local prototypes");
 assert.ok(server.includes('status:"available"') && server.includes('scope:"application_and_postgresql_registry"'),"platform status must state its verified scope");
 assert.ok(server.includes('externalIntegrations:"UNKNOWN"') && server.includes('providerConnectivity:"UNKNOWN"'),"unprobed integrations must remain UNKNOWN");
 assert.ok(aiProvider.includes('env.AI_PROVIDER || "qwen"'),"Qwen must be the default AI provider");
