@@ -190,6 +190,17 @@ async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS mission_messages_mission_idx ON mission_messages(mission_id,created_at);
   `);
   await pool.query("ALTER TABLE employees ADD COLUMN IF NOT EXISTS auth_version INTEGER NOT NULL DEFAULT 1");
+
+  await pool.query(
+    "CREATE TABLE IF NOT EXISTS site_visitors (visitor_hash TEXT NOT NULL, visit_date DATE NOT NULL, first_campaign TEXT NOT NULL DEFAULT '', first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(visitor_hash, visit_date));" +
+    "CREATE TABLE IF NOT EXISTS site_pageviews (id BIGSERIAL PRIMARY KEY, visitor_hash TEXT NOT NULL, path TEXT NOT NULL, source TEXT NOT NULL DEFAULT '', medium TEXT NOT NULL DEFAULT '', campaign TEXT NOT NULL DEFAULT '', referrer_host TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());" +
+    "CREATE INDEX IF NOT EXISTS site_pageviews_created_idx ON site_pageviews(created_at DESC);" +
+    "CREATE INDEX IF NOT EXISTS site_pageviews_campaign_idx ON site_pageviews(campaign, created_at DESC);" +
+    "CREATE TABLE IF NOT EXISTS growth_campaigns (id BIGSERIAL PRIMARY KEY, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL, channel TEXT NOT NULL DEFAULT 'OTHER', objective TEXT NOT NULL DEFAULT '', destination_url TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE','PAUSED','ARCHIVED')), budget NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK(budget >= 0), created_by TEXT NOT NULL DEFAULT 'admin', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());" +
+    "CREATE TABLE IF NOT EXISTS growth_campaign_events (id BIGSERIAL PRIMARY KEY, campaign_id BIGINT NOT NULL REFERENCES growth_campaigns(id) ON DELETE CASCADE, event_type TEXT NOT NULL CHECK(event_type IN ('CLICK')), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());" +
+    "CREATE INDEX IF NOT EXISTS growth_campaign_events_idx ON growth_campaign_events(campaign_id, created_at DESC);"
+  );
+
   const adminFingerprint = crypto.createHmac("sha256", SESSION_SECRET).update(ADMIN_PASSWORD).digest("hex");
   const adminStateClient = await pool.connect();
   try {
@@ -394,7 +405,82 @@ app.get("/api/auth/me", asyncRoute(async (req,res) => {
 }));
 app.post("/api/auth/logout", (req,res) => { req.session = null; res.json({ authenticated:false }); });
 
+
+app.post("/api/analytics/visit", asyncRoute(async (req,res) => {
+  const visitorId=typeof req.body?.visitorId==="string"?req.body.visitorId:"";
+  if(!/^[a-zA-Z0-9-]{24,80}$/.test(visitorId)) return res.status(400).json({error:"Invalid visitor token."});
+  const agent=(req.get("user-agent")||"").toLowerCase();
+  if(/bot|crawler|spider|preview|headless/.test(agent)) return res.status(204).end();
+  const visitorHash=crypto.createHmac("sha256",SESSION_SECRET).update(visitorId).digest("hex");
+  const rawPath=clean(req.body?.path,300);
+  const pagePath=rawPath.startsWith("/")?rawPath.split("?")[0].slice(0,240):"/";
+  const source=clean(req.body?.source,100).toLowerCase().replace(/[^a-z0-9._-]/g,"");
+  const medium=clean(req.body?.medium,100).toLowerCase().replace(/[^a-z0-9._-]/g,"");
+  const campaign=clean(req.body?.campaign,100).toLowerCase().replace(/[^a-z0-9._-]/g,"");
+  let referrerHost="";
+  try { if(req.body?.referrer) referrerHost=new URL(String(req.body.referrer)).hostname.slice(0,160); } catch {}
+  await pool.query(
+    "INSERT INTO site_visitors(visitor_hash,visit_date,first_campaign) VALUES($1,CURRENT_DATE,$2) ON CONFLICT(visitor_hash,visit_date) DO UPDATE SET last_seen_at=NOW(),first_campaign=CASE WHEN site_visitors.first_campaign='' THEN EXCLUDED.first_campaign ELSE site_visitors.first_campaign END",
+    [visitorHash,campaign]
+  );
+  await pool.query(
+    "INSERT INTO site_pageviews(visitor_hash,path,source,medium,campaign,referrer_host) VALUES($1,$2,$3,$4,$5,$6)",
+    [visitorHash,pagePath,source,medium,campaign,referrerHost]
+  );
+  const counts=await pool.query("SELECT (SELECT COUNT(DISTINCT visitor_hash)::int FROM site_visitors) AS visitors,(SELECT COUNT(*)::int FROM site_visitors WHERE visit_date=CURRENT_DATE) AS today,(SELECT COUNT(*)::int FROM site_pageviews) AS pageviews");
+  res.set("Cache-Control","no-store");
+  res.json(counts.rows[0]);
+}));
+app.get("/api/analytics/counter", asyncRoute(async (_req,res) => {
+  const r=await pool.query("SELECT (SELECT COUNT(DISTINCT visitor_hash)::int FROM site_visitors) AS visitors,(SELECT COUNT(*)::int FROM site_visitors WHERE visit_date=CURRENT_DATE) AS today,(SELECT COUNT(*)::int FROM site_pageviews) AS pageviews");
+  res.set("Cache-Control","no-store");
+  res.json(r.rows[0]);
+}));
+
 app.use("/api/control", requireAuth, requireAdmin);
+
+app.get("/api/control/analytics/summary", asyncRoute(async (req,res) => {
+  const parsed=Number(req.query.days||30);
+  const days=Number.isFinite(parsed)?Math.max(7,Math.min(90,Math.trunc(parsed))):30;
+  const [totals,daily,pages,sources,campaigns]=await Promise.all([
+    pool.query("SELECT COUNT(*)::int AS pageviews,COUNT(DISTINCT visitor_hash)::int AS visitors,COUNT(*) FILTER(WHERE created_at>=NOW()-INTERVAL '24 hours')::int AS views_24h,COUNT(DISTINCT visitor_hash) FILTER(WHERE created_at::date=CURRENT_DATE)::int AS visitors_today FROM site_pageviews"),
+    pool.query("SELECT to_char(d.day,'YYYY-MM-DD') AS day,COALESCE(p.views,0)::int AS views,COALESCE(p.visitors,0)::int AS visitors FROM generate_series(CURRENT_DATE-($1::int-1),CURRENT_DATE,INTERVAL '1 day') d(day) LEFT JOIN (SELECT created_at::date AS day,COUNT(*) AS views,COUNT(DISTINCT visitor_hash) AS visitors FROM site_pageviews WHERE created_at>=CURRENT_DATE-($1::int-1) GROUP BY created_at::date) p ON p.day=d.day::date ORDER BY d.day",[days]),
+    pool.query("SELECT path,COUNT(*)::int AS views,COUNT(DISTINCT visitor_hash)::int AS visitors FROM site_pageviews WHERE created_at>=NOW()-($1::int*INTERVAL '1 day') GROUP BY path ORDER BY views DESC LIMIT 10",[days]),
+    pool.query("SELECT COALESCE(NULLIF(source,''),NULLIF(referrer_host,''),'Direct') AS source,COUNT(*)::int AS visits,COUNT(DISTINCT visitor_hash)::int AS visitors FROM site_pageviews WHERE created_at>=NOW()-($1::int*INTERVAL '1 day') GROUP BY 1 ORDER BY visits DESC LIMIT 10",[days]),
+    pool.query("SELECT c.id,c.slug,c.name,c.channel,c.objective,c.destination_url,c.status,c.budget,c.created_at,COALESCE(e.clicks,0)::int AS clicks,COALESCE(v.visits,0)::int AS visits,COALESCE(v.visitors,0)::int AS visitors FROM growth_campaigns c LEFT JOIN (SELECT campaign_id,COUNT(*) AS clicks FROM growth_campaign_events WHERE created_at>=NOW()-($1::int*INTERVAL '1 day') GROUP BY campaign_id) e ON e.campaign_id=c.id LEFT JOIN (SELECT campaign,COUNT(*) AS visits,COUNT(DISTINCT visitor_hash) AS visitors FROM site_pageviews WHERE created_at>=NOW()-($1::int*INTERVAL '1 day') AND campaign<>'' GROUP BY campaign) v ON v.campaign=c.slug ORDER BY c.created_at DESC LIMIT 100",[days])
+  ]);
+  res.set("Cache-Control","no-store");
+  res.json({days,totals:totals.rows[0],daily:daily.rows,pages:pages.rows,sources:sources.rows,campaigns:campaigns.rows});
+}));
+app.get("/api/control/growth/campaigns", asyncRoute(async (_req,res) => {
+  const r=await pool.query("SELECT c.id,c.slug,c.name,c.channel,c.objective,c.destination_url,c.status,c.budget,c.created_at,COALESCE(e.clicks,0)::int AS clicks,COALESCE(v.visits,0)::int AS visits,COALESCE(v.visitors,0)::int AS visitors FROM growth_campaigns c LEFT JOIN (SELECT campaign_id,COUNT(*) AS clicks FROM growth_campaign_events GROUP BY campaign_id) e ON e.campaign_id=c.id LEFT JOIN (SELECT campaign,COUNT(*) AS visits,COUNT(DISTINCT visitor_hash) AS visitors FROM site_pageviews WHERE campaign<>'' GROUP BY campaign) v ON v.campaign=c.slug ORDER BY c.created_at DESC LIMIT 100");
+  res.json({items:r.rows});
+}));
+app.post("/api/control/growth/campaigns", asyncRoute(async (req,res) => {
+  const name=clean(req.body?.name,120);
+  const channel=clean(req.body?.channel,40).toUpperCase()||"OTHER";
+  const objective=clean(req.body?.objective,300);
+  const destination=clean(req.body?.destinationUrl,2048);
+  const budget=Number(req.body?.budget||0);
+  if(name.length<2 || !destination || !Number.isFinite(budget) || budget<0 || budget>1000000000) return res.status(400).json({error:"Provide a campaign name, valid destination URL and non-negative budget."});
+  let target;
+  try { target=new URL(destination); } catch { return res.status(400).json({error:"Destination URL is invalid."}); }
+  if(!["https:","http:"].includes(target.protocol)) return res.status(400).json({error:"Only HTTP and HTTPS campaign destinations are allowed."});
+  const base=name.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,48)||"campaign";
+  const slug=base+"-"+crypto.randomBytes(3).toString("hex");
+  const r=await pool.query("INSERT INTO growth_campaigns(slug,name,channel,objective,destination_url,budget) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,slug,name,channel,objective,destination_url,status,budget,created_at",[slug,name,channel,objective,target.toString(),budget]);
+  await audit("GROWTH_CAMPAIGN_CREATED","growth_campaign",slug,"Created "+name+" campaign");
+  res.status(201).json({item:r.rows[0]});
+}));
+app.patch("/api/control/growth/campaigns/:id", asyncRoute(async (req,res) => {
+  const status=clean(req.body?.status,20).toUpperCase();
+  if(!["ACTIVE","PAUSED","ARCHIVED"].includes(status)) return res.status(400).json({error:"Campaign status must be ACTIVE, PAUSED or ARCHIVED."});
+  const r=await pool.query("UPDATE growth_campaigns SET status=$2,updated_at=NOW() WHERE id=$1 RETURNING id,slug,name,status",[req.params.id,status]);
+  if(!r.rowCount) return res.status(404).json({error:"Campaign not found."});
+  await audit("GROWTH_CAMPAIGN_STATUS_CHANGED","growth_campaign",r.rows[0].slug,"Campaign status set to "+status);
+  res.json({item:r.rows[0]});
+}));
+
 app.get("/api/control/overview", asyncRoute(async (_req,res) => {
   const [m,c,p,a] = await Promise.all([
     pool.query("SELECT COUNT(*)::int AS n FROM platform_modules"),
@@ -769,6 +855,17 @@ app.post("/api/control/team/submissions/:id/review", asyncRoute(async (req,res) 
     await client.query("COMMIT");
     res.json({item,message:decision==="VERIFIED"?`Verified. ${item.xp_awarded} XP awarded.`:"Returned to employee for revision."});
   } catch(err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
+}));
+
+
+app.get("/go/:slug", asyncRoute(async (req,res) => {
+  const r=await pool.query("SELECT id,slug,destination_url,status FROM growth_campaigns WHERE slug=$1",[clean(req.params.slug,80)]);
+  if(!r.rowCount || r.rows[0].status!=="ACTIVE") return res.status(404).send("Campaign link is unavailable.");
+  const campaign=r.rows[0];
+  await pool.query("INSERT INTO growth_campaign_events(campaign_id,event_type) VALUES($1,'CLICK')",[campaign.id]);
+  const destination=new URL(campaign.destination_url);
+  destination.searchParams.set("utm_campaign",campaign.slug);
+  res.redirect(302,destination.toString());
 }));
 
 app.use(express.static(path.join(__dirname,"public"),{index:"index.html",etag:true,maxAge:NODE_ENV==="production"?"1h":0}));
