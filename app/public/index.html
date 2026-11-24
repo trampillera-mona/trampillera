@@ -4683,9 +4683,9 @@ const MediaIntel = (() => {
     fetch('/api/platform/status', { credentials: 'same-origin' })
       .then(response => { if (!response.ok) throw new Error('API unavailable'); return response.json(); })
       .then(status => {
-        link.textContent = '⚙ CONTROL PLANE · ' + String(status.status || 'ONLINE').toUpperCase();
-        link.title = 'Platform API operational · Open Control Plane';
-        link.dataset.apiStatus = 'online';
+        link.textContent = '⚙ CONTROL PLANE · ' + String(status.status || 'AVAILABLE').toUpperCase();
+        link.title = 'API and PostgreSQL registry available; external integrations are not probed · Open Control Plane';
+        link.dataset.apiStatus = status.status === 'available' ? 'available' : 'unknown';
       })
       .catch(() => {
         link.textContent = '⚙ CONTROL PLANE · API OFFLINE';
