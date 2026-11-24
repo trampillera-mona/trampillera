@@ -77,5 +77,5 @@ jobs:
       - name: Stop test stack
         if: always()
         run: |
-          docker compose down -v
+          if [ -f .env ]; then docker compose down -v || true; fi
           rm -f .env /tmp/trampillera-cookies.txt /tmp/ity-employee-cookies.txt
