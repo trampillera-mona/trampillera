@@ -139,6 +139,12 @@ async function initializeDatabase() {
       actor TEXT NOT NULL DEFAULT 'admin', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS audit_events_created_at_idx ON audit_events(created_at DESC);
+    CREATE TABLE IF NOT EXISTS admin_auth_state (
+      singleton_id SMALLINT PRIMARY KEY CHECK (singleton_id = 1),
+      auth_version INTEGER NOT NULL DEFAULT 1,
+      password_fingerprint TEXT NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
     CREATE TABLE IF NOT EXISTS employees (
       id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL,
       department TEXT NOT NULL DEFAULT '', job_title TEXT NOT NULL DEFAULT '',
@@ -172,6 +178,31 @@ async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS mission_messages_mission_idx ON mission_messages(mission_id,created_at);
   `);
   await pool.query("ALTER TABLE employees ADD COLUMN IF NOT EXISTS auth_version INTEGER NOT NULL DEFAULT 1");
+  const adminFingerprint = crypto.createHmac("sha256", SESSION_SECRET).update(ADMIN_PASSWORD).digest("hex");
+  const adminStateClient = await pool.connect();
+  try {
+    await adminStateClient.query("BEGIN");
+    await adminStateClient.query(
+      "INSERT INTO admin_auth_state(singleton_id,password_fingerprint) VALUES(1,$1) ON CONFLICT(singleton_id) DO NOTHING",
+      [adminFingerprint]
+    );
+    const currentAdminState = await adminStateClient.query(
+      "SELECT auth_version,password_fingerprint FROM admin_auth_state WHERE singleton_id=1 FOR UPDATE"
+    );
+    if (currentAdminState.rows[0].password_fingerprint !== adminFingerprint) {
+      await adminStateClient.query(
+        "UPDATE admin_auth_state SET auth_version=auth_version+1,password_fingerprint=$1,updated_at=NOW() WHERE singleton_id=1",
+        [adminFingerprint]
+      );
+      await auditWithClient(adminStateClient,"ADMIN_CREDENTIAL_ROTATED","security","admin","Administrator password changed; previous sessions revoked","system");
+    }
+    await adminStateClient.query("COMMIT");
+  } catch (err) {
+    await adminStateClient.query("ROLLBACK");
+    throw err;
+  } finally {
+    adminStateClient.release();
+  }
   const count = await pool.query("SELECT COUNT(*)::int AS n FROM platform_modules");
   if (count.rows[0].n === 0) {
     await pool.query(
@@ -207,9 +238,21 @@ async function audit(action, type, key="", details="", actor="admin") {
 async function auditWithClient(client, action, type, key="", details="", actor="admin") {
   await client.query("INSERT INTO audit_events(action,entity_type,entity_key,details,actor) VALUES($1,$2,$3,$4,$5)", [action,type,key,details,actor]);
 }
-function requireAdmin(req,res,next) {
-  if (req.session?.role === "admin" || (req.session?.authenticated === true && !req.session?.role)) return next();
-  return res.status(403).json({ error: "Administrator access required." });
+async function requireAdmin(req,res,next) {
+  if (req.session?.role !== "admin" || !Number.isSafeInteger(Number(req.session.adminAuthVersion))) {
+    req.session = null;
+    return res.status(401).json({ error: "Administrator session is no longer valid. Sign in again." });
+  }
+  try {
+    const r = await pool.query("SELECT auth_version FROM admin_auth_state WHERE singleton_id=1");
+    if (!r.rowCount || Number(req.session.adminAuthVersion) !== Number(r.rows[0].auth_version)) {
+      req.session = null;
+      return res.status(401).json({ error: "Administrator session is no longer valid. Sign in again." });
+    }
+    return next();
+  } catch (err) {
+    return next(err);
+  }
 }
 async function verifyEmployeeSession(req,res,next,allowPasswordChange=false) {
   if (req.session?.authenticated !== true || req.session?.role !== "employee" || !req.session?.employeeId) {
@@ -299,8 +342,10 @@ app.post("/api/auth/login", asyncRoute(async (req,res) => {
   const supplied = Buffer.from(password);
   const ok = expected.length === supplied.length && crypto.timingSafeEqual(expected,supplied);
   if (!ok) return res.status(401).json({ error:"Invalid administrator password." });
+  const authState = await pool.query("SELECT auth_version FROM admin_auth_state WHERE singleton_id=1");
+  if (!authState.rowCount) return res.status(503).json({ error:"Administrator authentication state is unavailable." });
   const now=Date.now();
-  req.session = { authenticated:true, role:"admin", actor:"admin", issuedAt:now, lastSeenAt:now };
+  req.session = { authenticated:true, role:"admin", adminAuthVersion:Number(authState.rows[0].auth_version), actor:"admin", issuedAt:now, lastSeenAt:now };
   await audit("AUTH_LOGIN","security","admin","Administrator session created");
   res.json({ authenticated:true });
 }));
@@ -312,7 +357,12 @@ app.get("/api/auth/me", asyncRoute(async (req,res) => {
     const e=r.rows[0];
     return res.json({authenticated:true,role:"employee",employee:{id:e.id,email:e.email,name:e.display_name,department:e.department,jobTitle:e.job_title,mustChangePassword:e.must_change_password}});
   }
-  return res.json({authenticated:true,role:"admin"});
+  if(req.session.role === "admin" && Number.isSafeInteger(Number(req.session.adminAuthVersion))) {
+    const r=await pool.query("SELECT auth_version FROM admin_auth_state WHERE singleton_id=1");
+    if(r.rowCount && Number(req.session.adminAuthVersion)===Number(r.rows[0].auth_version)) return res.json({authenticated:true,role:"admin"});
+  }
+  req.session=null;
+  return res.json({authenticated:false});
 }));
 app.post("/api/auth/logout", (req,res) => { req.session = null; res.json({ authenticated:false }); });
 
