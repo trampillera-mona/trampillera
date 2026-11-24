@@ -163,9 +163,16 @@ function requireAdmin(req,res,next) {
   if (req.session?.role === "admin" || (req.session?.authenticated === true && !req.session?.role)) return next();
   return res.status(403).json({ error: "Administrator access required." });
 }
-function requireEmployee(req,res,next) {
-  if (req.session?.authenticated === true && req.session?.role === "employee" && req.session?.employeeId) return next();
-  return res.status(403).json({ error: "Employee session required." });
+async function requireEmployee(req,res,next) {
+  if (req.session?.authenticated !== true || req.session?.role !== "employee" || !req.session?.employeeId) {
+    return res.status(403).json({ error: "Employee session required." });
+  }
+  const r=await pool.query("SELECT active FROM employees WHERE id=$1",[req.session.employeeId]);
+  if(!r.rowCount || !r.rows[0].active) {
+    req.session=null;
+    return res.status(401).json({ error: "Employee account is disabled or unavailable." });
+  }
+  next();
 }
 function passwordHash(password) {
   const salt=crypto.randomBytes(16).toString("hex");
@@ -399,7 +406,7 @@ app.post("/api/auth/employee-login", rateLimit({windowMs:15*60_000,limit:8,stand
   await audit("EMPLOYEE_LOGIN","employee",String(employee.id),"Employee session created",String(employee.id));
   res.json({authenticated:true,role:"employee",mustChangePassword:employee.must_change_password,name:employee.display_name});
 }));
-app.post("/api/auth/change-password", requireAuth, asyncRoute(async (req,res) => {
+app.post("/api/auth/change-password", requireEmployee, asyncRoute(async (req,res) => {
   if(req.session?.role!=="employee") return res.status(403).json({error:"Employee session required."});
   const password=typeof req.body?.newPassword==="string"?req.body.newPassword:"";
   if(password.length<12 || password.length>200) return res.status(400).json({error:"New password must contain at least 12 characters."});
