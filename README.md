@@ -11,7 +11,7 @@ A single deployable application that serves the full TRAMPILLERA platform interf
 - `/city/campus/` — Corporate Campus source application.
 - `/city/multiverse/` — Corporate Multiverse source application.
 - `/api/health` — database-aware health check.
-- `/api/platform/status` — public platform status summary.
+- `/api/platform/status` — API/PostgreSQL registry availability summary; external integration health remains `UNKNOWN` until probed.
 - `/api/modules` — public module inventory.
 - `/api/control/*` — authenticated management API.
 
