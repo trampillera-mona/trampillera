@@ -44,12 +44,13 @@ app.use(helmet({
       "img-src": ["'self'", "data:", "blob:", "https:"],
       "media-src": ["'self'", "blob:", "https:"],
       "connect-src": ["'self'", "https:"],
-      "frame-ancestors": ["'none'"],
+      "frame-ancestors": ["'self'"],
       "object-src": ["'none'"],
       "base-uri": ["'self'"]
     }
   },
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  frameguard: { action: "sameorigin" }
 }));
 app.use(express.json({ limit: "256kb" }));
 app.use(cookieSession({
