@@ -480,7 +480,15 @@ app.post("/api/control/team/employees/:id/status", asyncRoute(async (req,res) =>
   if(!r.rowCount) return res.status(404).json({error:"Employee not found."});
   await audit("EMPLOYEE_STATUS_CHANGED","employee",String(req.params.id),\`active=\${active}\`);
   res.json({item:r.rows[0]});
+}))
+app.post("/api/control/team/employees/:id/reset-password", asyncRoute(async (req,res) => {
+  const temporaryPassword=crypto.randomBytes(18).toString("base64url");
+  const r=await pool.query("UPDATE employees SET password_hash=$2,must_change_password=TRUE,updated_at=NOW() WHERE id=$1 AND active=TRUE RETURNING id,email,display_name",[req.params.id,passwordHash(temporaryPassword)]);
+  if(!r.rowCount) return res.status(404).json({error:"Active employee account not found."});
+  await audit("EMPLOYEE_PASSWORD_RESET","employee",String(req.params.id),"Administrator issued a new temporary password");
+  res.json({item:r.rows[0],temporaryPassword,warning:"Copy this temporary password now. It will not be shown again; the employee must change it at next sign-in."});
 }));
+;
 app.get("/api/control/team/missions", asyncRoute(async (_req,res) => {
   const r=await pool.query(\`SELECT m.id,m.title,m.description,m.category,m.xp_reward,m.due_at,m.status,m.created_at,
     COUNT(a.id)::int AS assigned,COUNT(a.id) FILTER (WHERE a.status='SUBMITTED')::int AS submitted,
@@ -516,6 +524,7 @@ app.get("/api/control/team/submissions", asyncRoute(async (_req,res) => {
 app.post("/api/control/team/submissions/:id/review", asyncRoute(async (req,res) => {
   const decision=req.body?.decision,note=clean(req.body?.note,1500);
   if(!["VERIFIED","REJECTED"].includes(decision)) return res.status(400).json({error:"Decision must be VERIFIED or REJECTED."});
+  if(decision==="REJECTED" && note.length<4) return res.status(400).json({error:"Add a short reason when returning a submission."});
   const client=await pool.connect();
   try {
     await client.query("BEGIN");
