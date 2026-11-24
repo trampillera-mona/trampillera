@@ -526,7 +526,7 @@ async function employeeCanAccessMission(missionId,employeeId) {
 }
 app.get("/api/team/missions/:id/messages", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
   if(!await employeeCanAccessMission(req.params.id,req.session.employeeId)) return res.status(404).json({error:"Mission not found."});
-  const r=await pool.query("SELECT mm.id,mm.body,mm.created_at,e.display_name,e.id AS employee_id FROM mission_messages mm JOIN employees e ON e.id=mm.employee_id WHERE mm.mission_id=$1 ORDER BY mm.created_at ASC LIMIT 200",[req.params.id]);
+  const r=await pool.query("SELECT mm.id,mm.body,mm.created_at,e.display_name,e.id AS employee_id FROM (SELECT id,body,created_at,employee_id FROM mission_messages WHERE mission_id=$1 ORDER BY created_at DESC,id DESC LIMIT 200) mm JOIN employees e ON e.id=mm.employee_id ORDER BY mm.created_at ASC,mm.id ASC",[req.params.id]);
   res.json({items:r.rows});
 }));
 app.post("/api/team/missions/:id/messages", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
