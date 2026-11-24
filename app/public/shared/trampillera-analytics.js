@@ -75,7 +75,7 @@
       track();
     });
     if (decline) decline.addEventListener("click", () => {
-      try { localStorage.setItem(consentKey, "no"); } catch (_) {}
+      try { localStorage.setItem(consentKey, "no"); localStorage.removeItem(storageKey); } catch (_) {}
       if (banner) banner.hidden = true;
       readCounter();
     });
