@@ -72,7 +72,7 @@ PostgreSQL
 | A newly created employee could call Team APIs directly before changing the temporary password | First-login policy enforced only by UI | Server-side employee middleware now returns `PASSWORD_CHANGE_REQUIRED` until the password is changed |
 | Password reset or password change did not revoke other signed employee cookies | Old sessions could remain usable | Added `auth_version`; login stores its version, protected requests compare it to PostgreSQL, and password change/reset/disable increments it |
 | Employee sessions had no server-enforced idle timeout | A replayed signed cookie could outlive intended inactivity | Added 30-minute idle and 8-hour absolute expiry checks |
-| State-changing APIs relied mainly on SameSite cookies | Same-site sibling origins and weak browser contexts needed another boundary | Added Fetch Metadata rejection for cross-site requests and Origin/Referer comparison when present |
+| State-changing APIs relied mainly on SameSite cookies | Same-site sibling origins and weak browser contexts needed another boundary | Added Fetch Metadata rejection for cross-site requests and mandatory Origin/Referer verification for every state-changing API request |
 | Authenticated API responses could be cached by intermediaries or browsers | Sensitive response data could persist in caches | Added `Cache-Control: no-store` to API responses |
 | Idle PostgreSQL pool errors had no listener | Background connection failures could become unhandled process errors | Added a pool error listener with structured logging |
 | Critical team changes and their audit records were separate writes | A mutation could commit while its audit insert failed | Employee create/status/reset/password change and mission start/submit/message/publish/review now write audit records inside the same transaction |
@@ -99,7 +99,7 @@ The CI workflow continues to run:
 
 This audit branch extends the tests to prove:
 
-- Cross-origin state-changing API requests are rejected.
+- Cross-origin and source-less state-changing API requests are rejected.
 - An employee with a temporary password cannot use Team APIs before changing it.
 - Password reset invalidates the employee's existing session.
 - The new schema, session expiry, authorization, audit transaction and pool-error invariants remain present.
