@@ -106,4 +106,4 @@ The public community guide is available at [trampillera.com/community](https://t
 
 ## Verification
 
-Run `sh scripts/check.sh` for JavaScript syntax validation. After deployment, verify `/api/health`, `/`, `/control/`, `/city/`, `/city/campus/`, and `/city/multiverse/`. A healthy container alone does not prove every external integration is configured.
+Run `sh scripts/check.sh` for JavaScript syntax checks, AI provider adapter unit tests and source-preservation checks. After deployment, verify `/api/health`, `/`, `/control/`, `/city/`, `/city/campus/`, and `/city/multiverse/`. A healthy container alone does not prove every external integration is configured.
