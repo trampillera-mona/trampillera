@@ -51,9 +51,44 @@ jobs:
           curl --fail --silent http://127.0.0.1:3000/api/platform/status
           curl --fail --silent -c /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"password":"ci-temporary-admin-password-123"}' http://127.0.0.1:3000/api/auth/login
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/overview
+          EMPLOYEE_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"name":"CI Teammate","email":"ci-teammate@example.test","department":"QA","jobTitle":"Tester"}' http://127.0.0.1:3000/api/control/team/employees)
+          EMPLOYEE_ID=$(printf '%s' "$EMPLOYEE_JSON" | jq -r '.item.id')
+          TEMP_PASSWORD=$(printf '%s' "$EMPLOYEE_JSON" | jq -r '.temporaryPassword')
+          test -n "$EMPLOYEE_ID"
+          test -n "$TEMP_PASSWORD"
+          LOGIN_JSON=$(curl --fail --silent -c /tmp/ity-employee-cookies.txt -H 'Content-Type: application/json' -d "{\"email\":\"ci-teammate@example.test\",\"password\":\"$TEMP_PASSWORD\"}" http://127.0.0.1:3000/api/auth/employee-login)
+          printf '%s' "$LOGIN_JSON" | jq -e '.mustChangePassword == true'
+          curl --fail --silent -b /tmp/ity-employee-cookies.txt -H 'Content-Type: application/json' -d '{"newPassword":"ci-test-personal-password-123"}' http://127.0.0.1:3000/api/auth/change-password
+          EMPLOYEE2_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"name":"CI Teammate Two","email":"ci-teammate-two@example.test","department":"QA","jobTitle":"Collaborator"}' http://127.0.0.1:3000/api/control/team/employees)
+          EMPLOYEE2_ID=$(printf '%s' "$EMPLOYEE2_JSON" | jq -r '.item.id')
+          TEMP_PASSWORD2=$(printf '%s' "$EMPLOYEE2_JSON" | jq -r '.temporaryPassword')
+          LOGIN2_JSON=$(curl --fail --silent -c /tmp/ity-employee-two-cookies.txt -H 'Content-Type: application/json' -d "{\"email\":\"ci-teammate-two@example.test\",\"password\":\"$TEMP_PASSWORD2\"}" http://127.0.0.1:3000/api/auth/employee-login)
+          printf '%s' "$LOGIN2_JSON" | jq -e '.mustChangePassword == true'
+          curl --fail --silent -b /tmp/ity-employee-two-cookies.txt -H 'Content-Type: application/json' -d '{"newPassword":"ci-test-personal-password-456"}' http://127.0.0.1:3000/api/auth/change-password
+          MISSION_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d "{\"title\":\"CI cooperative mission\",\"description\":\"Verify the complete employee mission lifecycle in CI.\",\"category\":\"QA\",\"xpReward\":75,\"employeeIds\":[$EMPLOYEE_ID,$EMPLOYEE2_ID]}" http://127.0.0.1:3000/api/control/team/missions)
+          MISSION_ID=$(printf '%s' "$MISSION_JSON" | jq -r '.item.id')
+          curl --fail --silent -b /tmp/ity-employee-two-cookies.txt -H 'Content-Type: application/json' -d '{"body":"Message from teammate two"}' "http://127.0.0.1:3000/api/team/missions/$MISSION_ID/messages"
+          curl --fail --silent -b /tmp/ity-employee-cookies.txt "http://127.0.0.1:3000/api/team/missions/$MISSION_ID/messages" | jq -e '.items | length == 1'
+          curl --fail --silent -b /tmp/ity-employee-cookies.txt -H 'Content-Type: application/json' -d '{}' "http://127.0.0.1:3000/api/team/missions/$MISSION_ID/start"
+          curl --fail --silent -b /tmp/ity-employee-cookies.txt -H 'Content-Type: application/json' -d '{"note":"Completed the cooperative integration smoke test."}' "http://127.0.0.1:3000/api/team/missions/$MISSION_ID/submit"
+          curl --fail --silent -b /tmp/ity-employee-cookies.txt http://127.0.0.1:3000/api/team/dashboard | jq -e '.stats.xp == 0 and .stats.awaiting == 1'
+          SUBMISSION_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/team/submissions)
+          ASSIGNMENT_ID=$(printf '%s' "$SUBMISSION_JSON" | jq -r '.items[0].assignment_id')
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"decision":"VERIFIED","note":"CI verified result"}' "http://127.0.0.1:3000/api/control/team/submissions/$ASSIGNMENT_ID/review"
+          curl --fail --silent -b /tmp/ity-employee-cookies.txt http://127.0.0.1:3000/api/team/dashboard | jq -e '.stats.xp == 75 and .stats.completed == 1'
+          curl --fail --silent -b /tmp/ity-employee-two-cookies.txt -H 'Content-Type: application/json' -d '{}' "http://127.0.0.1:3000/api/team/missions/$MISSION_ID/start"
+          curl --fail --silent -b /tmp/ity-employee-two-cookies.txt -H 'Content-Type: application/json' -d '{"note":"Second employee submits a result for review."}' "http://127.0.0.1:3000/api/team/missions/$MISSION_ID/submit"
+          SUBMISSION2_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/team/submissions)
+          ASSIGNMENT2_ID=$(printf '%s' "$SUBMISSION2_JSON" | jq -r '.items[0].assignment_id')
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"decision":"REJECTED","note":"Please add a clearer result summary."}' "http://127.0.0.1:3000/api/control/team/submissions/$ASSIGNMENT2_ID/review"
+          curl --fail --silent -b /tmp/ity-employee-two-cookies.txt http://127.0.0.1:3000/api/team/dashboard | jq -e '.stats.xp == 0 and .stats.completed == 0'
+          curl --fail --silent -b /tmp/ity-employee-two-cookies.txt -H 'Content-Type: application/json' -d '{}' "http://127.0.0.1:3000/api/team/missions/$MISSION_ID/start"
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"active":false}' "http://127.0.0.1:3000/api/control/team/employees/$EMPLOYEE_ID/status"
+          DISABLED_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/ity-employee-cookies.txt http://127.0.0.1:3000/api/team/dashboard)
+          test "$DISABLED_STATUS" = "401"
 
       - name: Stop test stack
         if: always()
         run: |
-          docker compose down -v
-          rm -f .env /tmp/trampillera-cookies.txt
+          if [ -f .env ]; then docker compose down -v || true; fi
+          rm -f .env /tmp/trampillera-cookies.txt /tmp/ity-employee-cookies.txt /tmp/ity-employee-two-cookies.txt
