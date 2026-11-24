@@ -1951,6 +1951,7 @@ function toggleAmbientRadio(channel = null) {
 function selectGlobalLanguage(code) {
   const upper = String(code || 'EN').toUpperCase();
   UNIFIED_STATE.lang = LANGUAGES.some(l => l.code === upper) ? upper : 'EN';
+  try { localStorage.setItem('trampillera.locale.v1', UNIFIED_STATE.lang); } catch (_) {}
   playTactileSound('snap');
 
   const sel = document.getElementById('global-lang');
@@ -3635,7 +3636,10 @@ const MischiefNavigator = {
     body.innerHTML += `<div class="nav-bubble ai">${esc(reply)}</div>`;
     body.scrollTop = body.scrollHeight;
     if (this.speakOn && 'speechSynthesis' in window) {
-      try { const u = new SpeechSynthesisUtterance(reply); u.lang = UNIFIED_STATE.lang === 'RU' ? 'ru-RU' : 'en-US'; speechSynthesis.speak(u); } catch (e) {}
+      try {
+        if (window.TrampilleraLocale) window.TrampilleraLocale.speak(reply);
+        else { const u = new SpeechSynthesisUtterance(reply); u.lang = (UNIFIED_STATE.lang === 'RU' ? 'ru-RU' : 'en-US'); speechSynthesis.speak(u); }
+      } catch (e) {}
     }
   },
   initDrag() {
@@ -3848,7 +3852,8 @@ const JarvisOrchestrator = (() => {
     if (state.muted || !('speechSynthesis' in window)) return;
     try {
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'en-US'; u.rate = 1.05;
+      u.lang = (window.TrampilleraLocale && window.TrampilleraLocale.locale()) || 'en-US'; u.rate = 1.05;
+      if (window.TrampilleraLocale) { window.TrampilleraLocale.speak(text); return; }
       speechSynthesis.cancel(); speechSynthesis.speak(u);
     } catch (e) {}
   }
@@ -3858,7 +3863,8 @@ const JarvisOrchestrator = (() => {
   if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SR();
-    recognition.lang = 'en-US'; recognition.interimResults = false; recognition.continuous = false;
+    recognition.lang = (window.TrampilleraLocale && window.TrampilleraLocale.locale()) || 'en-US'; recognition.interimResults = false; recognition.continuous = false;
+    window.addEventListener('trampillera:locale-change', e => { if (e.detail && e.detail.locale) recognition.lang = e.detail.locale; });
     recognition.onresult = e => {
       const text = e.results[0][0].transcript;
       handleVoiceCommand(text);
@@ -3877,9 +3883,9 @@ const JarvisOrchestrator = (() => {
     log(`[VOICE] "${text}"`);
     const lower = text.toLowerCase();
     let role = null;
-    if (lower.includes('triage') || lower.includes('first')) role = 'triage';
-    else if (lower.includes('analysis') || lower.includes('second')) role = 'analysis';
-    else if (lower.includes('synthesis') || lower.includes('third') || lower.includes('summary')) role = 'synthesis';
+    if (/(triage|first|триаж|перв(ый|ого|ую) этап|prva faza|prvi korak)/i.test(lower)) role = 'triage';
+    else if (/(analysis|second|анализ|анализа|druga faza|drugi korak|analyse|analisi|análisis|分析|분석|تحليل)/i.test(lower)) role = 'analysis';
+    else if (/(synthesis|third|summary|синтез|треть(я|его) стадия|treća faza|treci korak|synthèse|síntesis|sintesi|síntese|综合|統合|종합|توليف)/i.test(lower)) role = 'synthesis';
     if (role) {
       state.roleInstructions[role] = text;
       const slotEl = document.querySelector(`.slot[data-role="${role}"]`);
@@ -3895,6 +3901,17 @@ const JarvisOrchestrator = (() => {
       speak('I did not catch the role. Say: triage, analysis, or synthesis.');
     }
   }
+  window.addEventListener('trampillera:voice-command', event => {
+    const transcript = event.detail && event.detail.transcript || '';
+    if (/(triage|first|триаж|перв(ый|ого|ую) этап|prva faza|prvi korak|analysis|second|анализ|druga faza|drugi korak|synthesis|third|summary|синтез|treća faza|treci korak)/i.test(transcript)) {
+      event.preventDefault();
+      handleVoiceCommand(transcript);
+    }
+  });
+  window.addEventListener('trampillera:voice-state', event => {
+    state.listening = !!(event.detail && event.detail.listening);
+    setVoiceStatus(state.listening ? '🎤 Listening…' : 'Ready');
+  });
 
   /* ---------- Fit Score ---------- */
   function evaluateFit(roleKey) {
@@ -4381,6 +4398,7 @@ const JarvisOrchestrator = (() => {
     });
 
     document.getElementById('voiceAssignBtn')?.addEventListener('click', () => {
+      if (window.TrampilleraLocale && window.TrampilleraLocale.capabilities().speechRecognition) { window.TrampilleraLocale.start(); return; }
       if (!recognition) { showToast('Voice input is not supported'); return; }
       state.listening = true;
       setVoiceStatus('🎤 Listening...');
@@ -4507,9 +4525,11 @@ document.addEventListener('DOMContentLoaded', () => {
   safeStartup('FUI windows', () => renderAllFUIWindows());
   safeStartup('Main animation loop', () => startMainLoop());
 
-  // Default: English + Cinematic Intro as start page
-  UNIFIED_STATE.lang = 'EN';
-  if (typeof selectGlobalLanguage === 'function') selectGlobalLanguage('EN');
+  // Restore the shared locale; use the browser language only on first visit.
+  let savedLocale = 'EN';
+  try { savedLocale = localStorage.getItem('trampillera.locale.v1') || (window.TrampilleraLocale ? window.TrampilleraLocale.codeForBrowser() : 'EN'); } catch (_) {}
+  UNIFIED_STATE.lang = LANGUAGES.some(l => l.code === String(savedLocale).toUpperCase()) ? String(savedLocale).toUpperCase() : 'EN';
+  if (typeof selectGlobalLanguage === 'function') selectGlobalLanguage(UNIFIED_STATE.lang);
   RealmRouter.switchRealm('intro');
   try { if (typeof FUIWorkspace !== 'undefined') FUIWorkspace.load(true); } catch(e){}
 
@@ -4624,7 +4644,8 @@ const SnapshotStore = (() => {
 
 const SpeechBridge = (() => {
   let recog=null, listening=false;
-  function init(){ const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR) return; recog=new SR(); recog.continuous=false; recog.interimResults=true; recog.lang='en-US'; recog.onresult=e=>{ let final='',interim=''; for(let i=e.resultIndex;i<e.results.length;i++){ const t=e.results[i][0].transcript; if(e.results[i].isFinal) final+=t; else interim+=t; } const text=(final||interim).trim(); if(text){ const input=document.getElementById('nav-input'); if(input) input.value=text; const status=document.getElementById('speech-status'); if(status) status.textContent=final?'Recognized':'Listening…'; if(final&&typeof MischiefNavigator!=='undefined') setTimeout(()=>MischiefNavigator.submitInput(),300); } }; recog.onend=()=>{listening=false;updateUI();}; recog.onerror=()=>{listening=false;updateUI();}; }
+  function init(){ const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR) return; recog=new SR(); recog.continuous=false; recog.interimResults=true; recog.lang=(window.TrampilleraLocale && window.TrampilleraLocale.locale()) || 'en-US';
+    window.addEventListener('trampillera:locale-change',e=>{if(e.detail&&e.detail.locale&&recog)recog.lang=e.detail.locale;}); recog.onresult=e=>{ let final='',interim=''; for(let i=e.resultIndex;i<e.results.length;i++){ const t=e.results[i][0].transcript; if(e.results[i].isFinal) final+=t; else interim+=t; } const text=(final||interim).trim(); if(text){ const input=document.getElementById('nav-input'); if(input) input.value=text; const status=document.getElementById('speech-status'); if(status) status.textContent=final?'Recognized':'Listening…'; if(final&&typeof MischiefNavigator!=='undefined') setTimeout(()=>MischiefNavigator.submitInput(),300); } }; recog.onend=()=>{listening=false;updateUI();}; recog.onerror=()=>{listening=false;updateUI();}; }
   function toggle(){ if(!recog){ showToast('Speech recognition not supported in this browser'); return; } if(listening){ recog.stop(); listening=false; } else { try{ recog.start(); listening=true; }catch(e){ showToast('Microphone permission needed'); } } updateUI(); }
   function updateUI(){ const btn=document.getElementById('speech-toggle-btn'); if(btn) btn.textContent=listening?'🛑 Stop':'🎤 Speak'; const st=document.getElementById('speech-status'); if(st) st.textContent=listening?'Listening…':'Ready'; }
   return { init, toggle, get listening(){return listening;} };
@@ -4695,5 +4716,6 @@ const MediaIntel = (() => {
   })();
   </script>
 
+<script src="/shared/trampillera-global-controls.js"></script>
 </body>
 </html>

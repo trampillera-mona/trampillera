@@ -27,6 +27,7 @@ jobs:
           npm --prefix app run check
           node --test scripts/ai-provider.test.mjs
           node scripts/verify-preservation.mjs
+          node --test scripts/locale-voice.test.mjs
 
       - name: Validate Compose configuration
         run: |
@@ -50,6 +51,10 @@ jobs:
             sleep 2
           done
           curl --fail --silent http://127.0.0.1:3000/
+          curl --fail --silent http://127.0.0.1:3000/shared/trampillera-global-controls.js | grep -q 'TrampilleraLocaleCore'
+          curl --fail --silent http://127.0.0.1:3000/city/ | grep -q 'allow="microphone;'
+          curl --fail --silent --dump-header /tmp/trampillera-headers.txt --output /dev/null http://127.0.0.1:3000/api/health
+          grep -qi '^Permissions-Policy: microphone=(self)' /tmp/trampillera-headers.txt
           curl --fail --silent http://127.0.0.1:3000/control/ > /dev/null
           curl --fail --silent http://127.0.0.1:3000/api/platform/status | jq -e '.status == "available" and .scope == "application_and_postgresql_registry" and .externalIntegrations == "UNKNOWN" and .providerConnectivity == "UNKNOWN"'
           CSRF_STATUS=$(command curl --silent --output /dev/null --write-out '%{http_code}' -H 'Origin: https://attacker.example' -H 'Content-Type: application/json' -d '{"password":"not-a-real-password"}' http://127.0.0.1:3000/api/auth/login)

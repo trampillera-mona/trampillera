@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
+const source=await readFile(new URL('../app/public/shared/trampillera-global-controls.js',import.meta.url),'utf8');
+const sandbox={window:{}};
+vm.runInNewContext(source,sandbox);
+const core=sandbox.window.TrampilleraLocaleCore;
+test('12 locales are unique and use explicit BCP-47 voice tags',()=>{assert.equal(core.languages.length,12);assert.equal(new Set(core.languages.map(x=>x.c)).size,12);assert.equal(new Set(core.languages.map(x=>x.tag)).size,12);});
+test('shared language and voice controls have translated labels in every locale',()=>{for(const l of core.languages)for(const k of ['language','voice','start','stop','ready','listening','unsupported','secure','error','help','settings','workspace','campus','multiverse','team','control','home','back','overview','modules','connectors','models','activity','diagnostics','profile','mute','unmute','speechUnavailable'])assert.ok(core.strings[l.c][k],l.c+' missing '+k);});
+test('voice navigation phrases resolve in every locale',()=>{const examples={EN:'open workspace',RU:'открой рабочее пространство',SR:'otvori radni prostor',DE:'arbeitsbereich öffnen',FR:'ouvrir espace de travail',ES:'abrir espacio de trabajo',IT:'apri workspace',PT:'abrir espaço de trabalho',ZH:'打开工作区',JA:'ワークスペースを開く',KO:'워크스페이스 열기',AR:'افتح مساحة العمل'};for(const l of core.languages)assert.equal(core.matchCommand(examples[l.c],l.c),'workspace',l.c);});
+test('unknown locale and unknown command fail safely',()=>{assert.equal(core.language('xx').c,'EN');assert.equal(core.matchCommand('unrelated phrase','EN'),null);});
+
+test('all seven primary interfaces load the shared controls and ITY CITY delegates microphone access', async () => {
+  const paths = [
+    '../app/public/index.html',
+    '../app/public/control/index.html',
+    '../app/public/city/index.html',
+    '../app/public/city/team/index.html',
+    '../app/public/city/workspace/index.html',
+    '../app/public/city/campus/index.html',
+    '../app/public/city/multiverse/index.html'
+  ];
+  for (const path of paths) {
+    const html = await readFile(new URL(path, import.meta.url), 'utf8');
+    assert.ok(html.includes('/shared/trampillera-global-controls.js'), path + ' missing shared controls');
+  }
+  const city = await readFile(new URL('../app/public/city/index.html', import.meta.url), 'utf8');
+  assert.ok(city.includes('allow="microphone;'), 'ITY CITY iframe must delegate microphone permission');
+  const server = await readFile(new URL('../app/server.js', import.meta.url), 'utf8');
+  assert.ok(server.includes('Permissions-Policy') && server.includes('microphone=(self)'), 'server must restrict microphone permission to same-origin');
+});
