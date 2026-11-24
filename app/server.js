@@ -402,7 +402,7 @@ app.post("/api/auth/employee-login", rateLimit({windowMs:15*60_000,limit:8,stand
   const r=await pool.query("SELECT id,email,display_name,department,job_title,password_hash,active,must_change_password FROM employees WHERE email=$1",[email]);
   const employee=r.rows[0];
   if(!employee || !employee.active || !passwordMatches(password,employee.password_hash)) return res.status(401).json({error:"Email or password is incorrect."});
-  req.session={authenticated:true,role:"employee",employeeId:employee.id,actor:\`employee:\${employee.id}\`,issuedAt:Date.now()};
+  req.session={authenticated:true,role:"employee",employeeId:employee.id,actor:`employee:${employee.id}`,issuedAt:Date.now()};
   await audit("EMPLOYEE_LOGIN","employee",String(employee.id),"Employee session created",String(employee.id));
   res.json({authenticated:true,role:"employee",mustChangePassword:employee.must_change_password,name:employee.display_name});
 }));
@@ -426,10 +426,10 @@ app.get("/api/team/dashboard", requireAuth, requireEmployee, asyncRoute(async (r
   res.json({employee:employee.rows[0],stats:stats.rows[0],assignedMissions:missions.rows[0].total,leaderboard:leaders.rows});
 }));
 app.get("/api/team/missions", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
-  const r=await pool.query(\`SELECT m.id,m.title,m.description,m.category,m.xp_reward,m.due_at,a.id AS assignment_id,a.status,a.submission_note,a.review_note,a.submitted_at,a.reviewed_at,
+  const r=await pool.query(`SELECT m.id,m.title,m.description,m.category,m.xp_reward,m.due_at,a.id AS assignment_id,a.status,a.submission_note,a.review_note,a.submitted_at,a.reviewed_at,
     (SELECT COUNT(*)::int FROM mission_messages mm WHERE mm.mission_id=m.id) AS message_count
     FROM mission_assignments a JOIN team_missions m ON m.id=a.mission_id
-    WHERE a.employee_id=$1 AND m.status='PUBLISHED' ORDER BY CASE a.status WHEN 'SUBMITTED' THEN 1 WHEN 'IN_PROGRESS' THEN 2 WHEN 'ASSIGNED' THEN 3 WHEN 'REJECTED' THEN 4 ELSE 5 END,m.due_at NULLS LAST,m.created_at DESC\`,[req.session.employeeId]);
+    WHERE a.employee_id=$1 AND m.status='PUBLISHED' ORDER BY CASE a.status WHEN 'SUBMITTED' THEN 1 WHEN 'IN_PROGRESS' THEN 2 WHEN 'ASSIGNED' THEN 3 WHEN 'REJECTED' THEN 4 ELSE 5 END,m.due_at NULLS LAST,m.created_at DESC`,[req.session.employeeId]);
   res.json({items:r.rows});
 }));
 app.post("/api/team/missions/:id/start", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
@@ -464,9 +464,9 @@ app.post("/api/team/missions/:id/messages", requireAuth, requireEmployee, asyncR
   res.status(201).json({item:r.rows[0]});
 }));
 app.get("/api/control/team/employees", asyncRoute(async (_req,res) => {
-  const r=await pool.query(\`SELECT e.id,e.email,e.display_name,e.department,e.job_title,e.active,e.must_change_password,e.created_at,
+  const r=await pool.query(`SELECT e.id,e.email,e.display_name,e.department,e.job_title,e.active,e.must_change_password,e.created_at,
     COALESCE(SUM(a.xp_awarded),0)::int AS xp,COUNT(a.id) FILTER (WHERE a.status='VERIFIED')::int AS completed
-    FROM employees e LEFT JOIN mission_assignments a ON a.employee_id=e.id GROUP BY e.id ORDER BY e.created_at DESC\`);
+    FROM employees e LEFT JOIN mission_assignments a ON a.employee_id=e.id GROUP BY e.id ORDER BY e.created_at DESC`);
   res.json({items:r.rows});
 }));
 app.post("/api/control/team/employees", asyncRoute(async (req,res) => {
@@ -476,7 +476,7 @@ app.post("/api/control/team/employees", asyncRoute(async (req,res) => {
   const temporaryPassword=crypto.randomBytes(18).toString("base64url");
   try {
     const r=await pool.query("INSERT INTO employees(email,display_name,department,job_title,password_hash) VALUES($1,$2,$3,$4,$5) RETURNING id,email,display_name,department,job_title,active,must_change_password,created_at",[email,name,department,jobTitle,passwordHash(temporaryPassword)]);
-    await audit("EMPLOYEE_CREATED","employee",String(r.rows[0].id),\`Created employee account for \${email}\`);
+    await audit("EMPLOYEE_CREATED","employee",String(r.rows[0].id),`Created employee account for ${email}`);
     res.status(201).json({item:r.rows[0],temporaryPassword,warning:"Copy this temporary password now. It will not be shown again; the employee must change it at first sign-in."});
   } catch(err) { if(err.code==="23505") return res.status(409).json({error:"An employee with this email already exists."}); throw err; }
 }));
@@ -485,7 +485,7 @@ app.post("/api/control/team/employees/:id/status", asyncRoute(async (req,res) =>
   if(typeof active!=="boolean") return res.status(400).json({error:"active must be true or false."});
   const r=await pool.query("UPDATE employees SET active=$2,updated_at=NOW() WHERE id=$1 RETURNING id,email,display_name,active",[req.params.id,active]);
   if(!r.rowCount) return res.status(404).json({error:"Employee not found."});
-  await audit("EMPLOYEE_STATUS_CHANGED","employee",String(req.params.id),\`active=\${active}\`);
+  await audit("EMPLOYEE_STATUS_CHANGED","employee",String(req.params.id),`active=${active}`);
   res.json({item:r.rows[0]});
 }));
 app.post("/api/control/team/employees/:id/reset-password", asyncRoute(async (req,res) => {
@@ -497,10 +497,10 @@ app.post("/api/control/team/employees/:id/reset-password", asyncRoute(async (req
 }));
 ;
 app.get("/api/control/team/missions", asyncRoute(async (_req,res) => {
-  const r=await pool.query(\`SELECT m.id,m.title,m.description,m.category,m.xp_reward,m.due_at,m.status,m.created_at,
+  const r=await pool.query(`SELECT m.id,m.title,m.description,m.category,m.xp_reward,m.due_at,m.status,m.created_at,
     COUNT(a.id)::int AS assigned,COUNT(a.id) FILTER (WHERE a.status='SUBMITTED')::int AS submitted,
     COUNT(a.id) FILTER (WHERE a.status='VERIFIED')::int AS verified
-    FROM team_missions m LEFT JOIN mission_assignments a ON a.mission_id=m.id GROUP BY m.id ORDER BY m.created_at DESC\`);
+    FROM team_missions m LEFT JOIN mission_assignments a ON a.mission_id=m.id GROUP BY m.id ORDER BY m.created_at DESC`);
   res.json({items:r.rows});
 }));
 app.post("/api/control/team/missions", asyncRoute(async (req,res) => {
@@ -517,15 +517,15 @@ app.post("/api/control/team/missions", asyncRoute(async (req,res) => {
     const m=await client.query("INSERT INTO team_missions(title,description,category,xp_reward,due_at,created_by,status) VALUES($1,$2,$3,$4,$5,'admin','PUBLISHED') RETURNING *",[title,description,category,xp,dueAt]);
     for(const id of ids) await client.query("INSERT INTO mission_assignments(mission_id,employee_id) VALUES($1,$2)",[m.rows[0].id,id]);
     await client.query("COMMIT");
-    await audit("MISSION_PUBLISHED","mission",String(m.rows[0].id),\`Published to \${ids.length} employee(s)\`);
+    await audit("MISSION_PUBLISHED","mission",String(m.rows[0].id),`Published to ${ids.length} employee(s)`);
     res.status(201).json({item:m.rows[0],assigned:ids.length});
   } catch(err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
 }));
 app.get("/api/control/team/submissions", asyncRoute(async (_req,res) => {
-  const r=await pool.query(\`SELECT a.id AS assignment_id,a.status,a.submission_note,a.submitted_at,m.id AS mission_id,m.title,m.xp_reward,
+  const r=await pool.query(`SELECT a.id AS assignment_id,a.status,a.submission_note,a.submitted_at,m.id AS mission_id,m.title,m.xp_reward,
     e.id AS employee_id,e.display_name,e.email,e.department
     FROM mission_assignments a JOIN team_missions m ON m.id=a.mission_id JOIN employees e ON e.id=a.employee_id
-    WHERE a.status='SUBMITTED' ORDER BY a.submitted_at ASC\`);
+    WHERE a.status='SUBMITTED' ORDER BY a.submitted_at ASC`);
   res.json({items:r.rows});
 }));
 app.post("/api/control/team/submissions/:id/review", asyncRoute(async (req,res) => {
@@ -535,15 +535,15 @@ app.post("/api/control/team/submissions/:id/review", asyncRoute(async (req,res) 
   const client=await pool.connect();
   try {
     await client.query("BEGIN");
-    const r=await client.query(\`UPDATE mission_assignments a SET status=$2,review_note=$3,reviewed_at=NOW(),reviewed_by='admin',
+    const r=await client.query(`UPDATE mission_assignments a SET status=$2,review_note=$3,reviewed_at=NOW(),reviewed_by='admin',
       xp_awarded=CASE WHEN $2='VERIFIED' THEN m.xp_reward ELSE 0 END,updated_at=NOW()
       FROM team_missions m WHERE a.id=$1 AND a.mission_id=m.id AND a.status='SUBMITTED'
-      RETURNING a.id,a.status,a.employee_id,a.mission_id,a.xp_awarded\`,[req.params.id,decision,note]);
+      RETURNING a.id,a.status,a.employee_id,a.mission_id,a.xp_awarded`,[req.params.id,decision,note]);
     if(!r.rowCount){await client.query("ROLLBACK");return res.status(409).json({error:"Submission is no longer awaiting review."});}
     await client.query("COMMIT");
     const item=r.rows[0];
-    await audit(decision==="VERIFIED"?"MISSION_VERIFIED":"MISSION_RETURNED","mission",String(item.mission_id),decision==="VERIFIED"?\`Verified; \${item.xp_awarded} XP awarded\`:"Returned for revision");
-    res.json({item,message:decision==="VERIFIED"?\`Verified. \${item.xp_awarded} XP awarded.\`:"Returned to employee for revision."});
+    await audit(decision==="VERIFIED"?"MISSION_VERIFIED":"MISSION_RETURNED","mission",String(item.mission_id),decision==="VERIFIED"?`Verified; ${item.xp_awarded} XP awarded`:"Returned for revision");
+    res.json({item,message:decision==="VERIFIED"?`Verified. ${item.xp_awarded} XP awarded.`:"Returned to employee for revision."});
   } catch(err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
 }));
 
