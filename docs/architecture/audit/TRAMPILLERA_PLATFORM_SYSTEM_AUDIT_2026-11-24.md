@@ -8,7 +8,9 @@
 
 | Surface / subsystem | Current implementation | Actual integration level |
 |---|---|---|
-| Public TRAMPILLERA interface `/` | Static HTML/JS served by Express | Public web surface; legacy client-side runtime. Control Plane shortcut reports API/registry availability without implying external integrations are healthy |
+| Public TRAMPILLERA interface `/` | Static HTML/JS served by Express | Public web surface; legacy client-side runtime. RSS requests go from the browser to a third-party feed-conversion service; JARVISER vault data is browser-local. Control Plane shortcut reports API/registry availability without implying external integrations are healthy |
+| Community Distribution `/community/` | Static public information page | GitHub documentation and contribution links; no member accounts or server-backed community workflow |
+| Community Registry `/registry/` | Static directory and submission guidance | Directory content is static; submissions open a GitHub issue template, not a PostgreSQL workflow |
 | Control Plane `/control/` | Static UI, authenticated `/api/control/*` calls | Connected to shared API and PostgreSQL registries |
 | ITY CITY launcher `/city/` | Same-origin iframe launcher | Navigation/integration shell |
 | Workspace `/city/workspace/` | Preserved browser application | Local prototype state; no shared server workspace state |
@@ -16,9 +18,11 @@
 | Corporate Multiverse `/city/multiverse/` | Preserved browser application | Local prototype state; isolated browser storage |
 | Team Game `/city/team/` | Employee portal + authenticated API | Server-backed accounts, assignments, submissions, XP and shared discussion |
 | Team Admin `/control/team/` | Administrator UI + protected API | Server-backed employee and mission management |
+| Control Plane Comms | UI preview inside `/control/` | Local in-memory sample messages; no message transport, persistence or verified end-to-end encryption |
+| Scene Studio | 2D/3D browser prototype inside `/control/` | Drafts stored in browser `localStorage`; no server persistence |
 | JARVISER Core | Registry entry in `platform_modules` | Discovered/catalogued; not an executing orchestrator in this build |
 | Connectors | Registry in `platform_connectors` | Configuration catalogue; validation checks HTTPS syntax only, not live connectivity |
-| Model providers | Registry in `model_providers` | Catalogue; not a provider-neutral inference router |
+| Model providers | Registry in `model_providers` plus isolated Qwen/OpenAI adapters | Catalogue records do not dynamically load adapters or prove configured/reachable providers |
 | AI chat | Isolated Qwen-first server-side adapter with OpenAI alternative | `app/ai-provider.js` normalizes configuration, request bodies, responses and usage; Qwen is default, OpenAI Responses / Chat Completions selectable. Adapter unit tests, 30-second timeout, 12/minute route limit; audit excludes prompts/completions |
 | PostgreSQL | Shared persistent database | Stores platform registries, audit events and Team Game state |
 | Render | Docker web service + attached PostgreSQL | Deployment target; this audit does not deploy or alter it |
@@ -31,9 +35,17 @@ Browser
   ├─ Control Plane ── admin session ────── /api/control/*
   └─ ITY CITY launcher
        ├─ Workspace ────────────────────── browser-local prototype state
-       ├─ Corporate Campus ─────────────── browser-local prototype state
-       ├─ Corporate Multiverse ─────────── browser-local prototype state
+       ├─ Corporate Campus ─────────────── browser-local IndexedDB/localStorage
+       ├─ Corporate Multiverse ─────────── browser-local IndexedDB/localStorage
        └─ Team Game ── employee session ─ /api/team/*
+
+Public community surfaces
+  ├─ /community/ ───────────────────────── static GitHub links and policy text
+  └─ /registry/ ────────────────────────── static directory; GitHub issue template for submissions
+
+Control Plane previews
+  ├─ Comms ─────────────────────────────── in-memory sample messages only
+  └─ Scene Studio ──────────────────────── localStorage draft only
 
 Express application
   ├─ Helmet / JSON parser / signed cookie session / rate limits
@@ -64,6 +76,8 @@ PostgreSQL
 - Docker Compose waits for PostgreSQL health before starting the application.
 - The application has a database-aware `/ready` health endpoint and graceful SIGTERM/SIGINT shutdown.
 - Public platform status distinguishes API/PostgreSQL registry availability from external connector/provider reachability, which remains `UNKNOWN` until probed.
+- Module lifecycle changes require an explicit target state and operator note; the current state is row-locked and the mutation plus audit record commit in one transaction.
+- ITY CITY launcher labels the server-backed Team Game separately from Workspace/Campus/Multiverse browser-local prototypes.
 - Existing source snapshots and original public/control surfaces are protected by hash-based preservation checks.
 
 ## 3. Findings and changes in this audit branch
@@ -77,6 +91,7 @@ PostgreSQL
 | State-changing APIs relied mainly on SameSite cookies | Same-site sibling origins and weak browser contexts needed another boundary | Added Fetch Metadata rejection for cross-site requests and mandatory Origin/Referer verification for every state-changing API request |
 | Authenticated API responses could be cached by intermediaries or browsers | Sensitive response data could persist in caches | Added `Cache-Control: no-store` to API responses |
 | Idle PostgreSQL pool errors had no listener | Background connection failures could become unhandled process errors | Added a pool error listener with structured logging |
+| Module lifecycle endpoint silently cycled status and wrote its audit event separately | A state label could change without an explicit target/reason, and audit failure could leave an unaudited mutation | Added an explicit allowed-transition map, mandatory operator note, row lock and transactionally coupled audit insert; CI exercises the legal sequence and rejects skipped states |
 | Critical team changes and their audit records were separate writes | A mutation could commit while its audit insert failed | Employee create/status/reset/password change and mission start/submit/message/publish/review now write audit records inside the same transaction |
 | Message history selected the oldest 200 rows | Active conversations could stop showing newer messages after 200 posts | Query now selects the newest 200 and displays them chronologically |
 | Open mission discussions did not refresh automatically | Teammates could miss new posts until reopening the discussion | Active discussion polls every 8 seconds while the browser tab is visible; polling stops on logout |
@@ -123,7 +138,7 @@ A passing CI run is required before merge. A passing CI run does not replace a p
 
 1. **Provider registry and orchestration:** Qwen and OpenAI request adapters now exist, but the model registry remains catalogue data rather than a dynamic adapter loader. Provider reachability checks, capability negotiation, durable conversations, workflow execution and usage/cost ledger are not implemented.
 2. **Connectors:** connector validation confirms URL syntax and HTTPS only; it does not prove authentication, network reachability, schema compatibility or successful data exchange.
-3. **Workspace/Campus/Multiverse synchronization:** these remain isolated browser-side applications. They do not yet share employee identity, server persistence, permissions, activity events or a common object/state model with Team Game.
+3. **Workspace/Campus/Multiverse synchronization:** these remain isolated browser-side applications. They do not yet share employee identity, server persistence, permissions, activity events or a common object/state model with Team Game. The ITY CITY launcher now labels the distinction, but the modules are not yet synchronized.
 4. **JARVISER orchestration:** the registry entry does not mean a working orchestrator, task queue, agent runtime or tool-permission system is connected.
 5. **Real-time collaboration:** mission discussions use HTTP polling, not WebSockets or server-sent events. Presence, typing state, delivery guarantees and offline conflict resolution are not implemented.
 6. **Mission lifecycle:** due dates are displayed but are not enforced by server-side transitions. Mission archive/edit and multi-stage approval flows are not implemented.

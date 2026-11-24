@@ -111,6 +111,12 @@ app.use("/api", rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draf
 app.use("/api/auth/login", rateLimit({ windowMs: 15 * 60_000, limit: 8, standardHeaders: "draft-8", legacyHeaders: false }));
 
 const lifecycle = ["DISCOVERED", "INSTALLED", "CONFIGURED", "DISABLED"];
+const MODULE_LIFECYCLE_TRANSITIONS = {
+  DISCOVERED:["INSTALLED"],
+  INSTALLED:["CONFIGURED"],
+  CONFIGURED:["DISABLED"],
+  DISABLED:["INSTALLED"]
+};
 const validKey = (v) => typeof v === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._-]{1,79}$/.test(v);
 const clean = (v, max=500) => typeof v === "string" ? v.trim().slice(0,max) : "";
 const asyncRoute = (fn) => (req,res,next) => Promise.resolve(fn(req,res,next)).catch(next);
@@ -408,15 +414,42 @@ app.post("/api/control/modules", validateBody({key:80,name:120}), asyncRoute(asy
   await audit("MODULE_REGISTERED","module",key,`Registered ${clean(name,120)}`);
   res.status(201).json({item:r.rows[0]});
 }));
-app.post("/api/control/modules/:key/lifecycle", asyncRoute(async (req,res) => {
+app.post("/api/control/modules/:key/lifecycle", validateBody({status:32,note:500}), asyncRoute(async (req,res) => {
   const key=req.params.key;
-  const r=await pool.query("SELECT status FROM platform_modules WHERE key=$1",[key]);
-  if(!r.rowCount) return res.status(404).json({error:"Module not found."});
-  const current=r.rows[0].status;
-  const next={DISCOVERED:"INSTALLED",INSTALLED:"CONFIGURED",CONFIGURED:"DISABLED",DISABLED:"INSTALLED"}[current]||"DISCOVERED";
-  const updated=await pool.query("UPDATE platform_modules SET status=$2,updated_at=NOW() WHERE key=$1 RETURNING key,name,version,status,description",[key,next]);
-  await audit("MODULE_LIFECYCLE_CHANGED","module",key,`${current} -> ${next}`);
-  res.json({item:updated.rows[0]});
+  const next=clean(req.body.status,32).toUpperCase();
+  const note=clean(req.body.note,500);
+  if(!lifecycle.includes(next) || note.length<5) return res.status(400).json({error:"A valid target lifecycle state and a transition note of at least 5 characters are required."});
+  const client=await pool.connect();
+  let transactionOpen=false;
+  try {
+    await client.query("BEGIN");
+    transactionOpen=true;
+    const currentResult=await client.query("SELECT status FROM platform_modules WHERE key=$1 FOR UPDATE",[key]);
+    if(!currentResult.rowCount) {
+      await client.query("ROLLBACK");
+      transactionOpen=false;
+      return res.status(404).json({error:"Module not found."});
+    }
+    const current=currentResult.rows[0].status;
+    if(!MODULE_LIFECYCLE_TRANSITIONS[current]?.includes(next)) {
+      await client.query("ROLLBACK");
+      transactionOpen=false;
+      return res.status(409).json({error:`Lifecycle transition ${current} → ${next} is not allowed.`,current,requested:next});
+    }
+    const updated=await client.query(
+      "UPDATE platform_modules SET status=$2,updated_at=NOW() WHERE key=$1 RETURNING key,name,version,status,description",
+      [key,next]
+    );
+    await auditWithClient(client,"MODULE_LIFECYCLE_CHANGED","module",key,`from=${current}; to=${next}; note=${note}`);
+    await client.query("COMMIT");
+    transactionOpen=false;
+    res.json({item:updated.rows[0]});
+  } catch(err) {
+    if(transactionOpen) await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }));
 app.get("/api/control/connectors", asyncRoute(async (_req,res) => {
   const r=await pool.query("SELECT key,name,provider,status,endpoint FROM platform_connectors ORDER BY created_at DESC");

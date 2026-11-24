@@ -3,7 +3,7 @@
 **Status:** Source-based baseline  
 **Date:** 2026-11-23  
 **Repository:** `trampillera-mona/trampillera`  
-**Reviewed paths:** `README.md`, `app/server.js`, `app/public/index.html`, `app/public/control/index.html`
+**Reviewed paths:** `README.md`, `app/server.js`, `app/public/index.html`, `app/public/control/index.html`, `app/public/community/index.html`, `app/public/registry/index.html`, and all live `app/public/city/*` module pages
 
 ## 1. Status legend
 
@@ -37,7 +37,12 @@ The current architecture is a **modular monolith in deployment**, but the public
 | 3D FUI spatial constructor | PARTIAL | Three.js scene, hex/saucer geometry, spatial windows, drag/resize, and linking functions exist. | Preserve UI; define World/Scene/Object contracts and persistence API. |
 | Neocube / magnetize mechanic | PARTIAL | Interaction functions such as `toggleNeocubeMode` and saucer-click handling exist. | Add interaction tests and document the actual state model. |
 | Spatial workspace persistence | PARTIAL | Workspace state uses browser storage; this is not shared server-side state. | Keep local drafts; add server-backed named workspaces and revisions. |
-| Multiverse / world registry | NOT IMPLEMENTED | No persistent worlds/scenes/objects schema or corresponding API was found. | Add World Registry after platform identity and module contracts. |
+| Multiverse / world registry | NOT IMPLEMENTED | Corporate Multiverse is a rich browser application, but its scene/UI and XP/visit state use IndexedDB/localStorage; no server API or shared identity integration was found. | Add World Registry after platform identity and module contracts. |
+| ITY CITY launcher | PARTIAL | Same-origin iframe shell; now labels Workspace/Campus/Multiverse as local prototypes and Team Game as server-backed. | Add a shared module manifest, identity handoff and versioned navigation contract. |
+| Corporate Workspace | DEMO / PARTIAL | XP and widget layout use browser `localStorage`; no employee API or server persistence. | Add authenticated per-employee workspace records and revisioned save/load API. |
+| Corporate Campus | DEMO / PARTIAL | Scene and UI layout use browser `localStorage`; event log uses browser IndexedDB. No server API or shared identity. | Define common world/scene/object schema and explicit server persistence boundary. |
+| Community Distribution `/community/` | REAL (static information page) | Static policy, license and GitHub contribution links; no member identity or community backend. | Keep page as documentation surface; build membership and moderation as separate backend domains. |
+| Community Registry `/registry/` | REAL (static directory) | Static sample directory; submission opens a GitHub issue template. No PostgreSQL listing or moderation workflow. | Add a reviewed listing workflow only after identity, moderation and provenance contracts exist. |
 
 ## 4. AI and automation
 
@@ -81,11 +86,11 @@ The current architecture is a **modular monolith in deployment**, but the public
 | Readiness endpoint | REAL (limited scope) | `GET /ready` checks database query. | Add deployment orchestration semantics only if needed. |
 | Platform status API | REAL (limited scope) | `GET /api/platform/status` reports application/PostgreSQL registry availability and returns `UNKNOWN` for unprobed external integrations, connector reachability and provider reachability. | Add explicit health probes with timestamps, timeouts and attributable evidence; do not promote catalogue state to runtime health. |
 | Public module inventory API | REAL | `GET /api/modules` reads PostgreSQL module rows. | Add manifest version, dependencies, health, and evidence fields. |
-| Control Plane authentication | REAL | Session-cookie login, `/api/auth/me`, logout, and protected `/api/control/*` routes exist. | Preserve; add roles, CSRF review, session tests, and security regression tests. |
+| Control Plane authentication | REAL | Admin and employee roles use signed session cookies; administrator and employee auth versions revoke stale sessions; protected `/api/control/*` and `/api/team/*` routes enforce their respective boundaries. | Add MFA/SSO and a fine-grained organization permission matrix. |
 | Authentication diagnostics | REAL (limited scope) | `GET /api/auth/diagnostics` reports request/session/cookie configuration without exposing cookie contents. | Keep restricted details minimal; add regression test for secure cookie behavior. |
-| Control Plane modules | REAL (registry CRUD) | Authenticated module listing, registration, and lifecycle route exist. | Enforce lifecycle transition rules and health/evidence separation. |
+| Control Plane modules | REAL (registry CRUD) | Authenticated module listing/registration plus explicit DISCOVERED → INSTALLED → CONFIGURED → DISABLED → INSTALLED transitions. Each transition requires a note and writes its audit record in the same transaction; this remains registry state, not runtime health. | Add separate module runtime probes with timestamps and evidence references. |
 | Control Plane connectors | PARTIAL | Connector records and HTTPS syntax validation exist; validation explicitly makes no outbound request. | Add separate live connectivity probe with timeout and safe egress policy. |
-| Control Plane model providers | PARTIAL | Provider records can be registered; registration does not establish executable adapter support. | Bind provider records to adapter capabilities and probe results. |
+| Control Plane model providers | PARTIAL | Qwen and OpenAI server adapters exist, but registry records do not dynamically load adapters or prove provider configuration/reachability. | Bind provider records to adapter capabilities and timestamped probe results. |
 | Audit events | REAL (basic) | PostgreSQL `audit_events` table records selected actions. | Add actor identity, correlation IDs, structured JSON details, retention, and append-only controls. |
 | System diagnostics | PARTIAL | Runtime, DB latency, pool counters, commit identity, and backup UNKNOWN are reported. | Add module/connector/provider checks and evidence references. |
 | Backup / restore verification | UNKNOWN | Diagnostics explicitly state no backup or restore verification is available to the application. | Verify Render backup/export process and perform a documented restore test. |

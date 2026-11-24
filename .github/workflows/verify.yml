@@ -58,6 +58,15 @@ jobs:
           test "$MISSING_ORIGIN_STATUS" = "403"
           curl --fail --silent -c /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"password":"ci-temporary-admin-password-123"}' http://127.0.0.1:3000/api/auth/login
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/overview
+          INVALID_LIFECYCLE_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"status":"DISABLED","note":"Attempt to skip required states"}' http://127.0.0.1:3000/api/control/modules/jarviser.core/lifecycle)
+          test "$INVALID_LIFECYCLE_STATUS" = "409"
+          MISSING_LIFECYCLE_NOTE_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"status":"INSTALLED"}' http://127.0.0.1:3000/api/control/modules/jarviser.core/lifecycle)
+          test "$MISSING_LIFECYCLE_NOTE_STATUS" = "400"
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"status":"INSTALLED","note":"CI verified discovery to install transition"}' http://127.0.0.1:3000/api/control/modules/jarviser.core/lifecycle | jq -e '.item.status == "INSTALLED"'
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"status":"CONFIGURED","note":"CI verified install to configured transition"}' http://127.0.0.1:3000/api/control/modules/jarviser.core/lifecycle | jq -e '.item.status == "CONFIGURED"'
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"status":"DISABLED","note":"CI verified configured to disabled transition"}' http://127.0.0.1:3000/api/control/modules/jarviser.core/lifecycle | jq -e '.item.status == "DISABLED"'
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"status":"INSTALLED","note":"CI verified disabled to installed transition"}' http://127.0.0.1:3000/api/control/modules/jarviser.core/lifecycle | jq -e '.item.status == "INSTALLED"'
+          curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/audit | jq -e '.items[] | select(.action == "MODULE_LIFECYCLE_CHANGED" and (.details | contains("note=CI verified discovery to install transition")))'
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/models | jq -e '.items[] | select(.key == "qwen.model-studio")'
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/settings | jq -e '.aiProvider | startswith("qwen")'
           AI_NOT_CONFIGURED_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"message":"CI provider configuration check"}' http://127.0.0.1:3000/api/control/ai/chat)
