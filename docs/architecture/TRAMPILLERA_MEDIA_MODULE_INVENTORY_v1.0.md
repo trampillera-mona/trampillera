@@ -79,7 +79,7 @@ The current architecture is a **modular monolith in deployment**, but the public
 |---|---|---|---|
 | Public platform health | REAL (limited scope) | `GET /api/health` checks PostgreSQL with `SELECT 1`. | Keep scope explicit: app route + database query only. |
 | Readiness endpoint | REAL (limited scope) | `GET /ready` checks database query. | Add deployment orchestration semantics only if needed. |
-| Platform status API | REAL (limited scope) | `GET /api/platform/status` returns registry counts and Control Plane availability. | Avoid returning generic `operational` if module/provider checks are not performed. |
+| Platform status API | REAL (limited scope) | `GET /api/platform/status` reports application/PostgreSQL registry availability and returns `UNKNOWN` for unprobed external integrations, connector reachability and provider reachability. | Add explicit health probes with timestamps, timeouts and attributable evidence; do not promote catalogue state to runtime health. |
 | Public module inventory API | REAL | `GET /api/modules` reads PostgreSQL module rows. | Add manifest version, dependencies, health, and evidence fields. |
 | Control Plane authentication | REAL | Session-cookie login, `/api/auth/me`, logout, and protected `/api/control/*` routes exist. | Preserve; add roles, CSRF review, session tests, and security regression tests. |
 | Authentication diagnostics | REAL (limited scope) | `GET /api/auth/diagnostics` reports request/session/cookie configuration without exposing cookie contents. | Keep restricted details minimal; add regression test for secure cookie behavior. |
