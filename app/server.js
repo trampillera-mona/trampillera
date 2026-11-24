@@ -94,6 +94,37 @@ async function initializeDatabase() {
       actor TEXT NOT NULL DEFAULT 'admin', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS audit_events_created_at_idx ON audit_events(created_at DESC);
+    CREATE TABLE IF NOT EXISTS employees (
+      id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL,
+      department TEXT NOT NULL DEFAULT '', job_title TEXT NOT NULL DEFAULT '',
+      password_hash TEXT NOT NULL, active BOOLEAN NOT NULL DEFAULT TRUE,
+      must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS team_missions (
+      id BIGSERIAL PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT 'TEAM', xp_reward INTEGER NOT NULL DEFAULT 50 CHECK (xp_reward BETWEEN 1 AND 5000),
+      due_at TIMESTAMPTZ, status TEXT NOT NULL DEFAULT 'PUBLISHED' CHECK (status IN ('DRAFT','PUBLISHED','ARCHIVED')),
+      created_by TEXT NOT NULL DEFAULT 'admin', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS mission_assignments (
+      id BIGSERIAL PRIMARY KEY, mission_id BIGINT NOT NULL REFERENCES team_missions(id) ON DELETE CASCADE,
+      employee_id BIGINT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'ASSIGNED' CHECK (status IN ('ASSIGNED','IN_PROGRESS','SUBMITTED','VERIFIED','REJECTED')),
+      submission_note TEXT NOT NULL DEFAULT '', review_note TEXT NOT NULL DEFAULT '',
+      submitted_at TIMESTAMPTZ, reviewed_at TIMESTAMPTZ, reviewed_by TEXT NOT NULL DEFAULT '',
+      xp_awarded INTEGER NOT NULL DEFAULT 0 CHECK (xp_awarded >= 0),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(mission_id, employee_id)
+    );
+    CREATE TABLE IF NOT EXISTS mission_messages (
+      id BIGSERIAL PRIMARY KEY, mission_id BIGINT NOT NULL REFERENCES team_missions(id) ON DELETE CASCADE,
+      employee_id BIGINT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      body TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS mission_assignments_employee_idx ON mission_assignments(employee_id,status);
+    CREATE INDEX IF NOT EXISTS mission_assignments_status_idx ON mission_assignments(status,submitted_at DESC);
+    CREATE INDEX IF NOT EXISTS mission_messages_mission_idx ON mission_messages(mission_id,created_at);
   `);
   const count = await pool.query("SELECT COUNT(*)::int AS n FROM platform_modules");
   if (count.rows[0].n === 0) {
@@ -124,8 +155,28 @@ async function initializeDatabase() {
     );
   }
 }
-async function audit(action, type, key="", details="") {
-  await pool.query("INSERT INTO audit_events(action,entity_type,entity_key,details) VALUES($1,$2,$3,$4)", [action,type,key,details]);
+async function audit(action, type, key="", details="", actor="admin") {
+  await pool.query("INSERT INTO audit_events(action,entity_type,entity_key,details,actor) VALUES($1,$2,$3,$4,$5)", [action,type,key,details,actor]);
+}
+function requireAdmin(req,res,next) {
+  if (req.session?.role === "admin" || (req.session?.authenticated === true && !req.session?.role)) return next();
+  return res.status(403).json({ error: "Administrator access required." });
+}
+function requireEmployee(req,res,next) {
+  if (req.session?.authenticated === true && req.session?.role === "employee" && req.session?.employeeId) return next();
+  return res.status(403).json({ error: "Employee session required." });
+}
+function passwordHash(password) {
+  const salt=crypto.randomBytes(16).toString("hex");
+  const hash=crypto.scryptSync(password,salt,64).toString("hex");
+  return `scrypt$${salt}$${hash}`;
+}
+function passwordMatches(password,stored) {
+  const [scheme,salt,expectedHex]=String(stored||"").split("$");
+  if(scheme!=="scrypt"||!salt||!expectedHex) return false;
+  const expected=Buffer.from(expectedHex,"hex");
+  const supplied=crypto.scryptSync(password,salt,expected.length);
+  return expected.length===supplied.length && crypto.timingSafeEqual(expected,supplied);
 }
 function requireAuth(req,res,next) {
   if (req.session?.authenticated === true) return next();
@@ -187,14 +238,23 @@ app.post("/api/auth/login", asyncRoute(async (req,res) => {
   const supplied = Buffer.from(password);
   const ok = expected.length === supplied.length && crypto.timingSafeEqual(expected,supplied);
   if (!ok) return res.status(401).json({ error:"Invalid administrator password." });
-  req.session = { authenticated:true, issuedAt:Date.now() };
+  req.session = { authenticated:true, role:"admin", actor:"admin", issuedAt:Date.now() };
   await audit("AUTH_LOGIN","security","admin","Administrator session created");
   res.json({ authenticated:true });
 }));
-app.get("/api/auth/me", (req,res) => res.json({ authenticated:req.session?.authenticated === true }));
+app.get("/api/auth/me", asyncRoute(async (req,res) => {
+  if(req.session?.authenticated !== true) return res.json({authenticated:false});
+  if(req.session.role === "employee" && req.session.employeeId) {
+    const r=await pool.query("SELECT id,email,display_name,department,job_title,must_change_password,active FROM employees WHERE id=$1",[req.session.employeeId]);
+    if(!r.rowCount || !r.rows[0].active) { req.session=null; return res.json({authenticated:false}); }
+    const e=r.rows[0];
+    return res.json({authenticated:true,role:"employee",employee:{id:e.id,email:e.email,name:e.display_name,department:e.department,jobTitle:e.job_title,mustChangePassword:e.must_change_password}});
+  }
+  return res.json({authenticated:true,role:"admin"});
+}));
 app.post("/api/auth/logout", (req,res) => { req.session = null; res.json({ authenticated:false }); });
 
-app.use("/api/control", requireAuth);
+app.use("/api/control", requireAuth, requireAdmin);
 app.get("/api/control/overview", asyncRoute(async (_req,res) => {
   const [m,c,p,a] = await Promise.all([
     pool.query("SELECT COUNT(*)::int AS n FROM platform_modules"),
@@ -323,6 +383,151 @@ app.post("/api/control/ai/chat", asyncRoute(async (req,res) => {
   const output=(data.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==="output_text").map(x=>x.text).join("\n");
   await audit("AI_REQUEST_COMPLETED","ai","provider","AI response received from configured provider");
   res.json({reply:output||"The provider returned no text output."});
+}));
+
+
+// ITY CITY employee identity, team missions, moderated XP and mission discussion.
+app.post("/api/auth/employee-login", rateLimit({windowMs:15*60_000,limit:8,standardHeaders:"draft-8",legacyHeaders:false}), asyncRoute(async (req,res) => {
+  const email=clean(req.body?.email,254).toLowerCase();
+  const password=typeof req.body?.password==="string"?req.body.password:"";
+  if(!email || !password) return res.status(400).json({error:"Email and password are required."});
+  const r=await pool.query("SELECT id,email,display_name,department,job_title,password_hash,active,must_change_password FROM employees WHERE email=$1",[email]);
+  const employee=r.rows[0];
+  if(!employee || !employee.active || !passwordMatches(password,employee.password_hash)) return res.status(401).json({error:"Email or password is incorrect."});
+  req.session={authenticated:true,role:"employee",employeeId:employee.id,actor:\`employee:\${employee.id}\`,issuedAt:Date.now()};
+  await audit("EMPLOYEE_LOGIN","employee",String(employee.id),"Employee session created",String(employee.id));
+  res.json({authenticated:true,role:"employee",mustChangePassword:employee.must_change_password,name:employee.display_name});
+}));
+app.post("/api/auth/change-password", requireAuth, asyncRoute(async (req,res) => {
+  if(req.session?.role!=="employee") return res.status(403).json({error:"Employee session required."});
+  const password=typeof req.body?.newPassword==="string"?req.body.newPassword:"";
+  if(password.length<12 || password.length>200) return res.status(400).json({error:"New password must contain at least 12 characters."});
+  await pool.query("UPDATE employees SET password_hash=$2,must_change_password=FALSE,updated_at=NOW() WHERE id=$1",[req.session.employeeId,passwordHash(password)]);
+  await audit("EMPLOYEE_PASSWORD_CHANGED","employee",String(req.session.employeeId),"Employee changed initial or current password",String(req.session.employeeId));
+  res.json({changed:true});
+}));
+app.get("/api/team/dashboard", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
+  const id=req.session.employeeId;
+  const [employee,stats,missions,leaders]=await Promise.all([
+    pool.query("SELECT id,email,display_name,department,job_title,must_change_password FROM employees WHERE id=$1 AND active=TRUE",[id]),
+    pool.query("SELECT COALESCE(SUM(xp_awarded),0)::int AS xp, COUNT(*) FILTER (WHERE status='VERIFIED')::int AS completed, COUNT(*) FILTER (WHERE status IN ('ASSIGNED','IN_PROGRESS'))::int AS active, COUNT(*) FILTER (WHERE status='SUBMITTED')::int AS awaiting FROM mission_assignments WHERE employee_id=$1",[id]),
+    pool.query("SELECT COUNT(*)::int AS total FROM mission_assignments WHERE employee_id=$1",[id]),
+    pool.query("SELECT e.id,e.display_name,e.department,COALESCE(SUM(a.xp_awarded),0)::int AS xp,COUNT(a.id) FILTER (WHERE a.status='VERIFIED')::int AS completed FROM employees e LEFT JOIN mission_assignments a ON a.employee_id=e.id WHERE e.active=TRUE GROUP BY e.id ORDER BY xp DESC,completed DESC,e.display_name ASC LIMIT 10")
+  ]);
+  if(!employee.rowCount) return res.status(401).json({error:"Employee account is unavailable."});
+  res.json({employee:employee.rows[0],stats:stats.rows[0],assignedMissions:missions.rows[0].total,leaderboard:leaders.rows});
+}));
+app.get("/api/team/missions", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
+  const r=await pool.query(\`SELECT m.id,m.title,m.description,m.category,m.xp_reward,m.due_at,a.id AS assignment_id,a.status,a.submission_note,a.review_note,a.submitted_at,a.reviewed_at,
+    (SELECT COUNT(*)::int FROM mission_messages mm WHERE mm.mission_id=m.id) AS message_count
+    FROM mission_assignments a JOIN team_missions m ON m.id=a.mission_id
+    WHERE a.employee_id=$1 AND m.status='PUBLISHED' ORDER BY CASE a.status WHEN 'SUBMITTED' THEN 1 WHEN 'IN_PROGRESS' THEN 2 WHEN 'ASSIGNED' THEN 3 WHEN 'REJECTED' THEN 4 ELSE 5 END,m.due_at NULLS LAST,m.created_at DESC\`,[req.session.employeeId]);
+  res.json({items:r.rows});
+}));
+app.post("/api/team/missions/:id/start", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
+  const r=await pool.query("UPDATE mission_assignments SET status='IN_PROGRESS',updated_at=NOW() WHERE mission_id=$1 AND employee_id=$2 AND status IN ('ASSIGNED','REJECTED') RETURNING id,status",[req.params.id,req.session.employeeId]);
+  if(!r.rowCount) return res.status(409).json({error:"This mission cannot be started in its current state."});
+  await audit("MISSION_STARTED","mission",String(req.params.id),"Employee started an assigned mission",String(req.session.employeeId));
+  res.json({item:r.rows[0]});
+}));
+app.post("/api/team/missions/:id/submit", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
+  const note=clean(req.body?.note,3000);
+  if(note.length<8) return res.status(400).json({error:"Add a short result note (at least 8 characters) before submitting."});
+  const r=await pool.query("UPDATE mission_assignments SET status='SUBMITTED',submission_note=$3,submitted_at=NOW(),review_note='',updated_at=NOW() WHERE mission_id=$1 AND employee_id=$2 AND status='IN_PROGRESS' RETURNING id,status,submitted_at",[req.params.id,req.session.employeeId,note]);
+  if(!r.rowCount) return res.status(409).json({error:"Start the mission before submitting it."});
+  await audit("MISSION_SUBMITTED","mission",String(req.params.id),"Employee submitted a result for review",String(req.session.employeeId));
+  res.json({item:r.rows[0],message:"Submitted for review. XP is awarded only after administrator verification."});
+}));
+async function employeeCanAccessMission(missionId,employeeId) {
+  const r=await pool.query("SELECT 1 FROM mission_assignments WHERE mission_id=$1 AND employee_id=$2",[missionId,employeeId]);
+  return r.rowCount>0;
+}
+app.get("/api/team/missions/:id/messages", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
+  if(!await employeeCanAccessMission(req.params.id,req.session.employeeId)) return res.status(404).json({error:"Mission not found."});
+  const r=await pool.query("SELECT mm.id,mm.body,mm.created_at,e.display_name,e.id AS employee_id FROM mission_messages mm JOIN employees e ON e.id=mm.employee_id WHERE mm.mission_id=$1 ORDER BY mm.created_at ASC LIMIT 200",[req.params.id]);
+  res.json({items:r.rows});
+}));
+app.post("/api/team/missions/:id/messages", requireAuth, requireEmployee, asyncRoute(async (req,res) => {
+  const body=clean(req.body?.body,2000);
+  if(body.length<1) return res.status(400).json({error:"Message cannot be empty."});
+  if(!await employeeCanAccessMission(req.params.id,req.session.employeeId)) return res.status(404).json({error:"Mission not found."});
+  const r=await pool.query("INSERT INTO mission_messages(mission_id,employee_id,body) VALUES($1,$2,$3) RETURNING id,body,created_at",[req.params.id,req.session.employeeId,body]);
+  await audit("MISSION_MESSAGE_POSTED","mission",String(req.params.id),"Employee posted a mission discussion message",String(req.session.employeeId));
+  res.status(201).json({item:r.rows[0]});
+}));
+app.get("/api/control/team/employees", asyncRoute(async (_req,res) => {
+  const r=await pool.query(\`SELECT e.id,e.email,e.display_name,e.department,e.job_title,e.active,e.must_change_password,e.created_at,
+    COALESCE(SUM(a.xp_awarded),0)::int AS xp,COUNT(a.id) FILTER (WHERE a.status='VERIFIED')::int AS completed
+    FROM employees e LEFT JOIN mission_assignments a ON a.employee_id=e.id GROUP BY e.id ORDER BY e.created_at DESC\`);
+  res.json({items:r.rows});
+}));
+app.post("/api/control/team/employees", asyncRoute(async (req,res) => {
+  const email=clean(req.body?.email,254).toLowerCase(),name=clean(req.body?.name,120);
+  const department=clean(req.body?.department,120),jobTitle=clean(req.body?.jobTitle,120);
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !name) return res.status(400).json({error:"A valid email and employee name are required."});
+  const temporaryPassword=crypto.randomBytes(18).toString("base64url");
+  try {
+    const r=await pool.query("INSERT INTO employees(email,display_name,department,job_title,password_hash) VALUES($1,$2,$3,$4,$5) RETURNING id,email,display_name,department,job_title,active,must_change_password,created_at",[email,name,department,jobTitle,passwordHash(temporaryPassword)]);
+    await audit("EMPLOYEE_CREATED","employee",String(r.rows[0].id),\`Created employee account for \${email}\`);
+    res.status(201).json({item:r.rows[0],temporaryPassword,warning:"Copy this temporary password now. It will not be shown again; the employee must change it at first sign-in."});
+  } catch(err) { if(err.code==="23505") return res.status(409).json({error:"An employee with this email already exists."}); throw err; }
+}));
+app.post("/api/control/team/employees/:id/status", asyncRoute(async (req,res) => {
+  const active=req.body?.active;
+  if(typeof active!=="boolean") return res.status(400).json({error:"active must be true or false."});
+  const r=await pool.query("UPDATE employees SET active=$2,updated_at=NOW() WHERE id=$1 RETURNING id,email,display_name,active",[req.params.id,active]);
+  if(!r.rowCount) return res.status(404).json({error:"Employee not found."});
+  await audit("EMPLOYEE_STATUS_CHANGED","employee",String(req.params.id),\`active=\${active}\`);
+  res.json({item:r.rows[0]});
+}));
+app.get("/api/control/team/missions", asyncRoute(async (_req,res) => {
+  const r=await pool.query(\`SELECT m.id,m.title,m.description,m.category,m.xp_reward,m.due_at,m.status,m.created_at,
+    COUNT(a.id)::int AS assigned,COUNT(a.id) FILTER (WHERE a.status='SUBMITTED')::int AS submitted,
+    COUNT(a.id) FILTER (WHERE a.status='VERIFIED')::int AS verified
+    FROM team_missions m LEFT JOIN mission_assignments a ON a.mission_id=m.id GROUP BY m.id ORDER BY m.created_at DESC\`);
+  res.json({items:r.rows});
+}));
+app.post("/api/control/team/missions", asyncRoute(async (req,res) => {
+  const title=clean(req.body?.title,160),description=clean(req.body?.description,3000),category=clean(req.body?.category,80)||"TEAM";
+  const xp=Number(req.body?.xpReward),ids=Array.isArray(req.body?.employeeIds)?[...new Set(req.body.employeeIds.map(Number).filter(n=>Number.isSafeInteger(n)&&n>0))]:[];
+  if(!title || !ids.length || !Number.isInteger(xp) || xp<1 || xp>5000) return res.status(400).json({error:"Title, at least one employee, and an XP reward from 1 to 5000 are required."});
+  let dueAt=null;
+  if(req.body?.dueAt){const d=new Date(req.body.dueAt);if(Number.isNaN(d.getTime()))return res.status(400).json({error:"Due date is invalid."});dueAt=d.toISOString();}
+  const client=await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const employees=await client.query("SELECT id FROM employees WHERE active=TRUE AND id=ANY($1::bigint[])",[ids]);
+    if(employees.rowCount!==ids.length){await client.query("ROLLBACK");return res.status(400).json({error:"One or more selected employee accounts are missing or inactive."});}
+    const m=await client.query("INSERT INTO team_missions(title,description,category,xp_reward,due_at,created_by,status) VALUES($1,$2,$3,$4,$5,'admin','PUBLISHED') RETURNING *",[title,description,category,xp,dueAt]);
+    for(const id of ids) await client.query("INSERT INTO mission_assignments(mission_id,employee_id) VALUES($1,$2)",[m.rows[0].id,id]);
+    await client.query("COMMIT");
+    await audit("MISSION_PUBLISHED","mission",String(m.rows[0].id),\`Published to \${ids.length} employee(s)\`);
+    res.status(201).json({item:m.rows[0],assigned:ids.length});
+  } catch(err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
+}));
+app.get("/api/control/team/submissions", asyncRoute(async (_req,res) => {
+  const r=await pool.query(\`SELECT a.id AS assignment_id,a.status,a.submission_note,a.submitted_at,m.id AS mission_id,m.title,m.xp_reward,
+    e.id AS employee_id,e.display_name,e.email,e.department
+    FROM mission_assignments a JOIN team_missions m ON m.id=a.mission_id JOIN employees e ON e.id=a.employee_id
+    WHERE a.status='SUBMITTED' ORDER BY a.submitted_at ASC\`);
+  res.json({items:r.rows});
+}));
+app.post("/api/control/team/submissions/:id/review", asyncRoute(async (req,res) => {
+  const decision=req.body?.decision,note=clean(req.body?.note,1500);
+  if(!["VERIFIED","REJECTED"].includes(decision)) return res.status(400).json({error:"Decision must be VERIFIED or REJECTED."});
+  const client=await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const r=await client.query(\`UPDATE mission_assignments a SET status=$2,review_note=$3,reviewed_at=NOW(),reviewed_by='admin',
+      xp_awarded=CASE WHEN $2='VERIFIED' THEN m.xp_reward ELSE 0 END,updated_at=NOW()
+      FROM team_missions m WHERE a.id=$1 AND a.mission_id=m.id AND a.status='SUBMITTED'
+      RETURNING a.id,a.status,a.employee_id,a.mission_id,a.xp_awarded\`,[req.params.id,decision,note]);
+    if(!r.rowCount){await client.query("ROLLBACK");return res.status(409).json({error:"Submission is no longer awaiting review."});}
+    await client.query("COMMIT");
+    const item=r.rows[0];
+    await audit(decision==="VERIFIED"?"MISSION_VERIFIED":"MISSION_RETURNED","mission",String(item.mission_id),decision==="VERIFIED"?\`Verified; \${item.xp_awarded} XP awarded\`:"Returned for revision");
+    res.json({item,message:decision==="VERIFIED"?\`Verified. \${item.xp_awarded} XP awarded.\`:"Returned to employee for revision."});
+  } catch(err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
 }));
 
 app.use(express.static(path.join(__dirname,"public"),{index:"index.html",etag:true,maxAge:NODE_ENV==="production"?"1h":0}));
