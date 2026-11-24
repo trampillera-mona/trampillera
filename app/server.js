@@ -226,11 +226,17 @@ async function initializeDatabase() {
   if (models.rows[0].n === 0) {
     await pool.query(
       `INSERT INTO model_providers(key,name,org,region,deployment,modal,spec,status) VALUES
+       ('qwen.model-studio','Qwen Model Studio','Alibaba Cloud','Cloud / workspace region','CLOUD','text','Qwen-compatible chat completions','DISCOVERED'),
        ('openai.gpt','OpenAI GPT provider','OpenAI','US / Cloud','CLOUD','text · vision','general reasoning · coding','DISCOVERED'),
        ('local.llama','Local LLM runtime','Local deployment','On-premise','LOCAL','text','offline inference','DISCOVERED')
        ON CONFLICT DO NOTHING`
     );
   }
+  await pool.query(
+    `INSERT INTO model_providers(key,name,org,region,deployment,modal,spec,status)
+     VALUES('qwen.model-studio','Qwen Model Studio','Alibaba Cloud','Cloud / workspace region','CLOUD','text','Qwen-compatible chat completions','DISCOVERED')
+     ON CONFLICT(key) DO NOTHING`
+  );
 }
 async function audit(action, type, key="", details="", actor="admin") {
   await pool.query("INSERT INTO audit_events(action,entity_type,entity_key,details,actor) VALUES($1,$2,$3,$4,$5)", [action,type,key,details,actor]);
@@ -295,6 +301,65 @@ function validateBody(fields) {
     }
     next();
   };
+}
+
+function getAIProviderConfig() {
+  const provider = clean(process.env.AI_PROVIDER,32).toLowerCase() || "qwen";
+  let apiKey = "";
+  let endpoint = "";
+  let model = "";
+  let protocol = "chat_completions";
+
+  if (provider === "qwen") {
+    apiKey = process.env.QWEN_API_KEY || "";
+    endpoint = process.env.QWEN_API_URL || "";
+    model = clean(process.env.QWEN_MODEL,120) || "qwen4-max";
+  } else if (provider === "openai") {
+    apiKey = process.env.OPENAI_API_KEY || "";
+    endpoint = process.env.OPENAI_API_URL || "https://api.openai.com/v1/responses";
+    model = clean(process.env.OPENAI_MODEL,120) || "gpt-4.1-mini";
+  } else {
+    return { provider, model:"", configured:false, reason:"unsupported_provider" };
+  }
+
+  if (!apiKey || !endpoint) return { provider, model, configured:false, reason:"missing_credentials_or_endpoint" };
+  let parsed;
+  try { parsed = new URL(endpoint); } catch { return { provider, model, configured:false, reason:"invalid_endpoint" }; }
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash) {
+    return { provider, model, configured:false, reason:"invalid_endpoint" };
+  }
+
+  if (provider === "qwen") {
+    const workspaceHost = /^[a-z0-9-]+\.(?:ap-southeast-1|eu-central-1|us-east-1|cn-beijing|cn-hongkong|ap-northeast-1)\.maas\.aliyuncs\.com$/i.test(parsed.hostname);
+    const legacyHost = ["dashscope-intl.aliyuncs.com","dashscope.aliyuncs.com","cn-hongkong.dashscope.aliyuncs.com"].includes(parsed.hostname.toLowerCase());
+    if ((!workspaceHost && !legacyHost) || parsed.pathname !== "/compatible-mode/v1/chat/completions") {
+      return { provider, model, configured:false, reason:"invalid_endpoint" };
+    }
+    protocol = "chat_completions";
+  } else if (provider === "openai") {
+    if (!["/v1/responses","/v1/chat/completions"].includes(parsed.pathname)) {
+      return { provider, model, configured:false, reason:"invalid_endpoint" };
+    }
+    protocol = parsed.pathname === "/v1/responses" ? "responses" : "chat_completions";
+  }
+
+  return { provider, apiKey, endpoint:parsed.toString(), model, protocol, configured:true };
+}
+
+function getAIProviderStatus() {
+  const config = getAIProviderConfig();
+  return config.configured ? `${config.provider} · configured · ${config.model}` : `${config.provider} · not configured`;
+}
+
+function extractAIReply(data, protocol) {
+  if (protocol === "responses") {
+    return (data.output || []).flatMap(item => item.content || [])
+      .filter(item => item.type === "output_text").map(item => item.text || "").join("\n").trim();
+  }
+  const content = data.choices?.[0]?.message?.content;
+  if (typeof content === "string") return content.trim();
+  if (Array.isArray(content)) return content.map(part => typeof part === "string" ? part : (part.text || "")).join("\n").trim();
+  return "";
 }
 
 app.get("/api/health", asyncRoute(async (_req,res) => {
@@ -448,7 +513,7 @@ app.get("/api/control/audit", asyncRoute(async (_req,res) => {
 }));
 app.get("/api/control/settings", (_req,res) => res.json({
   environment:NODE_ENV, database:"PostgreSQL", authentication:"Administrator session cookie",
-  aiProvider:process.env.OPENAI_API_KEY?"configured":"not_configured",
+  aiProvider:getAIProviderStatus(),
   realtime:"HTTP API (WebSocket integration not enabled in this release)"
 }));
 app.get("/api/control/diagnostics", asyncRoute(async (_req,res) => {
@@ -482,19 +547,44 @@ app.get("/api/control/diagnostics", asyncRoute(async (_req,res) => {
   });
 }));
 
-app.post("/api/control/ai/chat", asyncRoute(async (req,res) => {
+app.post("/api/control/ai/chat", rateLimit({windowMs:60_000,limit:12,standardHeaders:"draft-8",legacyHeaders:false}), asyncRoute(async (req,res) => {
   const message=clean(req.body?.message,4000);
   if(!message) return res.status(400).json({error:"Message is required."});
-  if(!process.env.OPENAI_API_KEY) return res.status(503).json({error:"AI provider is not configured. Set OPENAI_API_KEY on the server to enable AI requests."});
-  const response=await fetch(process.env.OPENAI_API_URL||"https://api.openai.com/v1/responses",{
-    method:"POST",headers:{"Authorization":`Bearer ${process.env.OPENAI_API_KEY}`,"Content-Type":"application/json"},
-    body:JSON.stringify({model:process.env.OPENAI_MODEL||"gpt-4.1-mini",input:message})
-  });
+  const config=getAIProviderConfig();
+  if(!config.configured) {
+    const hint=config.provider==="qwen"?"Set QWEN_API_KEY and QWEN_API_URL on the server.":config.provider==="openai"?"Set OPENAI_API_KEY on the server.":"Set AI_PROVIDER to qwen or openai.";
+    return res.status(503).json({error:`AI provider "${config.provider}" is not configured. ${hint}`});
+  }
+  const requestBody=config.protocol==="responses"
+    ? {model:config.model,input:message}
+    : {model:config.model,messages:[{role:"user",content:message}],stream:false};
+  let response;
+  try {
+    response=await fetch(config.endpoint,{
+      method:"POST",
+      headers:{"Authorization":`Bearer ${config.apiKey}`,"Content-Type":"application/json"},
+      body:JSON.stringify(requestBody),
+      signal:AbortSignal.timeout(30_000)
+    });
+  } catch(err) {
+    const timedOut=err.name==="TimeoutError"||err.name==="AbortError";
+    await audit("AI_REQUEST_FAILED","ai",config.provider,`model=${config.model}; error=${timedOut?"timeout":"network"}`);
+    return res.status(timedOut?504:502).json({error:timedOut?"AI provider request timed out.":"AI provider could not be reached."});
+  }
   const data=await response.json().catch(()=>({}));
-  if(!response.ok) return res.status(502).json({error:data.error?.message||"AI provider request failed."});
-  const output=(data.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==="output_text").map(x=>x.text).join("\n");
-  await audit("AI_REQUEST_COMPLETED","ai","provider","AI response received from configured provider");
-  res.json({reply:output||"The provider returned no text output."});
+  if(!response.ok) {
+    await audit("AI_REQUEST_FAILED","ai",config.provider,`model=${config.model}; provider_status=${response.status}`);
+    return res.status(502).json({error:"AI provider returned an error. Check server logs and provider configuration."});
+  }
+  const output=extractAIReply(data,config.protocol);
+  if(!output) {
+    await audit("AI_REQUEST_FAILED","ai",config.provider,`model=${config.model}; error=empty_response`);
+    return res.status(502).json({error:"AI provider returned no text output."});
+  }
+  const inputTokens=Number(data.usage?.input_tokens??data.usage?.prompt_tokens??0);
+  const outputTokens=Number(data.usage?.output_tokens??data.usage?.completion_tokens??0);
+  await audit("AI_REQUEST_COMPLETED","ai",config.provider,`model=${config.model}; input_tokens=${Number.isFinite(inputTokens)?inputTokens:0}; output_tokens=${Number.isFinite(outputTokens)?outputTokens:0}`);
+  res.json({reply:output,provider:config.provider,model:config.model});
 }));
 
 
