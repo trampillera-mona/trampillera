@@ -35,7 +35,7 @@ This is a functional first collaboration loop, not a complete HR or project-mana
 
 ## Architecture
 
-The application is a single Node.js service. It serves both preserved interfaces and exposes the API consumed by the Control Plane. PostgreSQL stores modules, connectors, model providers, audit events, consent-based pseudonymous visitor aggregates, page views, and promotion campaign events. Docker Compose starts the application and database together.
+The application is a single Node.js service. It serves both preserved interfaces and exposes the API consumed by the Control Plane. PostgreSQL stores modules (including the registered audience.growth capability), connectors, model providers, audit events, consent-based pseudonymous visitor aggregates, page views, and promotion campaign events. Docker Compose starts the application and database together.
 
 The uploaded source HTML files are preserved byte-for-byte in `originals/`. The deployed platform page has one intentional navigation adjustment so its administrator shortcut opens `/control/`. The Control Plane preview is connected to authenticated API calls and persistent server-side data. Its status badge changes to `AUTHENTICATED · LIVE DATA` only after the server confirms the session.
 
