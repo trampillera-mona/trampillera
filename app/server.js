@@ -236,6 +236,9 @@ async function initializeDatabase() {
        ON CONFLICT DO NOTHING`
     );
   }
+  await pool.query(
+    "INSERT INTO platform_modules(key,name,version,status,description) VALUES('audience.growth','Audience Intelligence & Growth','1.0.0','INSTALLED','Consent-based audience analytics and tracked promotion campaigns') ON CONFLICT(key) DO NOTHING"
+  );
   const connectors = await pool.query("SELECT COUNT(*)::int AS n FROM platform_connectors");
   if (connectors.rows[0].n === 0) {
     await pool.query(
@@ -859,12 +862,14 @@ app.post("/api/control/team/submissions/:id/review", asyncRoute(async (req,res) 
 
 
 app.get("/go/:slug", asyncRoute(async (req,res) => {
-  const r=await pool.query("SELECT id,slug,destination_url,status FROM growth_campaigns WHERE slug=$1",[clean(req.params.slug,80)]);
+  const r=await pool.query("SELECT id,slug,channel,destination_url,status FROM growth_campaigns WHERE slug=$1",[clean(req.params.slug,80)]);
   if(!r.rowCount || r.rows[0].status!=="ACTIVE") return res.status(404).send("Campaign link is unavailable.");
   const campaign=r.rows[0];
   await pool.query("INSERT INTO growth_campaign_events(campaign_id,event_type) VALUES($1,'CLICK')",[campaign.id]);
   const destination=new URL(campaign.destination_url);
   destination.searchParams.set("utm_campaign",campaign.slug);
+  if(!destination.searchParams.has("utm_source")) destination.searchParams.set("utm_source","trampillera");
+  if(!destination.searchParams.has("utm_medium")) destination.searchParams.set("utm_medium",String(campaign.channel||"campaign").toLowerCase());
   res.redirect(302,destination.toString());
 }));
 
