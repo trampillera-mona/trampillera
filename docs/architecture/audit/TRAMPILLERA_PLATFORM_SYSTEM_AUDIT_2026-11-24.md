@@ -8,7 +8,7 @@
 
 | Surface / subsystem | Current implementation | Actual integration level |
 |---|---|---|
-| Public TRAMPILLERA interface `/` | Static HTML/JS served by Express | Public web surface; legacy client-side runtime |
+| Public TRAMPILLERA interface `/` | Static HTML/JS served by Express | Public web surface; legacy client-side runtime. Control Plane shortcut reports API/registry availability without implying external integrations are healthy |
 | Control Plane `/control/` | Static UI, authenticated `/api/control/*` calls | Connected to shared API and PostgreSQL registries |
 | ITY CITY launcher `/city/` | Same-origin iframe launcher | Navigation/integration shell |
 | Workspace `/city/workspace/` | Preserved browser application | Local prototype state; no shared server workspace state |
@@ -63,6 +63,7 @@ PostgreSQL
 - PostgreSQL foreign keys and checks constrain mission status, assignment status and XP range.
 - Docker Compose waits for PostgreSQL health before starting the application.
 - The application has a database-aware `/ready` health endpoint and graceful SIGTERM/SIGINT shutdown.
+- Public platform status distinguishes API/PostgreSQL registry availability from external connector/provider reachability, which remains `UNKNOWN` until probed.
 - Existing source snapshots and original public/control surfaces are protected by hash-based preservation checks.
 
 ## 3. Findings and changes in this audit branch
