@@ -7,7 +7,7 @@
 
 ## 1. Scope
 
-Replace the existing homepage unified top bar with one responsive Unified Reality banner inspired by the supplied reference. Keep the existing application realms and module implementations. Do not copy this banner into unrelated employee, Control Plane, registry, or workspace interfaces.
+Replace the existing homepage unified top bar with one responsive Unified Reality banner based on the supplied HTML reference: 1440px maximum width and 388px desktop height, with a taller responsive layout on small screens. Keep the existing application realms and module implementations. Do not copy this banner into unrelated employee, Control Plane, registry, or workspace interfaces.
 
 Repository inspection covered all 13 HTML files under `app/public/`. The supplied HTML block was not present verbatim; the matching integration point was the existing unified top bar in `app/public/index.html`.
 
@@ -44,7 +44,7 @@ The Control Plane link performs a read-only request to `GET /api/platform/status
 - No authentication, employee permissions, API authorization, database schema, or production secret changes.
 - No production deployment is part of this pull request.
 
-## 4. Verification
+## 4. Visual dimensions\n\n- Desktop target: `1440px` maximum width × `388px` height, matching the uploaded `gemini-code-1795610447642_3.html` reference.\n- At viewport widths below 1100px, height becomes content-driven with a 388px minimum; small mobile screens use a 440px minimum to prevent control overlap.\n- The Earth canvas and vignette are layered behind the HUD instead of being hidden behind the banner background.\n\n## 5. Verification
 
 The pull request adds:
 - Static integration assertions for unique HTML IDs, asset mounting, required controls, and module delegation.
@@ -53,6 +53,6 @@ The pull request adds:
 
 Browser-level visual, keyboard, screen-reader, cross-browser, and real WebGL testing remain required before declaring the banner fully verified.
 
-## 5. Rollback
+## 6. Rollback
 
 Revert the banner integration commit(s) in this feature branch or close the draft pull request. The previous homepage top bar is replaced only in the feature branch; production remains unchanged until a separately approved merge and deployment.
