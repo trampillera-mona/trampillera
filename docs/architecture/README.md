@@ -6,6 +6,7 @@ This directory is the canonical documentation index for the TRAMPILLERA reposito
 
 - [Release baseline, recovery point and deployment readiness — 2026-11-25](audit/TRAMPILLERA_RELEASE_BASELINE_AND_RECOVERY_2026-11-25.md)
 - [Platform system audit — 2026-11-24](audit/TRAMPILLERA_PLATFORM_SYSTEM_AUDIT_2026-11-24.md)
+- [Identity & organization baseline audit — 2026-11-25](audit/TRAMPILLERA_IDENTITY_AND_ORGANIZATION_BASELINE_AUDIT_2026-11-25.md)
 
 ## Platform architecture
 
@@ -21,6 +22,7 @@ This directory is the canonical documentation index for the TRAMPILLERA reposito
 
 ## Domain architecture
 
+- [Identity & Duties Foundation Specification v0.1](identity/TRAMPILLERA_IDENTITY_AND_DUTIES_FOUNDATION_v0.1.md)
 - [Audience Intelligence & Growth Module v1.0](analytics-growth/TRAMPILLERA_AUDIENCE_INTELLIGENCE_GROWTH_v1.0.md)
 
 ## Documentation rules
