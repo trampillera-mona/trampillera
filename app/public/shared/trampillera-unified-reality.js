@@ -147,6 +147,9 @@
     });
   });
   region?.addEventListener('change', () => focusRegion(region.value));
+  $('#ur-jarviser')?.addEventListener('click', () => {
+    safeCall(() => typeof JarvisOrchestrator !== 'undefined' && JarvisOrchestrator.open());
+  });
   $('#ur-cycle-region')?.addEventListener('click', () => {
     const keys = Object.keys(regions); const next = (keys.indexOf(region?.value || 'GLOBAL') + 1) % keys.length; focusRegion(keys[next]);
   });
@@ -193,6 +196,17 @@
       })
       .catch(() => { controlLink.dataset.apiStatus = 'offline'; controlLink.title = 'Platform API is not reachable. Open Control Plane to inspect.'; });
   }
+  const realmSections = ['intro','fui','classic'].map(name => document.getElementById('realm-' + name)).filter(Boolean);
+  const syncRealmState = () => {
+    const active = realmSections.find(section => section.classList.contains('active'));
+    const current = active ? active.id.replace('realm-','') : 'intro';
+    root.querySelectorAll('[data-ur-realm]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.urRealm === current)));
+  };
+  if (window.MutationObserver && realmSections.length) {
+    const observer = new MutationObserver(syncRealmState);
+    realmSections.forEach(section => observer.observe(section, { attributes: true, attributeFilter: ['class'] }));
+  }
+  syncRealmState();
   root.querySelectorAll('[data-ur-social]').forEach(link => link.setAttribute('rel','noopener noreferrer'));
   initGlobe();
   if (language) { const pill = $('#ur-language-pill'); if (pill) pill.textContent = '🌐 ' + language.value; }
