@@ -91,6 +91,7 @@ jobs:
           test "$MISSING_ORIGIN_STATUS" = "403"
           curl --fail --silent -c /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"password":"ci-temporary-admin-password-123"}' http://127.0.0.1:3000/api/auth/login
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/overview
+          bash scripts/psl.integration.sh
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/analytics/summary?days=7 | jq -e '.totals.visitors == 1 and (.daily | length == 7)'
           CAMPAIGN_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"name":"CI Growth Campaign","channel":"SOCIAL","objective":"Verify campaign attribution","destinationUrl":"https://example.com/landing","budget":0}' http://127.0.0.1:3000/api/control/growth/campaigns)
           CAMPAIGN_ID=$(printf '%s' "$CAMPAIGN_JSON" | jq -r '.item.id')
