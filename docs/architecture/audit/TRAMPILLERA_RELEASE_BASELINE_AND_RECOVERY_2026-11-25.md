@@ -118,3 +118,22 @@ Do not deploy until the final Git commit, GitHub Actions result, Render service 
 ## 10. Deployment status
 
 **No Render deployment was performed by this documentation update.** The recovery branch preserves the pre-change Git state. Production remains under explicit operator control. A deployment command must be issued only after the final commit and its verification results are known.
+
+
+## 11. Render state observed during this work
+
+Read-only inspection of the connected Render workspace on 2026-11-25 confirmed:
+
+- Workspace: `My Workspace` (`tea-dc1fbb59fdbs73ampppg`).
+- Service: `trampillera` (`srv-dc1g90cs728c73cc019g`).
+- Service URL: https://trampillera.onrender.com
+- Branch: `main`; Auto Deploy: OFF; manual deploy trigger.
+- Runtime: Docker; root directory: `app/`; Dockerfile path relative to that root: `Dockerfile`.
+- Region: Frankfurt; one Free instance.
+- Latest observed deploy: `dep-dc30q7gu01pc73d9d1e0`, status `live`, commit `3104e88219f004cb195dbbe449253d9f193206b2`.
+
+The five commits created in this documentation pass advance `main` from `3104e882` to `7fb308e`. A GitHub compare confirms that the only changed paths are `README.md` and documentation under `docs/architecture/`; there are no changes under `app/`, Docker build files, or runtime configuration.
+
+**Deployment decision:** do not trigger a Render deploy for this documentation-only change. Render's configured root directory is `app/`, so the new documentation files are outside the service's Docker build context and do not change the running application. The existing live application commit remains `3104e882`. A Render deploy becomes appropriate only after an intentional runtime/code change under `app/` (or a deliberate build/deployment configuration change), followed by the required verification and operator approval.
+
+The current combined GitHub commit status for the documentation HEAD reports the Vercel check as successful. The available GitHub status response did not expose a GitHub Actions run result for this push; therefore the Actions verification result is recorded as **UNKNOWN**, not PASS.
