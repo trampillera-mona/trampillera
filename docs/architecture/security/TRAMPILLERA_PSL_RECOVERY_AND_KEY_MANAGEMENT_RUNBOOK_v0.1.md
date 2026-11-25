@@ -114,8 +114,8 @@ Rotation is blocked until all preconditions are met.
 
 The PSL recovery/key-management work must remain non-production until all gates are evidenced:
 
-- [ ] Browser UI for one-time recovery-code display, download/copy, and recovery flow.
-- [ ] Browser automation for issuance, regeneration, recovery, replay rejection, and concurrent redemption.
+- [x] Browser UI for one-time recovery-code display, local TXT download, and recovery flow is present on PR #27 (not yet browser-automated).
+- [ ] Browser automation for issuance, regeneration, recovery, replay rejection, concurrent redemption, and post-recovery TOTP re-enrollment.
 - [ ] Independent review of authentication, lockout, rate limiting, transaction boundaries, and session invalidation.
 - [ ] Operational keyring configuration backed by an approved secret manager.
 - [ ] Resumable database re-encryption job with dry-run, bounded batches, idempotency, and non-secret progress records.
@@ -126,9 +126,10 @@ The PSL recovery/key-management work must remain non-production until all gates 
 
 ## 8. Current evidence statement
 
-As of this document's creation:
+Updated 2026-11-25:
 
-- CI run #211 passed static checks, Compose validation, Docker/PostgreSQL startup, migrations, and API integration flows for administrator and employee VSC/TOTP and recovery-code issuance/regeneration/redemption/session invalidation.
+- CI run #225 passed static checks, Compose validation, Docker/PostgreSQL startup, five migrations, and administrator/employee API integration flows including recovery-code issuance, regeneration, replay denial, session invalidation, mandatory post-recovery TOTP re-enrollment, and workspace unlock.
+- Recovery Desk and restricted re-enrollment UI are present on PR #27 for Control Plane and ITY CITY. Real-browser automation, cross-browser behavior, accessibility, and assistive-technology use remain unverified.
 - Unit tests cover recovery-code hashing/verification and versioned TOTP envelope primitives, including v1 compatibility.
-- Browser recovery UI, operational secret-manager wiring, database-wide key rotation, production backup/restore rehearsal, independent security review, and production deployment are NOT verified.
+- Operational secret-manager wiring, database-wide key rotation, production backup/restore rehearsal, independent security review, and production deployment are NOT verified.
 - No production database migration or Render deployment is authorized by this runbook.
