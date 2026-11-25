@@ -48,11 +48,11 @@ ADMIN_LOGIN="$(curl --fail --silent -c "$ADMIN_COOKIE" -H 'Content-Type: applica
   -d "{\"password\":\"$ADMIN_PASSWORD\"}" http://127.0.0.1:3000/api/auth/login)"
 printf '%s' "$ADMIN_LOGIN" | jq -e '.requiresVsc == true and .requiresTotp == false and .authenticated == false' >/dev/null
 echo "PSL stage: PSL VSC login verification"
-curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
+curl --fail --silent -b "$ADMIN_COOKIE" -c "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"sequence\":$VSC_SEQUENCE}" http://127.0.0.1:3000/api/auth/vsc/verify-login | jq -e '.requiresTotp == true and .authenticated == false' >/dev/null
 ADMIN_TOTP_CODE="$(totp_code "$ADMIN_TOTP_SECRET")"
 echo "PSL stage: PSL TOTP login verification"
-curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
+curl --fail --silent -b "$ADMIN_COOKIE" -c "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"code\":\"$ADMIN_TOTP_CODE\"}" http://127.0.0.1:3000/api/auth/totp/verify-login | jq -e '.authenticated == true and .role == "admin"' >/dev/null
 
 ADMIN_TOTP_CODE="$(totp_code "$ADMIN_TOTP_SECRET")"
@@ -90,7 +90,7 @@ EMPLOYEE_LOGIN="$(curl --fail --silent -c "$EMPLOYEE_COOKIE" -H 'Content-Type: a
   -d "{\"email\":\"$EMPLOYEE_EMAIL\",\"password\":\"$EMPLOYEE_PASSWORD\"}" \
   http://127.0.0.1:3000/api/auth/employee-login)"
 printf '%s' "$EMPLOYEE_LOGIN" | jq -e '.requiresVsc == true and .authenticated == false' >/dev/null
-curl --fail --silent -b "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
+curl --fail --silent -b "$EMPLOYEE_COOKIE" -c "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"sequence\":$VSC_SEQUENCE}" http://127.0.0.1:3000/api/auth/vsc/verify-login | jq -e '.authenticated == true and .role == "employee"' >/dev/null
 curl --fail --silent -b "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"password\":\"$EMPLOYEE_PASSWORD\",\"sequence\":$VSC_SEQUENCE}" \
