@@ -242,6 +242,8 @@
     const lat = (regions[currentRegionKey] || regions.GLOBAL).lat * Math.PI / 180;
     sunLight.position.set(Math.cos(sunAngle) * 12, Math.sin(sunAngle) * 7 + Math.sin(lat) * 2, 8);
     const phase = Math.abs(Math.sin(sunAngle)) < .32 ? 'TWILIGHT' : Math.sin(sunAngle) < -.15 ? 'NIGHT GLOW' : 'DAYLIGHT';
+    const phaseLabel = $('#solar-phase-label');
+    if (phaseLabel) phaseLabel.textContent = phase;
     if (phase !== lastSolarPhase) {
       lastSolarPhase = phase;
       setStatus('3D globe ready · ' + phase + (timeOffsetHours ? ' · T+' + timeOffsetHours + 'H' : ''), 'ready');
@@ -249,8 +251,9 @@
   }
 
   function focusRegion(key) {
-    const item = regions[key] || regions.GLOBAL;
-    currentRegionKey = key in regions ? key : 'GLOBAL';
+    const aliases = { EUROPE:'EUROPE', europe:'EUROPE', ASIA:'ASIA', asia:'ASIA', japan:'ASIA', tokyo:'ASIA', AMERICAS:'AMERICAS', america:'AMERICAS', usa:'AMERICAS', AFRICA_ME:'AFRICA_ME', middleeast:'AFRICA_ME', dubai:'AFRICA_ME', africa:'AFRICA_ME', GLOBAL:'GLOBAL', global:'GLOBAL' };
+    currentRegionKey = aliases[String(key || 'GLOBAL')] || 'GLOBAL';
+    const item = regions[currentRegionKey];
     root.dataset.region = currentRegionKey;
     const badge = $('#ur-region-badge');
     if (badge) badge.textContent = '· ' + item.label;
@@ -349,12 +352,16 @@
   $('#ur-zoom-in')?.addEventListener('click', () => zoomStep(-.65));
   $('#ur-zoom-out')?.addEventListener('click', () => zoomStep(.65));
   $('#ur-orbital-pulse')?.addEventListener('click', () => nudgeEarth(.45));
+  $('#ur-atmosphere-toggle')?.addEventListener('click', () => {
+    const enabled = toggleAtmosphereBoost();
+    const button = $('#ur-atmosphere-toggle');
+    if (button) { button.textContent = enabled ? '☁ ATMOSPHERE: ON' : '☁ ATMOSPHERE: OFF'; button.setAttribute('aria-pressed', String(enabled)); }
+  });
 
   const language = $('#global-lang');
   language?.addEventListener('change', () => {
     const pill = $('#ur-language-pill'); if (pill) pill.textContent = '🌐 ' + language.value;
   });
-  root.querySelector('#theme-toggle-btn')?.addEventListener('click', () => safeCall(() => typeof Theme !== 'undefined' && Theme.toggle()));
   const controlLink = $('#ur-control-plane');
   if (controlLink) {
     fetch('/api/platform/status', { credentials: 'same-origin' })
