@@ -703,7 +703,7 @@ app.post("/api/auth/totp/disable",pslFactorLimiter,pslVerifyCurrentAccount,async
   try{
     await client.query("BEGIN");
     const revoked=await client.query("UPDATE account_security_factors SET status='REVOKED',revoked_at=NOW(),last_totp_counter=$2 WHERE id=$1 AND status='ACTIVE' AND (last_totp_counter IS NULL OR last_totp_counter<$2) RETURNING id",[active.rows[0].id,acceptedCounter]);
-    if(!revoked.rowCount) throw new Error("Authenticator factor is no longer active.");
+    if(!revoked.rowCount){await client.query("ROLLBACK");return res.status(401).json({error:"Authenticator code is incorrect or already used."});}
     await auditWithClient(client,"PSL_TOTP_DISABLED","security",account.type+":"+account.id,"Authenticator factor disabled",account.type==="admin"?"admin":account.id);
     await client.query("COMMIT");
   }catch(err){await client.query("ROLLBACK");throw err;}finally{client.release();}
