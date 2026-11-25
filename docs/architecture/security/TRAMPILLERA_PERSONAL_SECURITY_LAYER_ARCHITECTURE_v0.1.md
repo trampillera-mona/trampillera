@@ -316,9 +316,10 @@ A VSC sequence has 10^6 possible combinations (approximately 19.9 bits) and is a
 - Authentication-version increment invalidates existing administrator or employee sessions. Recovery response requires a fresh password sign-in; factors must then be re-enrolled as appropriate.
 - API rate limiting applies to both recovery endpoints. Recovery responses inherit `Cache-Control: no-store`.
 
-### Release limitations
+### Release limitations and current implementation state (2026-11-25)
 
-- Recovery API is implemented and covered by CI integration tests, but there is not yet a browser UI for displaying, printing, or downloading recovery codes. A user-facing screen must make the one-time display and safe-storage warning explicit.
-- No independent security review has been completed. Recovery must not be enabled in production until the UI, concurrency/replay review, rate-limit policy, and operational incident runbook are reviewed.
-- Strict-profile enforcement and mandatory post-recovery factor enrollment are not yet enforced by the authentication policy. Current recovery revokes factors and forces a new sign-in, but the platform does not yet prevent use of password-only authentication afterward.
-- Keyring primitives remain library-only. The live TOTP path still uses the legacy `PSL_ENCRYPTION_KEY` v1 envelope; no keyring environment format, batch re-encryption job, key custody, backup, or rotation has been deployed or executed.
+- Recovery Desk UI is present on the PR #27 branch for administrator Control Plane and employee ITY CITY: one-time code display, local TXT download, active-factor verification, and password + recovery-code reset. The reset flow does not auto-login.
+- Mandatory post-recovery TOTP re-enrollment is now implemented on the PR #27 branch. A database-backed gate restricts authenticated sessions to password setup and security-factor setup routes until a new TOTP authenticator is confirmed. VSC alone cannot clear this gate because it is a supplementary memorized secret, not an independent MFA factor.
+- CI run #225 passed the new administrator and employee recovery → restricted-session → TOTP re-enrollment → workspace-unlock integration flows, in addition to existing static, migration, PostgreSQL, and integration checks.
+- Browser-level automation, cross-browser testing, assistive-technology/accessibility review, and independent security review remain outstanding. CI API tests do not establish browser usability or security-review completion.
+- Keyring primitives remain library-only. The live TOTP path still uses the legacy `PSL_ENCRYPTION_KEY` v1 envelope; no operational keyring environment format, batch re-encryption job, key custody, backup, or rotation has been deployed or executed.
