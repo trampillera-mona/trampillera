@@ -4,7 +4,7 @@ set -euo pipefail
 employee_id="${1:?employee id is required}"
 
 db() {
-  docker compose exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$1"' sh "$1"
+  docker compose exec -T db sh -c 'psql -At -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$1"' sh "$1"
 }
 
 db "INSERT INTO org_units(unit_key,name,unit_type) VALUES ('ci-root','CI Root','COMPANY') ON CONFLICT (unit_key) DO NOTHING"
@@ -27,4 +27,9 @@ else
   echo "Verified: overlapping primary assignment rejected"
 fi
 
-db "SELECT CASE WHEN COUNT(*) = 1 THEN 'organization assignment verified' ELSE 1/0::text END FROM employee_org_assignments WHERE employee_id=$employee_id"
+assignment_count="$(db "SELECT COUNT(*) FROM employee_org_assignments WHERE employee_id=$employee_id")"
+if [[ "$assignment_count" != "1" ]]; then
+  echo "ERROR: expected exactly one CI assignment, got $assignment_count"
+  exit 1
+fi
+echo "Verified: exactly one primary assignment exists"
