@@ -1,9 +1,9 @@
 # TRAMPILLERA Personal Security Layer (PSL) — Architecture Specification v0.1
 
-**Status:** Proposed architecture; not implemented  
+**Status:** Architecture baseline; implementation in progress (2026-11-25)  
 **Scope:** Optional user-controlled account security enhancements and risk-based step-up authentication  
 **Repository:** `trampillera-mona/trampillera`  
-**Runtime impact:** None. This document does not authorize code, database, credential, or production changes.
+**Runtime impact:** See implementation status below. Production deployment is not authorized by this document.
 
 ## 1. Purpose
 
@@ -244,3 +244,30 @@ Before implementation, decide:
 - Recovery review policy and notification channels.
 - Retention periods and privacy basis for security event metadata.
 - Browser/device support matrix for image clipboard export.
+
+
+## 18. Implementation status — 2026-11-25
+
+The following first implementation slice is present on the draft PSL branch and is not deployed to production:
+
+- TOTP enrollment and login challenge for administrator and employee accounts.
+- VSC enrollment and confirmation using six positions selected from ten named visual tokens.
+- Tokens combine color, glyph, and text label; color alone is never the identifier.
+- VSC is generated in the browser using the Web Crypto random source.
+- VSC verifier is stored as a salted scrypt-derived verifier. The submitted sequence is not stored in plaintext.
+- Local PNG card generation and clipboard image copy are available behind explicit warnings. The image contains the full visual secret and must be treated as a credential.
+- VSC is checked before TOTP when both factors are enabled. Successful VSC verification alone does not represent independent MFA.
+- VSC login verification and enrollment/removal attempts have rate limits and per-factor temporary lockout.
+- Enrollment and revocation are audit-recorded without including sequence material.
+
+The following remain incomplete and block production release:
+
+- Recovery codes and lost-device/account recovery.
+- Reviewed key rotation and disaster recovery procedures for encrypted TOTP secrets.
+- Browser-level tests and dedicated end-to-end tests for VSC and combined VSC+TOTP login.
+- A reviewed security policy for trusted devices and risk-based step-up beyond the current opt-in login challenge.
+- Accessibility review on real assistive technologies and multiple browsers.
+- Public registration and age assurance; these remain separate systems.
+- Security review and production rollout plan.
+
+A VSC sequence has 10^6 possible combinations (approximately 19.9 bits) and is a memorized knowledge secret. It is supplemental protection only, not a replacement for TOTP, passkeys, or other independent factors. A downloaded/copied PNG is a full credential copy; the platform cannot control OS screenshots, clipboard history, gallery synchronization, or cloud backups.
