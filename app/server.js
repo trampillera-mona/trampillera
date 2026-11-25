@@ -495,7 +495,7 @@ app.get("/api/auth/security",pslVerifyCurrentAccount,asyncRoute(async(req,res)=>
     pool.query("SELECT factor_type,status FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND factor_type IN ('TOTP','VSC') AND status IN ('PENDING','ACTIVE') ORDER BY created_at DESC",[account.type,account.id])
   ]);
   const totp=factor.rows.find(x=>x.factor_type==="TOTP"),vsc=factor.rows.find(x=>x.factor_type==="VSC");
-  res.json({profile:settings.rows[0]?.security_profile||"STANDARD",totpEnabled:totp?.status==="ACTIVE",totpPending:totp?.status==="PENDING",vscEnabled:vsc?.status==="ACTIVE",vscPending:vsc?.status==="PENDING",available:!!process.env.PSL_ENCRYPTION_KEY});
+  res.json({profile:settings.rows[0]?.security_profile||"STANDARD",totpEnabled:totp?.status==="ACTIVE",totpPending:totp?.status==="PENDING",vscEnabled:vsc?.status==="ACTIVE",vscPending:vsc?.status==="PENDING",available:Buffer.byteLength(process.env.PSL_ENCRYPTION_KEY||"","utf8")>=32});
 }));
 app.post("/api/auth/security/profile",pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
   const profile=String(req.body?.profile||"").toUpperCase();
