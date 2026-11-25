@@ -88,8 +88,23 @@ REPLAY_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' -H 
   -d "{\"accountType\":\"admin\",\"password\":\"$ADMIN_PASSWORD\",\"recoveryCode\":\"$ADMIN_RECOVERY_CODE\"}" \
   http://127.0.0.1:3000/api/auth/recovery/reset)"
 test "$REPLAY_STATUS" = "401"
-curl --fail --silent -c "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
-  -d "{\"password\":\"$ADMIN_PASSWORD\"}" http://127.0.0.1:3000/api/auth/login | jq -e '.authenticated == true' >/dev/null
+ADMIN_RECOVERY_LOGIN="$(curl --fail --silent -c "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"password\":\"$ADMIN_PASSWORD\"}" http://127.0.0.1:3000/api/auth/login)"
+printf '%s' "$ADMIN_RECOVERY_LOGIN" | jq -e '.authenticated == true and .requiresFactorEnrollment == true' >/dev/null
+ADMIN_GATE_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' -b "$ADMIN_COOKIE" http://127.0.0.1:3000/api/control/overview)"
+test "$ADMIN_GATE_STATUS" = "423"
+echo "PSL stage: administrator must re-enroll TOTP before workspace access"
+ADMIN_TOTP_JSON="$(curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"password\":\"$ADMIN_PASSWORD\"}" http://127.0.0.1:3000/api/auth/totp/enroll)"
+ADMIN_TOTP_SECRET="$(printf '%s' "$ADMIN_TOTP_JSON" | jq -r '.secret')"
+ADMIN_TOTP_CODE="$(totp_code "$ADMIN_TOTP_SECRET")"
+curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"code\":\"$ADMIN_TOTP_CODE\"}" http://127.0.0.1:3000/api/auth/totp/confirm | jq -e '.enabled == true and .recoveryReenrollRequired == false' >/dev/null
+curl --fail --silent -b "$ADMIN_COOKIE" http://127.0.0.1:3000/api/control/overview >/dev/null
+ADMIN_TOTP_CODE="$(totp_code "$ADMIN_TOTP_SECRET")"
+curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"password\":\"$ADMIN_PASSWORD\",\"code\":\"$ADMIN_TOTP_CODE\"}" \
+  http://127.0.0.1:3000/api/auth/totp/disable | jq -e '.enabled == false' >/dev/null
 
 echo "PSL integration: employee VSC enrollment and sign-in"
 echo "PSL stage: PSL employee creation"
@@ -134,8 +149,23 @@ EMPLOYEE_REPLAY_STATUS="$(curl --silent --output /dev/null --write-out '%{http_c
   -d "{\"accountType\":\"employee\",\"email\":\"$EMPLOYEE_EMAIL\",\"password\":\"$EMPLOYEE_PASSWORD\",\"recoveryCode\":\"$EMPLOYEE_RECOVERY_CODE\"}" \
   http://127.0.0.1:3000/api/auth/recovery/reset)"
 test "$EMPLOYEE_REPLAY_STATUS" = "401"
-curl --fail --silent -c "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
+EMPLOYEE_RECOVERY_LOGIN="$(curl --fail --silent -c "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"email\":\"$EMPLOYEE_EMAIL\",\"password\":\"$EMPLOYEE_PASSWORD\"}" \
-  http://127.0.0.1:3000/api/auth/employee-login | jq -e '.authenticated == true and .role == "employee"' >/dev/null
+  http://127.0.0.1:3000/api/auth/employee-login)"
+printf '%s' "$EMPLOYEE_RECOVERY_LOGIN" | jq -e '.authenticated == true and .role == "employee" and .requiresFactorEnrollment == true' >/dev/null
+EMPLOYEE_GATE_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' -b "$EMPLOYEE_COOKIE" http://127.0.0.1:3000/api/team/dashboard)"
+test "$EMPLOYEE_GATE_STATUS" = "423"
+echo "PSL stage: employee must re-enroll TOTP before team workspace access"
+EMPLOYEE_TOTP_JSON="$(curl --fail --silent -b "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"password\":\"$EMPLOYEE_PASSWORD\"}" http://127.0.0.1:3000/api/auth/totp/enroll)"
+EMPLOYEE_TOTP_SECRET="$(printf '%s' "$EMPLOYEE_TOTP_JSON" | jq -r '.secret')"
+EMPLOYEE_TOTP_CODE="$(totp_code "$EMPLOYEE_TOTP_SECRET")"
+curl --fail --silent -b "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"code\":\"$EMPLOYEE_TOTP_CODE\"}" http://127.0.0.1:3000/api/auth/totp/confirm | jq -e '.enabled == true and .recoveryReenrollRequired == false' >/dev/null
+curl --fail --silent -b "$EMPLOYEE_COOKIE" http://127.0.0.1:3000/api/team/dashboard >/dev/null
+EMPLOYEE_TOTP_CODE="$(totp_code "$EMPLOYEE_TOTP_SECRET")"
+curl --fail --silent -b "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"password\":\"$EMPLOYEE_PASSWORD\",\"code\":\"$EMPLOYEE_TOTP_CODE\"}" \
+  http://127.0.0.1:3000/api/auth/totp/disable | jq -e '.enabled == false' >/dev/null
 
-echo "PSL integration: administrator and employee recovery, replay denial, and session invalidation passed."
+echo "PSL integration: administrator and employee recovery, mandatory TOTP re-enrollment, replay denial, and session invalidation passed."
