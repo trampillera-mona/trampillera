@@ -12,7 +12,7 @@
   let renderer, scene, camera, controls, earth, raf = 0, resizeObserver;
   let webglReady = false;
   let sunLight, ambientLight, rimLight, clouds, atmosphere, stars;
-  let targetCameraPosition = null;
+  let targetCameraPosition = null, solarTimer = 0;
   let timeOffsetHours = 0, currentRegionKey = 'GLOBAL', lastSolarPhase = '', atmosphereBoost = true;
   const regions = {
     GLOBAL: { label: 'GLOBAL', lat: 20, lon: 0 },
@@ -198,6 +198,7 @@
         raf = window.requestAnimationFrame(render);
       };
       render();
+      solarTimer = window.setInterval(updateSolarLighting, 30000);
 
       const resize = () => {
         if (!renderer || !camera) return;
@@ -389,6 +390,7 @@
   focusRegion('GLOBAL');
   window.addEventListener('pagehide', () => {
     webglReady = false; if (raf) cancelAnimationFrame(raf);
+    if (solarTimer) clearInterval(solarTimer);
     if (resizeObserver) resizeObserver.disconnect();
     if (controls) controls.dispose();
     if (renderer) renderer.dispose();
