@@ -27,6 +27,9 @@ jobs:
           npm --prefix app run check
           node --test scripts/ai-provider.test.mjs
           node --test scripts/migrations.test.mjs
+          node --test scripts/totp.test.mjs
+          node --test scripts/vsc.test.mjs
+          node --test scripts/recovery-keyring.test.mjs
           node --test scripts/organization-migration.test.mjs
           node scripts/verify-preservation.mjs
           node --test scripts/locale-voice.test.mjs
@@ -36,6 +39,7 @@ jobs:
       - name: Validate Compose configuration
         run: |
           printf '%s\n' 'POSTGRES_PASSWORD=ci-temporary-db-password' 'ADMIN_PASSWORD=ci-temporary-admin-password-123' 'SESSION_SECRET=ci-temporary-session-secret-which-is-long-enough-123456' > .env
+          printf 'PSL_ENCRYPTION_KEY=%s\n' "$(openssl rand -hex 32)" >> .env
           docker compose config --quiet
 
       - name: Build and start application with PostgreSQL
@@ -55,7 +59,7 @@ jobs:
             sleep 2
           done
           echo "CI: verify PostgreSQL migrations and normalized organization schema"
-          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '2'
+          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '6'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '\''public'\'' AND table_name IN ('\''org_units'\'','\''positions'\'','\''employee_org_assignments'\'')"' | tr -d '\r' | grep -qx '3'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM employee_org_assignments"' | tr -d '\r' | grep -qx '0'
           docker compose restart app
@@ -69,7 +73,7 @@ jobs:
             fi
             sleep 2
           done
-          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '2'
+          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '6'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM employee_org_assignments"' | tr -d '\r' | grep -qx '0'
           curl --fail --silent http://127.0.0.1:3000/
           curl --fail --silent http://127.0.0.1:3000/shared/trampillera-global-controls.js | grep -q 'TrampilleraLocaleCore'
@@ -78,6 +82,9 @@ jobs:
           curl --fail --silent http://127.0.0.1:3000/city/ | grep -q 'allow="microphone;'
           curl --fail --silent --dump-header /tmp/trampillera-headers.txt --output /dev/null http://127.0.0.1:3000/api/health
           grep -qi '^Permissions-Policy: microphone=(self)' /tmp/trampillera-headers.txt
+          curl --fail --silent http://127.0.0.1:3000/control/ | grep -q "/security/recovery.js"
+          curl --fail --silent http://127.0.0.1:3000/city/team/ | grep -q "/security/recovery.js"
+          curl --fail --silent http://127.0.0.1:3000/security/recovery.js | grep -q "Reset security factors"
           curl --fail --silent http://127.0.0.1:3000/control/ > /dev/null
           curl --fail --silent -H 'Content-Type: application/json' -d '{"visitorId":"11111111-1111-4111-8111-111111111111","path":"/","source":"ci","medium":"test","campaign":""}' http://127.0.0.1:3000/api/analytics/visit | jq -e '.visitors == 1 and .today == 1 and .pageviews == 1'
           curl --fail --silent http://127.0.0.1:3000/api/analytics/counter | jq -e '.visitors == 1 and .today == 1 and .pageviews == 1'
@@ -88,6 +95,10 @@ jobs:
           test "$MISSING_ORIGIN_STATUS" = "403"
           curl --fail --silent -c /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"password":"ci-temporary-admin-password-123"}' http://127.0.0.1:3000/api/auth/login
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/overview
+          bash scripts/psl.integration.sh
+          # Recovery intentionally increments the admin auth version and invalidates every prior admin session.
+          set -a; source .env; set +a
+          curl --fail --silent -c /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d "{\"password\":\"$ADMIN_PASSWORD\"}" http://127.0.0.1:3000/api/auth/login | jq -e '.authenticated == true' >/dev/null
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/analytics/summary?days=7 | jq -e '.totals.visitors == 1 and (.daily | length == 7)'
           CAMPAIGN_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"name":"CI Growth Campaign","channel":"SOCIAL","objective":"Verify campaign attribution","destinationUrl":"https://example.com/landing","budget":0}' http://127.0.0.1:3000/api/control/growth/campaigns)
           CAMPAIGN_ID=$(printf '%s' "$CAMPAIGN_JSON" | jq -r '.item.id')
@@ -165,6 +176,12 @@ jobs:
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "UPDATE admin_auth_state SET auth_version=auth_version+1 WHERE singleton_id=1"' > /dev/null
           ADMIN_OLD_SESSION_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/overview)
           test "$ADMIN_OLD_SESSION_STATUS" = "401"
+
+      - name: Browser-level recovery UI checks
+        run: |
+          npm --prefix app install --no-save --package-lock=false playwright@1.56.1
+          ./app/node_modules/.bin/playwright install --with-deps chromium
+          node scripts/recovery.browser.mjs
 
       - name: Stop test stack
         if: always()

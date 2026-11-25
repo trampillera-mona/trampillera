@@ -1,9 +1,9 @@
 # TRAMPILLERA Personal Security Layer (PSL) — Architecture Specification v0.1
 
-**Status:** Proposed architecture; not implemented  
+**Status:** Architecture baseline; implementation in progress (2026-11-25)  
 **Scope:** Optional user-controlled account security enhancements and risk-based step-up authentication  
 **Repository:** `trampillera-mona/trampillera`  
-**Runtime impact:** None. This document does not authorize code, database, credential, or production changes.
+**Runtime impact:** See implementation status below. Production deployment is not authorized by this document.
 
 ## 1. Purpose
 
@@ -244,3 +244,83 @@ Before implementation, decide:
 - Recovery review policy and notification channels.
 - Retention periods and privacy basis for security event metadata.
 - Browser/device support matrix for image clipboard export.
+
+
+## 18. Implementation status — 2026-11-25
+
+The following first implementation slice is present on the draft PSL branch and is not deployed to production:
+
+- TOTP enrollment and login challenge for administrator and employee accounts.
+- VSC enrollment and confirmation using six positions selected from ten named visual tokens.
+- Tokens combine color, glyph, and text label; color alone is never the identifier.
+- VSC is generated in the browser using the Web Crypto random source.
+- VSC verifier is stored as a salted scrypt-derived verifier. The submitted sequence is not stored in plaintext.
+- Local PNG card generation and clipboard image copy are available behind explicit warnings. The image contains the full visual secret and must be treated as a credential.
+- VSC is checked before TOTP when both factors are enabled. Successful VSC verification alone does not represent independent MFA.
+- VSC login verification and enrollment/removal attempts have rate limits and per-factor temporary lockout.
+- Enrollment and revocation are audit-recorded without including sequence material.
+
+The following remain incomplete and block production release:
+
+- Recovery codes and lost-device/account recovery.
+- Reviewed key rotation and disaster recovery procedures for encrypted TOTP secrets.
+- Browser-level tests and dedicated end-to-end tests for VSC and combined VSC+TOTP login.
+- A reviewed security policy for trusted devices and risk-based step-up beyond the current opt-in login challenge.
+- Accessibility review on real assistive technologies and multiple browsers.
+- Public registration and age assurance; these remain separate systems.
+- Security review and production rollout plan.
+
+A VSC sequence has 10^6 possible combinations (approximately 19.9 bits) and is a memorized knowledge secret. It is supplemental protection only, not a replacement for TOTP, passkeys, or other independent factors. A downloaded/copied PNG is a full credential copy; the platform cannot control OS screenshots, clipboard history, gallery synchronization, or cloud backups.
+
+## 17. Recovery & Key Management Desk — implementation status (2026-11-25)
+
+### Implemented foundation (PR #27; not production-enabled)
+
+- Added `account_recovery_codes` as an additive migration. It stores a per-code verifier and lifecycle timestamps only; it has no plaintext-code column.
+- Added secure random recovery-code generation (10 codes by default, 192 random bits before display normalization), unique per-code salts, scrypt verifiers, and timing-safe verifier comparison.
+- Added versioned TOTP envelope primitives. New `v2` envelopes bind the key ID as authenticated additional data and identify the encryption key required for decryption.
+- Added a keyring API that can retain old key IDs while a new active key is used for re-encryption.
+- Added a compatibility reader for the existing `v1` envelope, provided the legacy key is explicitly supplied.
+- Added tests for recovery-code generation/verification, malformed input, key-ID lookup, v1 compatibility, and v2 re-encryption.
+
+### Explicitly not implemented
+
+- No recovery-code generation, display, redemption, or regeneration API is wired into the application.
+- No recovery-code one-time-consumption transaction or login fallback is wired yet. The database lifecycle fields are groundwork, not proof of replay prevention.
+- No factor reset, account recovery review, owner notification, or session invalidation workflow is implemented.
+- No production keyring format, secret-manager integration, key custody procedure, key backup, or operator runbook is configured.
+- No database-wide TOTP re-encryption job or rollback procedure is implemented or executed.
+- The existing `PSL_ENCRYPTION_KEY` and production Render configuration remain unchanged. Do not rotate or replace the legacy key until a reviewed migration job has re-encrypted and verified every active TOTP envelope and a tested rollback path exists.
+
+### Required next gates
+
+1. Define the deployment secret-manager representation for key IDs and key material; keep key material out of PostgreSQL, source control, logs, and application responses.
+2. Implement a bounded, resumable, auditable TOTP re-encryption job with dual-read compatibility, per-row verification, and a rollback plan. Retain the old key until every active envelope is verified under the new key.
+3. Implement code generation and one-time redemption in database transactions. Redemption must lock the selected unused row, compare its verifier, mark it consumed atomically, and reject concurrent/replayed use.
+4. Require current primary-password proof before issuing recovery codes. Show plaintext only once; regeneration must revoke all previous unused codes atomically.
+5. Design recovery factor-reset policy separately. Recovery must revoke affected factors, increment the account auth version, invalidate active sessions, and require fresh factor enrollment where policy requires it.
+6. Add browser/UI, concurrency, replay, failure, migration, and restore tests; complete independent security review before production rollout.
+
+**Release status:** Foundation code and CI tests are being added to the draft PR. Recovery is not yet available to users; key rotation has not been performed; production remains unchanged.
+
+
+## 18. Recovery API — transactional implementation status (2026-11-25)
+
+### Implemented in the draft branch
+
+- Recovery codes use a public, non-secret 64-bit selector and a separate 192-bit random secret. The selector locates one row; only the secret's per-code salted scrypt verifier is stored.
+- `POST /api/auth/recovery-codes` requires an authenticated account, current password, and every currently active factor (VSC sequence and/or TOTP code). It replaces the entire unused code set in a transaction and returns the new codes once.
+- Regeneration revokes all prior unused codes before inserting the new set. The response explicitly warns that plaintext is not retrievable later.
+- `POST /api/auth/recovery/reset` supports administrator and employee account recovery using password plus selector/secret code.
+- Redemption locks the account row and selected recovery-code row, verifies the code, consumes it atomically, revokes all remaining recovery codes, revokes active and pending VSC/TOTP factors, increments the account authentication version, and writes an audit event without secret material.
+- Authentication-version increment invalidates existing administrator or employee sessions. Recovery response requires a fresh password sign-in; factors must then be re-enrolled as appropriate.
+- API rate limiting applies to both recovery endpoints. Recovery responses inherit `Cache-Control: no-store`.
+
+### Release limitations and current implementation state (2026-11-25)
+
+- Recovery Desk UI is present on the PR #27 branch for administrator Control Plane and employee ITY CITY: one-time code display, local TXT download, active-factor verification, and password + recovery-code reset. The reset flow does not auto-login.
+- Mandatory post-recovery TOTP re-enrollment is now implemented on the PR #27 branch. A database-backed gate restricts authenticated sessions to password setup and security-factor setup routes until a new TOTP authenticator is confirmed. VSC alone cannot clear this gate because it is a supplementary memorized secret, not an independent MFA factor.
+- TOTP replay protection is implemented with a persisted last-accepted time-step counter and atomic monotonic updates. A previously consumed counter is rejected across login verification, recovery-code issuance, and factor disable; enrollment confirmation also consumes its confirmation step.
+- CI run #225 passed the new administrator and employee recovery → restricted-session → TOTP re-enrollment → workspace-unlock integration flows, in addition to existing static, migration, PostgreSQL, and integration checks.
+- Browser-level automation, cross-browser testing, assistive-technology/accessibility review, and independent security review remain outstanding. CI API tests do not establish browser usability or security-review completion.
+- Keyring primitives remain library-only. The live TOTP path still uses the legacy `PSL_ENCRYPTION_KEY` v1 envelope; no operational keyring environment format, batch re-encryption job, key custody, backup, or rotation has been deployed or executed.
