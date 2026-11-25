@@ -132,8 +132,8 @@ Read-only inspection of the connected Render workspace on 2026-11-25 confirmed:
 - Region: Frankfurt; one Free instance.
 - Latest observed deploy: `dep-dc30q7gu01pc73d9d1e0`, status `live`, commit `3104e88219f004cb195dbbe449253d9f193206b2`.
 
-The six commits created in this documentation pass advance `main` from `3104e882` to `929b7f7`. A GitHub compare confirms that the only changed paths are `README.md` and documentation under `docs/architecture/`; there are no changes under `app/`, Docker build files, or runtime configuration.
+The documentation commits created in this pass advance `main` beyond the preserved `3104e882` baseline. The recovery branch remains anchored to that baseline. A GitHub compare confirms that the only changed paths are `README.md` and documentation under `docs/architecture/`; there are no changes under `app/`, Docker build files, or runtime configuration.
 
 **Deployment decision:** do not trigger a Render deploy for this documentation-only change. Render's configured root directory is `app/`, so the new documentation files are outside the service's Docker build context and do not change the running application. The existing live application commit remains `3104e882`. A Render deploy becomes appropriate only after an intentional runtime/code change under `app/` (or a deliberate build/deployment configuration change), followed by the required verification and operator approval.
 
-The combined GitHub status for intermediate commit `7fb308e` reported a successful Vercel check. The final documentation commit `929b7f7` currently has no combined status entries. The available GitHub integration did not expose a GitHub Actions run result for this push; therefore GitHub Actions verification for the final HEAD is recorded as **UNKNOWN**, not PASS.
+The combined GitHub status for intermediate commit `7fb308e` reported a successful Vercel check. The final documentation HEAD had no combined status entries at the time of the last check. The available GitHub integration did not expose a GitHub Actions run result for this push; therefore GitHub Actions verification for the final HEAD is recorded as **UNKNOWN**, not PASS.
