@@ -1,25 +1,29 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
-import { generateRecoveryCodes, hashRecoveryCode, verifyRecoveryCode, encryptTotpWithKeyring, decryptTotpWithKeyring, rotateTotpEnvelope } from "../app/security/recovery-keyring.js";
+import { generateRecoveryCodes, parseRecoveryCode, verifyRecoveryCode, encryptTotpWithKeyring, decryptTotpWithKeyring, rotateTotpEnvelope } from "../app/security/recovery-keyring.js";
 import { encryptTotpSecret } from "../app/security/totp.js";
 
-test("recovery codes are high-entropy, unique, salted and verifiable", () => {
+test("recovery codes are high-entropy, unique, selector-addressable and verifiable", () => {
   const generated = generateRecoveryCodes();
   assert.equal(generated.codes.length, 10);
   assert.equal(new Set(generated.codes).size, 10);
-  assert.equal(generated.verifiers.length, 10);
-  assert.ok(generated.codes.every((code) => /^[A-F0-9]{48}$/.test(code)));
-  assert.ok(generated.codes.every((code, index) => verifyRecoveryCode(code, generated.verifiers[index])));
-  assert.ok(generated.codes.every((code, index) => !verifyRecoveryCode(generated.codes[(index + 1) % 10], generated.verifiers[index])));
-  assert.notEqual(hashRecoveryCode(generated.codes[0]), hashRecoveryCode(generated.codes[0]));
-  assert.equal(verifyRecoveryCode("wrong", generated.verifiers[0]), false);
+  assert.equal(generated.records.length, 10);
+  assert.ok(generated.codes.every((code) => /^[A-F0-9]{64}$/.test(code)));
+  assert.ok(generated.records.every((record) => /^[A-F0-9]{16}$/.test(record.selector)));
+  assert.ok(generated.records.every((record, index) => record.selector === generated.codes[index].slice(0, 16)));
+  assert.ok(generated.codes.every((code, index) => verifyRecoveryCode(code, generated.records[index].verifier)));
+  assert.ok(generated.codes.every((code, index) => !verifyRecoveryCode(generated.codes[(index + 1) % 10], generated.records[index].verifier)));
+  assert.notEqual(generated.records[0].verifier, generated.records[1].verifier);
+  assert.equal(verifyRecoveryCode("wrong", generated.records[0].verifier), false);
+  assert.deepEqual(parseRecoveryCode(generated.codes[0]), { selector: generated.codes[0].slice(0,16), secret: generated.codes[0].slice(16) });
 });
 
 test("recovery code format and generation bounds are enforced", () => {
   assert.throws(() => generateRecoveryCodes(0));
   assert.throws(() => generateRecoveryCodes(21));
-  assert.throws(() => hashRecoveryCode("short"));
+  assert.equal(parseRecoveryCode(null), null);
+  assert.equal(parseRecoveryCode("short"), null);
   assert.equal(verifyRecoveryCode(null, "bad"), false);
 });
 
