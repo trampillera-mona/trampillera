@@ -1,6 +1,6 @@
 # TRAMPILLERA Partner & Team Workspace — Architecture Specification v0.3
 
-**Status:** DESIGN / NOT IMPLEMENTED / NOT AUTHORIZED FOR PRODUCTION USE  
+**Status:** IMPLEMENTED IN PR #28 / NOT DEPLOYED / NOT AUTHORIZED FOR PRODUCTION USE  
 **Initial collaborator:** One partner currently based in Kalmar, Sweden. Location is contextual only; it is not an authorization attribute.
 
 ## 1. Purpose
@@ -207,3 +207,25 @@ Before production:
 ## 13. Acceptance rule
 
 The collaborator can independently contribute meaningful work within approved scopes. They can see only projects and records they are authorized to access. Submitted work remains reviewable and traceable; only an authorized reviewer can accept it. All other access is denied by default. A successful HTTP response alone is not proof of a successful business operation; persisted state and audit evidence must confirm each transition.
+
+
+## 10.2 Implementation status in PR #28 — 2026-11-25
+
+The first additive implementation is now present in the feature branch. This is repository code and CI evidence, not a production deployment.
+
+- Migration `0003_partner_access_gateway.sql` adds partner accounts, affiliations, invitations, project memberships, tasks, task submissions, and proposals. A partner account can optionally link to an existing active employee row by exact email match; existing employee rows and employee-login behavior are not rewritten.
+- Invitation tokens are generated from 32 random bytes, stored as SHA-256 digests, expire after 72 hours, and are consumed under a database row lock. Pending invitations can be revoked. Redemption creates the partner principal and both requested affiliations (`PARTNER`, `TEAM_MEMBER`) with operational role `TEAM_CONTRIBUTOR`.
+- If an active employee with the invited email already exists, the new partner record links to that employee ID. Employee sessions can then use the partner workspace only through that explicit link and a fresh active/session-version check. If no employee row exists, the contributor identity remains a partner account with the two affiliations; it does not silently create an employee HR record.
+- The existing Control Plane now includes Partner Access administration: issue/revoke invitations, create projects, grant project membership, publish tasks, inspect the partner roster and review deliverables/proposals.
+- The existing ITY CITY Workspace now includes a Partner Workspace section: sign in or redeem an invitation, see only granted projects, volunteer for open tasks, submit deliverables by description/HTTP(S) artifact link, and submit proposals.
+- Partner API routes enforce partner session version and project membership. Partner sessions cannot call administrator invitation endpoints. Deliverable review is administrator-only and separate from submission.
+- CI includes token-helper tests, migration checks, invitation redemption/replay/revocation checks, partner/admin role separation, project-scoped task claiming, deliverable submission/review, and an out-of-scope project access denial.
+
+### Explicit limitations and release gates
+
+- Invitation issuance currently returns a one-time link to the authenticated administrator; **email delivery is not configured and is not performed**. The link must be sent manually to the exact invited email. Do not report an invitation as sent.
+- The contributor UI currently supports proposal text and artifact links, not file uploads or real-time project messaging.
+- MFA, automated expiry sweeps, account suspension UI, repository permissions, production deploy permissions, and broad unified identity migration remain out of scope.
+- The legacy employee account is linked only when an active employee row already exists for the exact invited email. The system does not create or infer an HR employee record.
+- No invitation or partner account for Egor has been created; no email has been sent; no GitHub repository permission has been granted; no production migration or deployment has been run.
+- Keep PR #28 draft until the latest CI run passes and a human review confirms the implementation. Production rollout requires separate approval.
