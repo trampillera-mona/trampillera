@@ -2,7 +2,16 @@ import {createInvitationToken,hashInvitationToken,normalizePartnerEmail,isValidP
 
 export function configurePartnerRoutes({app,pool,clean,asyncRoute,requireAdmin,audit,auditWithClient,passwordHash,passwordMatches,rateLimit}) {
  const requirePartner=asyncRoute(async(req,res,next)=>{
-  if(req.session?.authenticated!==true||req.session?.role!=="partner"||!req.session?.partnerId)return res.status(401).json({error:"Partner session required."});
+  if(req.session?.authenticated!==true)return res.status(401).json({error:"Partner session required."});
+  if(req.session.role==="employee"&&req.session.employeeId){
+   const employee=await pool.query("SELECT id FROM employees WHERE id=$1 AND active=TRUE AND auth_version=$2",[req.session.employeeId,req.session.authVersion]);
+   if(!employee.rowCount)return res.status(401).json({error:"Employee session is no longer valid."});
+   const linked=await pool.query("SELECT id,auth_version FROM partner_accounts WHERE employee_id=$1 AND active=TRUE",[req.session.employeeId]);
+   if(!linked.rowCount)return res.status(403).json({error:"No partner affiliation is linked to this employee account."});
+   req.session.partnerId=linked.rows[0].id;req.session.partnerAuthVersion=linked.rows[0].auth_version;
+  }
+  if(req.session.role!=="partner"&&req.session.role!=="employee")return res.status(401).json({error:"Partner session required."});
+  if(!req.session.partnerId)return res.status(401).json({error:"Partner session required."});
   const r=await pool.query("SELECT active,auth_version FROM partner_accounts WHERE id=$1",[req.session.partnerId]);
   if(!r.rowCount||!r.rows[0].active||Number(req.session.partnerAuthVersion)!==Number(r.rows[0].auth_version)){req.session=null;return res.status(401).json({error:"Partner session is no longer valid."})}
   next();
@@ -14,8 +23,9 @@ export function configurePartnerRoutes({app,pool,clean,asyncRoute,requireAdmin,a
   const c=await pool.connect();try{
    await c.query("BEGIN");const i=await c.query("SELECT id,email,status,expires_at FROM partner_invitations WHERE token_hash=$1 FOR UPDATE",[digest]);
    if(!i.rowCount||i.rows[0].status!=="PENDING"||new Date(i.rows[0].expires_at).getTime()<=Date.now()){await c.query("ROLLBACK");return res.status(410).json({error:"Invitation is invalid, expired, already used or revoked."})}
-   const email=i.rows[0].email,exists=await c.query("SELECT id FROM partner_accounts WHERE email=$1",[email]);if(exists.rowCount){await c.query("ROLLBACK");return res.status(409).json({error:"Partner account already exists for this email."})}
-   const p=await c.query("INSERT INTO partner_accounts(email,display_name,password_hash) VALUES($1,$2,$3) RETURNING id,auth_version",[email,name,passwordHash(password)]);
+   const email=i.rows[0].email,employee=await c.query("SELECT id FROM employees WHERE email=$1 AND active=TRUE",[email]),exists=await c.query("SELECT id FROM partner_accounts WHERE email=$1",[email]);if(exists.rowCount){await c.query("ROLLBACK");return res.status(409).json({error:"Partner account already exists for this email."})}
+   const employeeId=employee.rowCount?employee.rows[0].id:null;
+   const p=await c.query("INSERT INTO partner_accounts(email,employee_id,display_name,password_hash) VALUES($1,$2,$3,$4) RETURNING id,auth_version",[email,employeeId,name,passwordHash(password)]);
    await c.query("INSERT INTO partner_affiliations(partner_id,affiliation,operational_role) VALUES($1,'PARTNER','TEAM_CONTRIBUTOR'),($1,'TEAM_MEMBER','TEAM_CONTRIBUTOR')",[p.rows[0].id]);
    await c.query("UPDATE partner_invitations SET status='REDEEMED',redeemed_at=NOW() WHERE id=$1",[i.rows[0].id]);
    await auditWithClient(c,"PARTNER_INVITATION_REDEEMED","partner",String(p.rows[0].id),"Invitation redeemed; possession of the emailed token proves email control","partner:"+p.rows[0].id);

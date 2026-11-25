@@ -405,7 +405,8 @@ app.get("/api/auth/me", asyncRoute(async (req,res) => {
     const r=await pool.query("SELECT id,email,display_name,department,job_title,must_change_password,active,auth_version FROM employees WHERE id=$1",[req.session.employeeId]);
     if(!r.rowCount || !r.rows[0].active || Number(req.session.authVersion)!==Number(r.rows[0].auth_version)) { req.session=null; return res.json({authenticated:false}); }
     const e=r.rows[0];
-    return res.json({authenticated:true,role:"employee",employee:{id:e.id,email:e.email,name:e.display_name,department:e.department,jobTitle:e.job_title,mustChangePassword:e.must_change_password}});
+    const affiliations=await pool.query("SELECT COALESCE(array_agg(a.affiliation ORDER BY a.affiliation),'{}') AS items FROM partner_accounts p JOIN partner_affiliations a ON a.partner_id=p.id WHERE p.employee_id=$1 AND p.active=TRUE",[e.id]);
+    return res.json({authenticated:true,role:"employee",employee:{id:e.id,email:e.email,name:e.display_name,department:e.department,jobTitle:e.job_title,mustChangePassword:e.must_change_password},affiliations:affiliations.rows[0]?.items||[]});
   }
   if(req.session.role==="partner"&&req.session.partnerId){const r=await pool.query("SELECT id,email,display_name,auth_version,active FROM partner_accounts WHERE id=$1",[req.session.partnerId]);if(!r.rowCount||!r.rows[0].active||Number(req.session.partnerAuthVersion)!==Number(r.rows[0].auth_version)){req.session=null;return res.json({authenticated:false})}return res.json({authenticated:true,role:"partner",partner:{id:r.rows[0].id,email:r.rows[0].email,name:r.rows[0].display_name}})}
   if(req.session.role === "admin" && Number.isSafeInteger(Number(req.session.adminAuthVersion))) {
