@@ -1,4 +1,4 @@
-import {createInvitationToken,hashInvitationToken,normalizePartnerEmail,isValidPartnerEmail} from "./partner-access.js";
+import {createInvitationToken,hashInvitationToken,normalizePartnerEmail,isValidPartnerEmail,buildPartnerInvitationUrl} from "./partner-access.js";
 
 export function configurePartnerRoutes({app,pool,clean,asyncRoute,requireAdmin,audit,auditWithClient,passwordHash,passwordMatches,rateLimit}) {
  const requirePartner=asyncRoute(async(req,res,next)=>{
@@ -75,11 +75,11 @@ export function configurePartnerRoutes({app,pool,clean,asyncRoute,requireAdmin,a
  app.get("/api/control/partners/invitations",requireAdmin,asyncRoute(async(_req,res)=>{const r=await pool.query("SELECT id,email,display_name,status,expires_at,created_at,redeemed_at,revoked_at FROM partner_invitations ORDER BY created_at DESC LIMIT 100");res.json({items:r.rows})}));
  app.post("/api/control/partners/invitations",requireAdmin,asyncRoute(async(req,res)=>{
   const email=normalizePartnerEmail(req.body?.email),name=clean(req.body?.name,120);if(!isValidPartnerEmail(email)||!name)return res.status(400).json({error:"Valid email and display name are required."});
-  const token=createInvitationToken(),digest=hashInvitationToken(token),c=await pool.connect();try{await c.query("BEGIN");const exists=await c.query("SELECT id FROM partner_accounts WHERE email=$1 AND active=TRUE",[email]);if(exists.rowCount){await c.query("ROLLBACK");return res.status(409).json({error:"Active partner account already exists."})}
+  const token=createInvitationToken(),digest=hashInvitationToken(token);let inviteUrl;try{inviteUrl=buildPartnerInvitationUrl(process.env.PUBLIC_APP_URL,token)}catch{return res.status(503).json({error:"Invitation service is not configured: PUBLIC_APP_URL must be set to the canonical HTTPS application origin."})}const c=await pool.connect();try{await c.query("BEGIN");const exists=await c.query("SELECT id FROM partner_accounts WHERE email=$1 AND active=TRUE",[email]);if(exists.rowCount){await c.query("ROLLBACK");return res.status(409).json({error:"Active partner account already exists."})}
    await c.query("UPDATE partner_invitations SET status='REVOKED',revoked_at=NOW() WHERE email=$1 AND status='PENDING'",[email]);
    const r=await c.query("INSERT INTO partner_invitations(email,display_name,token_hash,expires_at,created_by) VALUES($1,$2,$3,NOW()+INTERVAL '72 hours',$4) RETURNING id,email,display_name,status,expires_at,created_at",[email,name,digest,req.session.actor||"admin"]);
    await auditWithClient(c,"PARTNER_INVITATION_CREATED","partner_invitation",String(r.rows[0].id),"Invitation issued for "+email+"; expires in 72 hours");await c.query("COMMIT");
-   res.status(201).json({item:r.rows[0],inviteUrl:req.protocol+"://"+req.get("host")+"/city/workspace/#invite="+encodeURIComponent(token),delivery:"NOT_SENT",warning:"Send this one-time link only to the invited email. The token is shown once and stored hashed."});
+   res.status(201).json({item:r.rows[0],inviteUrl,delivery:"NOT_SENT",warning:"Send this one-time link only to the invited email. The token is shown once and stored hashed."});
   }catch(e){await c.query("ROLLBACK");throw e}finally{c.release()}
  }));
  app.post("/api/control/partners/invitations/:id/revoke",requireAdmin,asyncRoute(async(req,res)=>{const r=await pool.query("UPDATE partner_invitations SET status='REVOKED',revoked_at=NOW() WHERE id=$1 AND status='PENDING' RETURNING id,email,status",[req.params.id]);if(!r.rowCount)return res.status(404).json({error:"Pending invitation not found."});await audit("PARTNER_INVITATION_REVOKED","partner_invitation",String(req.params.id),"Administrator revoked invitation");res.json({item:r.rows[0]})}));
