@@ -1,6 +1,6 @@
 # TRAMPILLERA Identity & Duties Foundation — Architecture Specification v0.1
 
-**Status:** Proposed implementation contract — NOT IMPLEMENTED beyond the bounded employee-account and Team Game capabilities described below  
+**Status:** PARTIAL — bounded employee accounts and Team Game are implemented; normalized organization schema migration 0002 is under review, not yet merged or deployed  
 **Date:** 2026-11-25  
 **Repository:** `trampillera-mona/trampillera`  
 **Domain key:** `identity.core`  
@@ -44,7 +44,7 @@ Current authentication behavior:
 
 The current model is **bounded employee authentication**, not a full identity provider or organization directory:
 - `department` and `job_title` are free-text columns, not normalized organization entities.
-- There are no normalized organizational units, positions, reporting relationships or effective-dated employee assignments.
+- Migration 0002 in the current review branch adds normalized organizational units, positions and effective-dated employee assignments; no organization CRUD API, directory UI or production migration is yet verified. Reporting relationships remain unimplemented.
 - Authorization is coarse: administrator vs employee. There is no permission catalogue, scoped role assignment, role-permission matrix, ABAC policy engine or delegated administration.
 - There is no duty/responsibility assignment, acknowledgement, due-date, escalation or evidence workflow.
 - There is no first-class invitation token lifecycle, MFA, SSO, recovery factor or device registry.
@@ -400,3 +400,12 @@ Identity & Duties Foundation may be marked REAL only when:
 - GitHub verification passes and post-deploy runtime checks confirm the intended behavior.
 
 Until then, the full Identity & Duties Foundation status is **PARTIAL / architecture in progress**. The existing employee account and Team Game subset remains REAL within its documented boundaries.
+
+
+## 17. Implementation delta — organization schema migration 0002 (2026-11-25)
+
+The review branch `feat/organization-normalization-migration` adds `0002_normalized_organization.sql` after the merged migration baseline. It creates `org_units`, `positions` and `employee_org_assignments` with foreign keys, stable keys, type/status/date constraints, a serialized hierarchy cycle guard and a serialized overlap guard for active primary placements.
+
+No legacy `department` or `job_title` text is transformed. No organization rows, position rows or employee placements are seeded. Existing `employees` columns, IDs, credentials, auth versions, Team Game tables and foreign keys are not altered. The migration adds schema capability only; organization APIs, UI, authorization and reviewed mapping are future work.
+
+The PR's CI must prove clean PostgreSQL startup, migration ledger idempotency, schema presence, zero inferred assignments and continued employee/Team Game compatibility. Until those checks pass and the PR is merged/deployed, this remains source under review, not production capability.

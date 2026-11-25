@@ -19,7 +19,7 @@ A module may contain more than one status. Status describes capability, not visu
 
 ## 2. Executive summary
 
-The repository is a single deployable Node.js application with a public portal, authenticated Control Plane, shared HTTP API, and PostgreSQL registries. The current database also includes `employees`, `admin_auth_state`, `team_missions`, `mission_assignments`, and `mission_messages`, in addition to platform registries and `audit_events`. Employee identity is implemented as a bounded account/session system; normalized organization, scoped RBAC and duties are not yet implemented.
+The repository is a single deployable Node.js application with a public portal, authenticated Control Plane, shared HTTP API, and PostgreSQL registries. The current database also includes `employees`, `admin_auth_state`, `team_missions`, `mission_assignments`, and `mission_messages`, in addition to platform registries and `audit_events`. Employee identity is implemented as a bounded account/session system. Normalized organization schema is introduced in migration 0002 on the current review branch; organization APIs/UI, scoped RBAC and duties are not yet implemented.
 
 The current architecture is a **modular monolith in deployment**, but the public portal's large HTML/JavaScript file still contains many tightly coupled client-side features. The Control Plane is more server-backed than several public-facing modules.
 
@@ -92,7 +92,7 @@ The current architecture is a **modular monolith in deployment**, but the public
 | Control Plane connectors | PARTIAL | Connector records and HTTPS syntax validation exist; validation explicitly makes no outbound request. | Add separate live connectivity probe with timeout and safe egress policy. |
 | Control Plane model providers | PARTIAL | Qwen and OpenAI server adapters exist, but registry records do not dynamically load adapters or prove provider configuration/reachability. | Bind provider records to adapter capabilities and timestamped probe results. |
 | Audit events | REAL (basic) | PostgreSQL `audit_events` table records selected actions. | Add actor identity, correlation IDs, structured JSON details, retention, and append-only controls. |
-| PostgreSQL migration framework | PARTIAL (implemented in source branch; not deployed) | Versioned SQL runner, advisory-lock serialization, per-migration transactions, checksum immutability and a legacy schema baseline marker are added. Existing DDL remains in startup bootstrap; no new business schema is migrated yet. | Verify CI against PostgreSQL, then gradually move new schema changes to numbered additive migrations. |
+| PostgreSQL migration framework | PARTIAL (runner merged; migration 0002 under review; not deployed) | Versioned SQL runner, advisory-lock serialization, per-migration transactions, checksum immutability and legacy baseline marker are merged. The review branch adds `org_units`, `positions` and `employee_org_assignments`; legacy DDL remains in startup bootstrap and no production migration is verified. | Verify migration 0002 against PostgreSQL and legacy employee/Team Game flows; then add reviewed organization management APIs. |
 | System diagnostics | PARTIAL | Runtime, DB latency, pool counters, commit identity, and backup UNKNOWN are reported. | Add module/connector/provider checks and evidence references. |
 | Backup / restore verification | UNKNOWN | Diagnostics explicitly state no backup or restore verification is available to the application. | Verify Render backup/export process and perform a documented restore test. |
 | Deployment identity | PARTIAL | Diagnostics reads `RENDER_GIT_COMMIT` if available. | Record commit, deploy event, smoke test, and rollback target together. |
@@ -246,3 +246,8 @@ This is a design target, not verified capacity. A 100-person event should be eva
 - **Integration:** shared identity and access control, Communications notifications, audit events, Process Studio tasks/projects and aggregate privacy-preserving analytics.
 - **Proposed states:** announcement DRAFT/REVIEW/SCHEDULED/PUBLISHED/EXPIRED/ARCHIVED/FAILED/UNKNOWN; proposal DRAFT/SUBMITTED/TRIAGE/UNDER_REVIEW/NEEDS_INFORMATION/PILOT_PROPOSED/ACCEPTED/PILOT_IN_PROGRESS/ADOPTED/DECLINED/DUPLICATE/ON_HOLD/WITHDRAWN/ARCHIVED/UNKNOWN.
 - **Verification gate:** prove audience isolation, delivery/acknowledgement semantics, confidential access, state transitions, review ownership, reasoned outcomes, moderation, retention and end-to-end employee journey before marking REAL.
+
+
+### 15. Identity & Organization migration 0002 — source review delta (2026-11-25)
+
+The current review branch adds an additive PostgreSQL schema for `org_units`, `positions` and effective-dated `employee_org_assignments`. It includes foreign keys, key/status/date constraints, an organizational hierarchy cycle guard and a guard against overlapping active primary assignment periods. It deliberately does not populate organization data or infer mappings from legacy free-text department/title fields. The migration has not been merged or deployed; production schema and records remain unverified. CI checks are pending.
