@@ -434,6 +434,15 @@ async function pslVerifyCurrentAccount(req,res,next){
   if(account.type==="admin") return requireAdmin(req,res,next);
   return requireEmployee(req,res,next);
 }
+async function pslCurrentPasswordMatches(account,password){
+  if(typeof password!=="string" || !password) return false;
+  if(account.type==="admin"){
+    const expected=Buffer.from(ADMIN_PASSWORD),supplied=Buffer.from(password);
+    return expected.length===supplied.length&&crypto.timingSafeEqual(expected,supplied);
+  }
+  const r=await pool.query("SELECT password_hash FROM employees WHERE id=$1",[account.id]);
+  return !!r.rowCount&&passwordMatches(password,r.rows[0].password_hash);
+}
 app.post("/api/auth/totp/verify-login",pslLoginVerifyLimiter,asyncRoute(async(req,res)=>{
   const pending=req.session?.preAuth;
   if(!pending || !["admin","employee"].includes(pending.accountType) || !pending.accountId || !Number.isFinite(pending.expiresAt) || pending.expiresAt<Date.now()){
@@ -490,9 +499,10 @@ app.post("/api/auth/security/profile",pslVerifyCurrentAccount,asyncRoute(async(r
   res.json({profile});
 }));
 app.post("/api/auth/totp/enroll",pslFactorLimiter,pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
+  const account=pslAccountFromSession(req);
+  if(!await pslCurrentPasswordMatches(account,req.body?.password)) return res.status(401).json({error:"Current password is required to enroll an authenticator."});
   const masterKey=process.env.PSL_ENCRYPTION_KEY;
   if(!masterKey || Buffer.byteLength(masterKey,"utf8")<32) return res.status(503).json({error:"Authenticator enrollment is not configured on this server."});
-  const account=pslAccountFromSession(req);
   const active=await pool.query("SELECT id FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND factor_type='TOTP' AND status='ACTIVE'",[account.type,account.id]);
   if(active.rowCount) return res.status(409).json({error:"An authenticator is already active. Disable it before replacing it."});
   const secret=generateTotpSecret();
