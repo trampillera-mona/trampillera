@@ -163,3 +163,49 @@ The feature branch `feature/system-health-module-registry-v0.1` adds a read-only
 - Recovery checklist entries for backup inventory, restore test, and rollback target, all remaining `UNKNOWN` until evidence is recorded.
 
 This is a **PARTIAL** operational desk, not a full observability or recovery system. It does not inspect Render backup inventory, execute restore operations, probe external connectors, run AI inference, test radio/video streams, or perform deployment rollback. No database schema or server API changes are introduced by this feature branch.
+
+
+## 13. Implementation delta — 2026-11-25 source baseline
+
+This dated addendum preserves the original 2026-11-23 source-based classifications above. It records later changes visible in the current `main` history; it does not silently convert a PARTIAL capability into a fully operational product.
+
+### 13.1 Verified source changes
+
+| Area | Current source-level status | Evidence / boundary |
+|---|---|---|
+| Administrator session revocation | REAL (implemented control) | PostgreSQL-backed auth version and HMAC fingerprint of configured admin password; old admin sessions are rejected after credential rotation. |
+| Employee session lifecycle | REAL (bounded implementation) | Server-side password-change enforcement, idle/absolute expiry and auth-version checks; not a full identity provider or SSO. |
+| State-changing request origin | REAL (implemented control) | Fetch Metadata and Origin/Referer checks reject cross-site and source-less state-changing requests. |
+| Team Game | PARTIAL / implemented bounded workflow | Server-backed employee accounts, missions, assignments, discussion polling, submissions and administrator-verified XP; not a complete HR or realtime collaboration suite. |
+| Module lifecycle | REAL (audited transitions) | Explicit allowed transitions, required operator note, row lock and transactional audit event. Lifecycle status is not runtime health. |
+| AI provider adapter | PARTIAL | Qwen Model Studio default adapter and explicitly selected OpenAI adapter; single-turn chat only. No durable multi-agent runtime, dynamic plugin loader, or universal model connectivity. |
+| Language controls | PARTIAL | Twelve declared locales and shared language controls/vocabulary are covered by automated tests. Full UI translation remains incomplete. |
+| Voice controls | PARTIAL | Browser-native speech APIs, locale selection, shared controls and microphone permission boundary. Recognition/TTS availability remains browser/OS/device-dependent; no server-side ASR/TTS. |
+| Audience measurement | REAL (opt-in bounded analytics) | Consent-gated pseudonymous first-party token, HMAC-derived server identifier, aggregate visitor/page-view reporting. No raw IP or full referrer URL in analytics tables. |
+| Audience Growth Desk | REAL (bounded campaign workflow) | Authenticated reporting and campaign create/pause/activate; tracked redirect records clicks and applies UTM campaign/source/medium attribution. No ad buying, newsletter sending, content publishing, or conversion guarantee. |
+| Operations / diagnostics | PARTIAL | Health/readiness, database diagnostics, deployment identity and recovery checklist surfaces exist; no automated Render backup discovery or restore execution. |
+
+### 13.2 Updated route additions
+
+The current README documents these additions to the application surface:
+
+- `GET /api/analytics/counter` — aggregate public visitor and page-view counters.
+- `GET /control/growth/` — authenticated Audience Intelligence & Growth Desk.
+- `/go/:slug` — tracked campaign redirect with UTM attribution.
+- `/api/control/*` — authenticated management API.
+
+### 13.3 Verification boundary
+
+The repository workflow contains automated checks for source syntax, provider adapter contracts, source preservation, locale/voice vocabulary, Docker Compose configuration, PostgreSQL-backed application startup, analytics/campaign behavior, and selected session/origin/lifecycle invariants.
+
+These tests establish the tested source and CI behaviors only. They do not prove:
+- all twelve locales translate every screen;
+- voice recognition works on every browser/device;
+- every AI model is configured or reachable;
+- JARVISER has a durable multi-agent runtime;
+- external RSS, radio, TV, connector or spatial data sources are healthy;
+- C2PA, watermarking, Honeytokens or Security Shield provide verified production protection;
+- Render is running this exact source commit;
+- database backups can be restored.
+
+For the current dated operational snapshot, see [Release Baseline, Recovery Point & Deployment Readiness — 2026-11-25](audit/TRAMPILLERA_RELEASE_BASELINE_AND_RECOVERY_2026-11-25.md).
