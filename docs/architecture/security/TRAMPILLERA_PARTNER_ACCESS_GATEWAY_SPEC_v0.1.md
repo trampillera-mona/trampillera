@@ -229,3 +229,10 @@ The first additive implementation is now present in the feature branch. This is 
 - The legacy employee account is linked only when an active employee row already exists for the exact invited email. The system does not create or infer an HR employee record.
 - No invitation or partner account for Egor has been created; no email has been sent; no GitHub repository permission has been granted; no production migration or deployment has been run.
 - Keep PR #28 draft until the latest CI run passes and a human review confirms the implementation. Production rollout requires separate approval.
+
+
+### 10.3 Canonical invitation origin hardening
+
+Invitation URLs are now built only from `PUBLIC_APP_URL`, which must be a clean HTTPS origin (no credentials, path, query, or fragment). The endpoint returns HTTP 503 and creates no invitation if this setting is absent or invalid. It never derives a bearer-token URL from the incoming Host header. Configure `PUBLIC_APP_URL` to the canonical production or staging origin before enabling invitation issuance.
+
+The public About page identifies the project founder only; partner onboarding does not imply co-authorship or public author attribution. Any future public role attribution requires a separate explicit agreement.
