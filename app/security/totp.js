@@ -64,15 +64,25 @@ export function totpCode(secret, timeMs = Date.now()) {
   return String(binary % (10 ** DIGITS)).padStart(DIGITS, "0");
 }
 
-export function verifyTotp(secret, token, timeMs = Date.now(), window = 1) {
-  if (typeof token !== "string" || !/^\d{6}$/.test(token)) return false;
-  if (!Number.isInteger(window) || window < 0 || window > 2) return false;
+export function matchingTotpCounter(secret, token, timeMs = Date.now(), window = 1) {
+  if (typeof token !== "string" || !/^\d{6}$/.test(token)) return null;
+  if (!Number.isFinite(timeMs) || timeMs < 0 || !Number.isInteger(window) || window < 0 || window > 2) return null;
   const supplied = Buffer.from(token);
-  for (let offset = -window; offset <= window; offset += 1) {
-    const expected = Buffer.from(totpCode(secret, timeMs + offset * STEP_SECONDS * 1000));
-    if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) return true;
+  const current = BigInt(Math.floor(timeMs / 1000 / STEP_SECONDS));
+  // Prefer the newest matching step so a rare six-digit collision cannot roll the counter backward.
+  for (let offset = window; offset >= -window; offset -= 1) {
+    const counter = current + BigInt(offset);
+    if (counter < 0n) continue;
+    const expected = Buffer.from(totpCode(secret, Number(counter) * STEP_SECONDS * 1000));
+    if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) {
+      return counter.toString();
+    }
   }
-  return false;
+  return null;
+}
+
+export function verifyTotp(secret, token, timeMs = Date.now(), window = 1) {
+  return matchingTotpCounter(secret, token, timeMs, window) !== null;
 }
 
 function encryptionKey(masterKey) {
