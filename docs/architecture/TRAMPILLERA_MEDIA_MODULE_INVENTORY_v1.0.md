@@ -19,7 +19,7 @@ A module may contain more than one status. Status describes capability, not visu
 
 ## 2. Executive summary
 
-The repository is a single deployable Node.js application with a public portal, authenticated Control Plane, shared HTTP API, and PostgreSQL registries. The current database tables are `platform_modules`, `platform_connectors`, `model_providers`, and `audit_events`.
+The repository is a single deployable Node.js application with a public portal, authenticated Control Plane, shared HTTP API, and PostgreSQL registries. The current database also includes `employees`, `admin_auth_state`, `team_missions`, `mission_assignments`, and `mission_messages`, in addition to platform registries and `audit_events`. Employee identity is implemented as a bounded account/session system; normalized organization, scoped RBAC and duties are not yet implemented.
 
 The current architecture is a **modular monolith in deployment**, but the public portal's large HTML/JavaScript file still contains many tightly coupled client-side features. The Control Plane is more server-backed than several public-facing modules.
 
@@ -72,7 +72,7 @@ The current architecture is a **modular monolith in deployment**, but the public
 | Module / experience | Current status | Source evidence / current boundary | Recommended next action |
 |---|---|---|---|
 | Community Hub registry entry | REAL (registry only) | A `community.hub` module row is seeded in PostgreSQL. | Do not interpret registry presence as a working community product. |
-| Community accounts / membership | NOT IMPLEMENTED | No user/member identity schema or membership API was found in the current database setup. | Add identity, roles, memberships, moderation, and consent model. |
+| Community accounts / membership | NOT IMPLEMENTED | The platform has bounded employee accounts for ITY CITY, but no separate public community-member identity, membership or moderation domain. | Reuse the future shared identity foundation; keep public membership as a distinct governed domain. |
 | Citizen field notes / contributions | DEMO / PARTIAL | Concepts and UI references exist; no verified server-backed contribution workflow was found. | Create submission, review, attribution, and audit workflow. |
 | TRP balance / XP | DEMO | Client-side state is used for points/XP interactions; no authoritative ledger table or API exists. | Build immutable PostgreSQL ledger with idempotent transactions. |
 | Gifts / rewards | DEMO / NOT IMPLEMENTED | UI concepts exist; no durable reward transaction system was found. | Implement after identity and ledger foundations. |
@@ -86,7 +86,7 @@ The current architecture is a **modular monolith in deployment**, but the public
 | Readiness endpoint | REAL (limited scope) | `GET /ready` checks database query. | Add deployment orchestration semantics only if needed. |
 | Platform status API | REAL (limited scope) | `GET /api/platform/status` reports application/PostgreSQL registry availability and returns `UNKNOWN` for unprobed external integrations, connector reachability and provider reachability. | Add explicit health probes with timestamps, timeouts and attributable evidence; do not promote catalogue state to runtime health. |
 | Public module inventory API | REAL | `GET /api/modules` reads PostgreSQL module rows. | Add manifest version, dependencies, health, and evidence fields. |
-| Control Plane authentication | REAL | Admin and employee roles use signed session cookies; administrator and employee auth versions revoke stale sessions; protected `/api/control/*` and `/api/team/*` routes enforce their respective boundaries. | Add MFA/SSO and a fine-grained organization permission matrix. |
+| Control Plane / employee authentication | REAL (bounded) | One environment-configured administrator identity plus employee accounts in `employees`; signed sessions, scrypt password hashes, first-login password change, auth-version revocation and idle/absolute expiry. Team Game APIs are employee-scoped; `/api/control/*` is admin-only. | Preserve this implementation; add normalized organization, scoped RBAC, MFA/SSO and duties separately. |
 | Authentication diagnostics | REAL (limited scope) | `GET /api/auth/diagnostics` reports request/session/cookie configuration without exposing cookie contents. | Keep restricted details minimal; add regression test for secure cookie behavior. |
 | Control Plane modules | REAL (registry CRUD) | Authenticated module listing/registration plus explicit DISCOVERED → INSTALLED → CONFIGURED → DISABLED → INSTALLED transitions. Each transition requires a note and writes its audit record in the same transaction; this remains registry state, not runtime health. | Add separate module runtime probes with timestamps and evidence references. |
 | Control Plane connectors | PARTIAL | Connector records and HTTPS syntax validation exist; validation explicitly makes no outbound request. | Add separate live connectivity probe with timeout and safe egress policy. |
@@ -106,6 +106,12 @@ The current architecture is a **modular monolith in deployment**, but the public
 | `GET /api/platform/status` | Public | Registry counts and Control Plane availability |
 | `GET /api/modules` | Public | Module registry |
 | `GET /api/auth/diagnostics` | Public in current code | Request/session cookie diagnostics |
+| `POST /api/auth/employee-login` | Public, rate-limited | Employee email/password login; returns first-login setup state |
+| `POST /api/auth/change-password` | Employee setup session | First-login/current password change; increments auth version |
+| `GET /api/team/*` | Employee session | Employee dashboard, assigned missions and mission-scoped discussion |
+| `GET/POST /api/control/team/employees` | Admin session | Employee directory and account creation |
+| `POST /api/control/team/employees/:id/status` | Admin session | Employee disable/restore; disable revokes sessions |
+| `POST /api/control/team/employees/:id/reset-password` | Admin session | Temporary password reset; revokes old sessions |
 | `POST /api/auth/login` | Public | Administrator login |
 | `GET /api/auth/me` | Public | Current session state |
 | `POST /api/auth/logout` | Public | Session logout |
@@ -128,9 +134,10 @@ The current architecture is a **modular monolith in deployment**, but the public
 3. **P1 — Module manifests:** formalize module identity, lifecycle, dependencies, permissions, health probes, and verification.
 4. **P1 — JARVISER provider adapters:** implement provider-neutral execution, beginning with Qwen-compatible integration; keep provider secrets server-side.
 5. **P1 — Server-side RSS ingestion:** replace public browser proxy dependency with server-side ingestion and caching.
-6. **P2 — Identity and community:** introduce users, roles, memberships, and moderation before community features become authoritative.
-7. **P2 — World Registry:** persistent worlds, scenes, objects, revisions, and access grants.
-8. **P3 — TRP ledger:** immutable transactional ledger and reward rules after identity and audit foundations.
+6. **P1 — Identity & Duties Foundation:** preserve existing employee accounts; add versioned migrations, normalized organization, scoped RBAC and separate duties/evidence workflows. See [Identity & Duties Foundation Specification v0.1](identity/TRAMPILLERA_IDENTITY_AND_DUTIES_FOUNDATION_v0.1.md).
+7. **P2 — Public community membership:** introduce separate membership, moderation and consent workflows over shared identity.
+8. **P2 — World Registry:** persistent worlds, scenes, objects, revisions, and access grants.
+9. **P3 — TRP ledger:** immutable transactional ledger and reward rules after identity and audit foundations.
 
 ## 10. Verification checklist for each module
 
@@ -147,7 +154,7 @@ The current architecture is a **modular monolith in deployment**, but the public
 
 ## 11. Review boundary
 
-This inventory reflects source inspection of the listed repository paths on 2026-11-23. It does not prove that Render is currently healthy, that the custom domain resolves, that external media streams are reachable, that third-party credentials are configured, or that backups are restorable. Those require separate runtime checks and evidence.
+This inventory began as a 2026-11-23 source baseline and is corrected by the 2026-11-25 identity audit addendum. See [Identity & Organization Baseline Audit — 2026-11-25](audit/TRAMPILLERA_IDENTITY_AND_ORGANIZATION_BASELINE_AUDIT_2026-11-25.md). It does not prove that Render is currently healthy, that the custom domain resolves, that external media streams are reachable, that third-party credentials are configured, or that backups are restorable. Those require separate runtime checks and evidence.
 
 
 ## 12. Implementation delta — System Health & Recovery Desk v0.1

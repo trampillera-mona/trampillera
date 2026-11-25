@@ -48,7 +48,7 @@ Current operational facts:
 - RSS ingestion currently uses an external RSS-to-JSON service and has a preview snapshot fallback.
 - Media provenance and security-shield interactions include client-side mock/demo behavior.
 - JARVISER contains a local encrypted browser vault and a health probe for a separately configured proxy; neither proves that a server-side multi-agent orchestration runtime exists.
-- The current database does not yet contain a TRP ledger, user/member identity tables, media asset registry, workflow execution tables, or a persistent world-state model.
+- The current database includes a bounded employee account/session model (`employees`, `admin_auth_state`) and Team Game records (`team_missions`, `mission_assignments`, `mission_messages`). It does not yet contain normalized organization units/positions, scoped role-permission assignments, duties/responsibility workflows, a TRP ledger, media asset registry, workflow execution tables, or a persistent world-state model. See the [Identity & Duties Foundation Specification v0.1](identity/TRAMPILLERA_IDENTITY_AND_DUTIES_FOUNDATION_v0.1.md) and [Identity & Organization Baseline Audit — 2026-11-25](audit/TRAMPILLERA_IDENTITY_AND_ORGANIZATION_BASELINE_AUDIT_2026-11-25.md).
 
 This baseline is derived from repository source. It is not a claim that every external stream, custom domain, or third-party provider is currently reachable.
 
