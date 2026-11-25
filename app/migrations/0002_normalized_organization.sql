@@ -99,7 +99,7 @@ CREATE TRIGGER org_units_prevent_cycle
 BEFORE INSERT OR UPDATE OF parent_unit_id ON org_units
 FOR EACH ROW EXECUTE FUNCTION trampillera_guard_org_unit_cycle();
 
--- Serialize primary-assignment checks per employee and reject overlapping active periods.
+-- Serialize primary-assignment checks and reject overlapping active periods.
 CREATE OR REPLACE FUNCTION trampillera_guard_primary_org_assignment()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -108,7 +108,7 @@ DECLARE
   overlap_found BOOLEAN := FALSE;
 BEGIN
   IF NEW.assignment_type = 'PRIMARY' AND NEW.status = 'ACTIVE' THEN
-    PERFORM pg_advisory_xact_lock(742019, NEW.employee_id);
+    PERFORM pg_advisory_xact_lock(742019, 3);
 
     SELECT EXISTS (
       SELECT 1
