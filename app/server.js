@@ -440,7 +440,7 @@ app.post("/api/auth/totp/verify-login",pslLoginVerifyLimiter,asyncRoute(async(re
     req.session=null; return res.status(401).json({error:"Sign-in challenge expired. Enter your password again."});
   }
   const token=typeof req.body?.code==="string"?req.body.code.trim():"";
-  if(!/^\\d{6}$/.test(token)) return res.status(400).json({error:"Enter the six-digit authenticator code."});
+  if(!/^\d{6}$/.test(token)) return res.status(400).json({error:"Enter the six-digit authenticator code."});
   const factor=await pool.query("SELECT id,secret_ciphertext,failed_attempts,locked_until FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND factor_type='TOTP' AND status='ACTIVE' LIMIT 1",[pending.accountType,pending.accountId]);
   if(!factor.rowCount){req.session=null;return res.status(401).json({error:"Security factor is unavailable. Sign in again."});}
   const row=factor.rows[0];
@@ -505,7 +505,7 @@ app.post("/api/auth/totp/enroll",pslFactorLimiter,pslVerifyCurrentAccount,asyncR
 }));
 app.post("/api/auth/totp/confirm",pslFactorLimiter,pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
   const account=pslAccountFromSession(req),token=typeof req.body?.code==="string"?req.body.code.trim():"";
-  if(!/^\\d{6}$/.test(token)) return res.status(400).json({error:"Enter the six-digit authenticator code."});
+  if(!/^\d{6}$/.test(token)) return res.status(400).json({error:"Enter the six-digit authenticator code."});
   const masterKey=process.env.PSL_ENCRYPTION_KEY;
   if(!masterKey) return res.status(503).json({error:"Authenticator enrollment is not configured."});
   const pending=await pool.query("SELECT id,secret_ciphertext,created_at FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND factor_type='TOTP' AND status='PENDING' ORDER BY created_at DESC LIMIT 1",[account.type,account.id]);
