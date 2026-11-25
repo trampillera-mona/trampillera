@@ -4,6 +4,7 @@ import helmet from "helmet";
 import cookieSession from "cookie-session";
 import rateLimit from "express-rate-limit";
 import pg from "pg";
+import { runMigrations } from "./migrations.js";
 import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -200,6 +201,10 @@ async function initializeDatabase() {
     "CREATE TABLE IF NOT EXISTS growth_campaign_events (id BIGSERIAL PRIMARY KEY, campaign_id BIGINT NOT NULL REFERENCES growth_campaigns(id) ON DELETE CASCADE, event_type TEXT NOT NULL CHECK(event_type IN ('CLICK')), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());" +
     "CREATE INDEX IF NOT EXISTS growth_campaign_events_idx ON growth_campaign_events(campaign_id, created_at DESC);"
   );
+
+  // Record the existing startup-created schema as the immutable legacy baseline.
+  // All subsequent schema changes are applied through versioned SQL migrations.
+  await runMigrations(pool);
 
   const adminFingerprint = crypto.createHmac("sha256", SESSION_SECRET).update(ADMIN_PASSWORD).digest("hex");
   const adminStateClient = await pool.connect();
