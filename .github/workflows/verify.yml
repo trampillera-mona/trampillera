@@ -36,12 +36,6 @@ jobs:
           node --check app/public/shared/trampillera-analytics.js
           node --test scripts/analytics-growth.test.mjs
 
-      - name: Browser-level recovery UI checks
-        run: |
-          npm --prefix app install --no-save --package-lock=false playwright@1.56.1
-          ./app/node_modules/.bin/playwright install --with-deps chromium
-          node scripts/recovery.browser.mjs
-
       - name: Validate Compose configuration
         run: |
           printf '%s\n' 'POSTGRES_PASSWORD=ci-temporary-db-password' 'ADMIN_PASSWORD=ci-temporary-admin-password-123' 'SESSION_SECRET=ci-temporary-session-secret-which-is-long-enough-123456' > .env
@@ -182,6 +176,12 @@ jobs:
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "UPDATE admin_auth_state SET auth_version=auth_version+1 WHERE singleton_id=1"' > /dev/null
           ADMIN_OLD_SESSION_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/overview)
           test "$ADMIN_OLD_SESSION_STATUS" = "401"
+
+      - name: Browser-level recovery UI checks
+        run: |
+          npm --prefix app install --no-save --package-lock=false playwright@1.56.1
+          ./app/node_modules/.bin/playwright install --with-deps chromium
+          node scripts/recovery.browser.mjs
 
       - name: Stop test stack
         if: always()
