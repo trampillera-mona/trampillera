@@ -814,6 +814,118 @@ app.post("/api/control/team/employees/:id/reset-password", asyncRoute(async (req
   } catch(err) { await client.query("ROLLBACK"); throw err; } finally { client.release(); }
 }));
 ;
+// Organization Desk: normalized structure and explicit employee placement.
+app.get("/api/control/organization", asyncRoute(async (_req,res) => {
+  const [units,positions,employees] = await Promise.all([
+    pool.query(`SELECT u.id,u.unit_key,u.name,u.unit_type,u.parent_unit_id,u.status,u.created_at,
+      p.name AS parent_name,COUNT(DISTINCT a.id)::int AS active_assignments
+      FROM org_units u LEFT JOIN org_units p ON p.id=u.parent_unit_id
+      LEFT JOIN employee_org_assignments a ON a.org_unit_id=u.id AND a.status='ACTIVE'
+        AND a.valid_from<=CURRENT_DATE AND (a.valid_until IS NULL OR a.valid_until>=CURRENT_DATE)
+      GROUP BY u.id,p.name ORDER BY u.name`),
+    pool.query("SELECT id,position_key,title,description,status FROM positions ORDER BY title"),
+    pool.query(`SELECT e.id,e.email,e.display_name,e.department AS legacy_department,e.job_title AS legacy_job_title,e.active,
+      a.id AS assignment_id,a.assignment_type,a.valid_from,a.valid_until,
+      u.id AS org_unit_id,u.name AS org_unit_name,p.id AS position_id,p.title AS position_title
+      FROM employees e
+      LEFT JOIN LATERAL (
+        SELECT * FROM employee_org_assignments x
+        WHERE x.employee_id=e.id AND x.status='ACTIVE'
+          AND x.valid_from<=CURRENT_DATE AND (x.valid_until IS NULL OR x.valid_until>=CURRENT_DATE)
+        ORDER BY CASE x.assignment_type WHEN 'PRIMARY' THEN 0 ELSE 1 END,x.valid_from DESC,x.id DESC
+        LIMIT 1
+      ) a ON TRUE
+      LEFT JOIN org_units u ON u.id=a.org_unit_id
+      LEFT JOIN positions p ON p.id=a.position_id
+      ORDER BY e.active DESC,e.display_name,e.id`)
+  ]);
+  res.set("Cache-Control","no-store");
+  res.json({units:units.rows,positions:positions.rows,employees:employees.rows,
+    summary:{units:units.rowCount,positions:positions.rowCount,employees:employees.rowCount,
+      assigned:employees.rows.filter(x=>x.assignment_id!==null).length,
+      unmapped:employees.rows.filter(x=>x.assignment_id===null).length}});
+}));
+app.post("/api/control/organization/units", asyncRoute(async (req,res) => {
+  const key=clean(req.body?.key,80).toLowerCase(),name=clean(req.body?.name,160);
+  const type=clean(req.body?.type,32).toUpperCase();
+  const parentId=req.body?.parentId===""||req.body?.parentId==null?null:Number(req.body.parentId);
+  if(!/^[a-z0-9][a-z0-9._-]{1,79}$/.test(key)||!name||
+    !["COMPANY","DIVISION","DEPARTMENT","TEAM","PROJECT_GROUP","OTHER"].includes(type)||
+    (parentId!==null&&(!Number.isSafeInteger(parentId)||parentId<1))) {
+    return res.status(400).json({error:"Provide a valid key, name, unit type and optional parent."});
+  }
+  const client=await pool.connect();
+  try {
+    await client.query("BEGIN");
+    if(parentId!==null){
+      const parent=await client.query("SELECT id,status FROM org_units WHERE id=$1",[parentId]);
+      if(!parent.rowCount||parent.rows[0].status!=="ACTIVE"){await client.query("ROLLBACK");return res.status(400).json({error:"Parent unit does not exist or is inactive."});}
+    }
+    const r=await client.query("INSERT INTO org_units(unit_key,name,unit_type,parent_unit_id) VALUES($1,$2,$3,$4) RETURNING id,unit_key,name,unit_type,parent_unit_id,status",[key,name,type,parentId]);
+    await auditWithClient(client,"ORG_UNIT_CREATED","org_unit",String(r.rows[0].id),`Created ${type} unit ${key}`);
+    await client.query("COMMIT");
+    res.status(201).json({item:r.rows[0]});
+  } catch(err) {
+    await client.query("ROLLBACK");
+    if(err.code==="23505") return res.status(409).json({error:"An organizational unit with this key already exists."});
+    if(err.code==="23514") return res.status(409).json({error:"The requested hierarchy is not valid."});
+    throw err;
+  } finally { client.release(); }
+}));
+app.post("/api/control/organization/positions", asyncRoute(async (req,res) => {
+  const key=clean(req.body?.key,80).toLowerCase(),title=clean(req.body?.title,160),description=clean(req.body?.description,1000);
+  if(!/^[a-z0-9][a-z0-9._-]{1,79}$/.test(key)||!title) return res.status(400).json({error:"Provide a valid position key and title."});
+  try {
+    const client=await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const r=await client.query("INSERT INTO positions(position_key,title,description) VALUES($1,$2,$3) RETURNING id,position_key,title,description,status",[key,title,description]);
+      await auditWithClient(client,"ORG_POSITION_CREATED","position",String(r.rows[0].id),`Created position ${key}`);
+      await client.query("COMMIT");
+      res.status(201).json({item:r.rows[0]});
+    } catch(err) { await client.query("ROLLBACK"); throw err; }
+    finally { client.release(); }
+  } catch(err) {
+    if(err.code==="23505") return res.status(409).json({error:"A position with this key already exists."});
+    throw err;
+  }
+}));
+app.post("/api/control/organization/assignments", asyncRoute(async (req,res) => {
+  const employeeId=Number(req.body?.employeeId),unitId=Number(req.body?.unitId);
+  const positionId=req.body?.positionId===""||req.body?.positionId==null?null:Number(req.body.positionId);
+  const type=clean(req.body?.type,20).toUpperCase()||"PRIMARY";
+  const validFrom=clean(req.body?.validFrom,10)||new Date().toISOString().slice(0,10);
+  const validUntil=clean(req.body?.validUntil,10)||null;
+  if(!Number.isSafeInteger(employeeId)||employeeId<1||!Number.isSafeInteger(unitId)||unitId<1||
+    (positionId!==null&&(!Number.isSafeInteger(positionId)||positionId<1))||
+    !["PRIMARY","SECONDARY","TEMPORARY"].includes(type)||
+    !/^\d{4}-\d{2}-\d{2}$/.test(validFrom)||(validUntil&&!/^\d{4}-\d{2}-\d{2}$/.test(validUntil))||
+    (validUntil&&validUntil<validFrom)) return res.status(400).json({error:"Assignment fields or effective dates are invalid."});
+  const client=await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const [employee,unit,position]=await Promise.all([
+      client.query("SELECT id,active FROM employees WHERE id=$1 FOR UPDATE",[employeeId]),
+      client.query("SELECT id,status FROM org_units WHERE id=$1",[unitId]),
+      positionId===null?Promise.resolve({rowCount:1,rows:[{status:"ACTIVE"}]}):client.query("SELECT id,status FROM positions WHERE id=$1",[positionId])
+    ]);
+    if(!employee.rowCount||!employee.rows[0].active){await client.query("ROLLBACK");return res.status(400).json({error:"Employee account does not exist or is inactive."});}
+    if(!unit.rowCount||unit.rows[0].status!=="ACTIVE"){await client.query("ROLLBACK");return res.status(400).json({error:"Organizational unit does not exist or is inactive."});}
+    if(!position.rowCount||position.rows[0].status!=="ACTIVE"){await client.query("ROLLBACK");return res.status(400).json({error:"Position does not exist or is inactive."});}
+    const r=await client.query(`INSERT INTO employee_org_assignments(employee_id,org_unit_id,position_id,assignment_type,valid_from,valid_until,created_by)
+      VALUES($1,$2,$3,$4,$5::date,$6::date,'admin')
+      RETURNING id,employee_id,org_unit_id,position_id,assignment_type,valid_from,valid_until,status`,
+      [employeeId,unitId,positionId,type,validFrom,validUntil]);
+    await auditWithClient(client,"EMPLOYEE_ORG_ASSIGNMENT_CREATED","employee_org_assignment",String(r.rows[0].id),
+      `employee_id=${employeeId}; unit_id=${unitId}; position_id=${positionId??"UNASSIGNED"}; type=${type}`);
+    await client.query("COMMIT");
+    res.status(201).json({item:r.rows[0],message:"Organizational assignment recorded. Legacy department and job-title text remains unchanged."});
+  } catch(err) {
+    await client.query("ROLLBACK");
+    if(err.code==="23514") return res.status(409).json({error:"Assignment conflicts with the effective-date or primary-assignment rules."});
+    throw err;
+  } finally { client.release(); }
+}));
 app.get("/api/control/team/missions", asyncRoute(async (_req,res) => {
   const r=await pool.query(`SELECT m.id,m.title,m.description,m.category,m.xp_reward,m.due_at,m.status,m.created_at,
     COUNT(a.id)::int AS assigned,COUNT(a.id) FILTER (WHERE a.status='SUBMITTED')::int AS submitted,

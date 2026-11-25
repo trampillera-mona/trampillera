@@ -19,7 +19,7 @@ A module may contain more than one status. Status describes capability, not visu
 
 ## 2. Executive summary
 
-The repository is a single deployable Node.js application with a public portal, authenticated Control Plane, shared HTTP API, and PostgreSQL registries. The current database also includes `employees`, `admin_auth_state`, `team_missions`, `mission_assignments`, and `mission_messages`, in addition to platform registries and `audit_events`. Employee identity is implemented as a bounded account/session system. Normalized organization schema is introduced in migration 0002 on the current review branch; organization APIs/UI, scoped RBAC and duties are not yet implemented.
+The repository is a single deployable Node.js application with a public portal, authenticated Control Plane, shared HTTP API, and PostgreSQL registries. The current database also includes `employees`, `admin_auth_state`, `team_missions`, `mission_assignments`, and `mission_messages`, in addition to platform registries and `audit_events`. Employee identity is implemented as a bounded account/session system. Normalized organization schema is merged in migration 0002. Organization Desk APIs/UI are proposed in PR #25 and are not deployed; scoped RBAC and duties remain unimplemented.
 
 The current architecture is a **modular monolith in deployment**, but the public portal's large HTML/JavaScript file still contains many tightly coupled client-side features. The Control Plane is more server-backed than several public-facing modules.
 
@@ -92,7 +92,7 @@ The current architecture is a **modular monolith in deployment**, but the public
 | Control Plane connectors | PARTIAL | Connector records and HTTPS syntax validation exist; validation explicitly makes no outbound request. | Add separate live connectivity probe with timeout and safe egress policy. |
 | Control Plane model providers | PARTIAL | Qwen and OpenAI server adapters exist, but registry records do not dynamically load adapters or prove provider configuration/reachability. | Bind provider records to adapter capabilities and timestamped probe results. |
 | Audit events | REAL (basic) | PostgreSQL `audit_events` table records selected actions. | Add actor identity, correlation IDs, structured JSON details, retention, and append-only controls. |
-| PostgreSQL migration framework | PARTIAL (runner merged; migration 0002 under review; not deployed) | Versioned SQL runner, advisory-lock serialization, per-migration transactions, checksum immutability and legacy baseline marker are merged. The review branch adds `org_units`, `positions` and `employee_org_assignments`; legacy DDL remains in startup bootstrap and no production migration is verified. | Verify migration 0002 against PostgreSQL and legacy employee/Team Game flows; then add reviewed organization management APIs. |
+| PostgreSQL migration framework | PARTIAL (runner and migration 0002 merged; not deployed) | Versioned SQL runner and additive normalized organization schema are merged. Legacy DDL remains in startup bootstrap; no production migration is verified. | Deploy only after backup/restore readiness is established; verify migration 0002 against PostgreSQL and legacy employee/Team Game flows. |
 | System diagnostics | PARTIAL | Runtime, DB latency, pool counters, commit identity, and backup UNKNOWN are reported. | Add module/connector/provider checks and evidence references. |
 | Backup / restore verification | UNKNOWN | Diagnostics explicitly state no backup or restore verification is available to the application. | Verify Render backup/export process and perform a documented restore test. |
 | Deployment identity | PARTIAL | Diagnostics reads `RENDER_GIT_COMMIT` if available. | Record commit, deploy event, smoke test, and rollback target together. |
@@ -251,3 +251,8 @@ This is a design target, not verified capacity. A 100-person event should be eva
 ### 15. Identity & Organization migration 0002 — source review delta (2026-11-25)
 
 The current review branch adds an additive PostgreSQL schema for `org_units`, `positions` and effective-dated `employee_org_assignments`. It includes foreign keys, key/status/date constraints, an organizational hierarchy cycle guard and a guard against overlapping active primary assignment periods. It deliberately does not populate organization data or infer mappings from legacy free-text department/title fields. The migration has not been merged or deployed; production schema and records remain unverified. CI checks are pending.
+
+
+### 16. Organization Desk — source review delta (2026-11-25)
+
+PR #25 proposes admin Control Plane APIs and UI for the merged migration-0002 tables. It lists current organizational units, positions and employee accounts; creates units/positions; and records explicitly selected effective-dated employee assignments. Legacy department/job-title text remains visible for review and is not automatically mapped or modified. Organizational positions do not grant system permissions. The workspace does not implement scoped RBAC, duties, reporting-line authority, payroll or performance management. The API/UI are not deployed; production runtime verification is outstanding. Confirm authorization middleware coverage and atomic audit behavior in CI and before production rollout.
