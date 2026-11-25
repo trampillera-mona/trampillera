@@ -33,7 +33,7 @@ export function configurePartnerRoutes({app,pool,clean,asyncRoute,requireAdmin,a
  app.get("/api/partner/workspace",requirePartner,asyncRoute(async(req,res)=>{
   const [profile,projects,proposals]=await Promise.all([
    pool.query("SELECT id,email,display_name FROM partner_accounts WHERE id=$1",[req.session.partnerId]),
-   pool.query(`SELECT p.id,p.project_key,p.name,p.description,COALESCE(json_agg(json_build_object('id',t.id,'title',t.title,'description',t.description,'status',t.status,'claimedByMe',t.claimed_by=$2) ORDER BY t.created_at DESC) FILTER(WHERE t.id IS NOT NULL),'[]') tasks FROM partner_project_members m JOIN partner_projects p ON p.id=m.project_id LEFT JOIN partner_tasks t ON t.project_id=p.id WHERE m.partner_id=$2 AND p.status='ACTIVE' GROUP BY p.id ORDER BY p.name`,[req.session.partnerId]),
+   pool.query(`SELECT p.id,p.project_key,p.name,p.description,COALESCE(json_agg(json_build_object('id',t.id,'title',t.title,'description',t.description,'status',t.status,'claimedByMe',t.claimed_by=$1) ORDER BY t.created_at DESC) FILTER(WHERE t.id IS NOT NULL),'[]') tasks FROM partner_project_members m JOIN partner_projects p ON p.id=m.project_id LEFT JOIN partner_tasks t ON t.project_id=p.id WHERE m.partner_id=$1 AND p.status='ACTIVE' GROUP BY p.id ORDER BY p.name`,[req.session.partnerId]),
    pool.query("SELECT id,title,rationale,expected_impact,status,review_note,created_at FROM partner_proposals WHERE partner_id=$1 ORDER BY created_at DESC LIMIT 50",[req.session.partnerId])
   ]);res.json({profile:profile.rows[0],projects:projects.rows,proposals:proposals.rows});
  }));
