@@ -421,6 +421,7 @@ app.get("/api/auth/me", asyncRoute(async (req,res) => {
 app.post("/api/auth/logout", (req,res) => { req.session = null; res.json({ authenticated:false }); });
 
 const pslLoginVerifyLimiter=rateLimit({windowMs:10*60_000,limit:8,standardHeaders:"draft-8",legacyHeaders:false});
+const pslFactorLimiter=rateLimit({windowMs:15*60_000,limit:5,standardHeaders:"draft-8",legacyHeaders:false});
 function pslAccountFromSession(req){
   if(req.session?.authenticated!==true) return null;
   if(req.session.role==="admin") return {type:"admin",id:"1"};
@@ -488,7 +489,7 @@ app.post("/api/auth/security/profile",pslVerifyCurrentAccount,asyncRoute(async(r
   await audit("PSL_SECURITY_PROFILE_CHANGED","security",account.type+":"+account.id,"Security profile set to "+profile,account.type==="admin"?"admin":account.id);
   res.json({profile});
 }));
-app.post("/api/auth/totp/enroll",pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
+app.post("/api/auth/totp/enroll",pslFactorLimiter,pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
   const masterKey=process.env.PSL_ENCRYPTION_KEY;
   if(!masterKey || Buffer.byteLength(masterKey,"utf8")<32) return res.status(503).json({error:"Authenticator enrollment is not configured on this server."});
   const account=pslAccountFromSession(req);
@@ -502,7 +503,7 @@ app.post("/api/auth/totp/enroll",pslVerifyCurrentAccount,asyncRoute(async(req,re
   await audit("PSL_TOTP_ENROLLMENT_STARTED","security",account.type+":"+account.id,"Authenticator enrollment started",account.type==="admin"?"admin":account.id);
   res.json({secret,otpauthUri:buildOtpAuthUri(secret,label),expiresIn:600});
 }));
-app.post("/api/auth/totp/confirm",pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
+app.post("/api/auth/totp/confirm",pslFactorLimiter,pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
   const account=pslAccountFromSession(req),token=typeof req.body?.code==="string"?req.body.code.trim():"";
   if(!/^\\d{6}$/.test(token)) return res.status(400).json({error:"Enter the six-digit authenticator code."});
   const masterKey=process.env.PSL_ENCRYPTION_KEY;
@@ -516,7 +517,7 @@ app.post("/api/auth/totp/confirm",pslVerifyCurrentAccount,asyncRoute(async(req,r
   await audit("PSL_TOTP_ENABLED","security",account.type+":"+account.id,"Authenticator factor enabled",account.type==="admin"?"admin":account.id);
   res.json({enabled:true});
 }));
-app.post("/api/auth/totp/disable",pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
+app.post("/api/auth/totp/disable",pslFactorLimiter,pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
   const account=pslAccountFromSession(req),password=typeof req.body?.password==="string"?req.body.password:"",token=typeof req.body?.code==="string"?req.body.code.trim():"";
   let passwordOk=false;
   if(account.type==="admin"){const expected=Buffer.from(ADMIN_PASSWORD),supplied=Buffer.from(password);passwordOk=expected.length===supplied.length&&crypto.timingSafeEqual(expected,supplied);}
