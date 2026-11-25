@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   encodeBase32, decodeBase32, generateTotpSecret, totpCode, verifyTotp,
-  encryptTotpSecret, decryptTotpSecret, buildOtpAuthUri
+  encryptTotpSecret, decryptTotpSecret, buildOtpAuthUri, matchingTotpCounter
 } from "../app/security/totp.js";
 
 test("Base32 encodes and decodes RFC 4648 vectors", () => {
@@ -16,6 +16,8 @@ test("TOTP matches RFC 6238 SHA-1 six-digit vector at 59 seconds", () => {
   const secret = encodeBase32(Buffer.from("12345678901234567890"));
   assert.equal(totpCode(secret, 59000), "287082");
   assert.equal(verifyTotp(secret, "287082", 59000, 0), true);
+  assert.equal(matchingTotpCounter(secret, "287082", 59000, 0), "1");
+  assert.equal(matchingTotpCounter(secret, "287083", 59000, 0), null);
   assert.equal(verifyTotp(secret, "287083", 59000, 0), false);
 });
 
@@ -54,4 +56,12 @@ test("otpauth URI carries issuer, algorithm, digits and period", () => {
   assert.match(uri, /algorithm=SHA1/);
   assert.match(uri, /digits=6/);
   assert.match(uri, /period=30/);
+});
+
+
+test("matching TOTP counter reports the accepted adjacent time step", () => {
+  const secret = encodeBase32(Buffer.from("12345678901234567890"));
+  assert.equal(matchingTotpCounter(secret, totpCode(secret, 30000), 59000, 1), "1");
+  assert.equal(matchingTotpCounter(secret, "000000", 59000, 1), null);
+  assert.equal(matchingTotpCounter(secret, "287082", -1, 1), null);
 });
