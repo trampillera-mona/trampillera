@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "NODE_ENV=development node --watch server.js",
-    "check": "node --check server.js && node --check ai-provider.js && node --check migrations.js && node ../scripts/check-inline-scripts.mjs && node --check security/totp.js && node --check security/vsc.js && node --check public/security/vsc.js && node --check security/recovery-keyring.js",
+    "check": "node --check server.js && node --check ai-provider.js && node --check migrations.js && node ../scripts/check-inline-scripts.mjs && node --check security/totp.js && node --check security/vsc.js && node --check public/security/vsc.js && node --check public/security/recovery.js && node --check security/recovery-keyring.js",
     "test": "node --test ../scripts/ai-provider.test.mjs && node --test ../scripts/migrations.test.mjs && node --test ../scripts/organization-migration.test.mjs && node ../scripts/verify-preservation.mjs && node --test ../scripts/locale-voice.test.mjs && node --test ../scripts/analytics-growth.test.mjs && node --test ../scripts/organization-desk.test.mjs && node --test ../scripts/totp.test.mjs && node --test ../scripts/vsc.test.mjs && node --test ../scripts/recovery-keyring.test.mjs"
   },
   "engines": {
