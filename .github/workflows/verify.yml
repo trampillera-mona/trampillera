@@ -59,7 +59,7 @@ jobs:
             sleep 2
           done
           echo "CI: verify PostgreSQL migrations and normalized organization schema"
-          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '5'
+          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '6'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '\''public'\'' AND table_name IN ('\''org_units'\'','\''positions'\'','\''employee_org_assignments'\'')"' | tr -d '\r' | grep -qx '3'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM employee_org_assignments"' | tr -d '\r' | grep -qx '0'
           docker compose restart app
@@ -73,7 +73,7 @@ jobs:
             fi
             sleep 2
           done
-          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '5'
+          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '6'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM employee_org_assignments"' | tr -d '\r' | grep -qx '0'
           curl --fail --silent http://127.0.0.1:3000/
           curl --fail --silent http://127.0.0.1:3000/shared/trampillera-global-controls.js | grep -q 'TrampilleraLocaleCore'
