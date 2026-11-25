@@ -85,14 +85,14 @@
     try {
       const width = Math.max(1, root.clientWidth);
       const height = Math.max(1, root.clientHeight);
-      const radius = 2.48;
+      const radius = 3.5;
       // Keep the Earth at the scene origin. The orbit target is deliberately
       // offset, matching the reference banner's wide orbital composition.
-      orbitTargetX = Math.min(2.6, Math.max(.72, width * .0022));
+      orbitTargetX = width > 640 ? Math.min(4.5, width * (4.5 / 1440)) : 0;
       const viewTarget = new THREE.Vector3(orbitTargetX, 0, 0);
       scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(43, width / height, .1, 120);
-      camera.position.set(0, 0, 8.6);
+      camera = new THREE.PerspectiveCamera(45, width / height, .1, 120);
+      camera.position.set(0, 0, 10);
       renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       renderer.setSize(width, height, false);
@@ -153,12 +153,12 @@
         controls.dampingFactor = .055;
         controls.enablePan = false;
         controls.enableZoom = true;
-        controls.minDistance = 5.25;
-        controls.maxDistance = 13.5;
+        controls.minDistance = 5;
+        controls.maxDistance = 15;
         controls.rotateSpeed = .62;
         controls.zoomSpeed = .8;
         controls.autoRotate = !reducedMotion;
-        controls.autoRotateSpeed = .38;
+        controls.autoRotateSpeed = .5;
       }
 
       const textureLoader = new THREE.TextureLoader();
@@ -217,7 +217,7 @@
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
         renderer.setSize(w, h, false);
-        orbitTargetX = Math.min(2.6, Math.max(.72, w * .0022));
+        orbitTargetX = w > 640 ? Math.min(4.5, w * (4.5 / 1440)) : 0;
         if (currentRegionKey === 'GLOBAL' && controls) {
           controls.target.set(orbitTargetX, 0, 0);
           controls.update();
