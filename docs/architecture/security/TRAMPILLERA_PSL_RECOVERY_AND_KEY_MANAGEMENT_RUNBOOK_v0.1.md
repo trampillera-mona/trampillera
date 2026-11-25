@@ -41,6 +41,7 @@ Required invariants:
 ### Concurrency and abuse controls
 
 - Row locking must ensure that concurrent submissions of the same code result in at most one successful redemption.
+- TOTP time-step counters are monotonic per factor. Consume a matching counter with an atomic conditional update; a previously accepted counter must not authenticate again. Enrollment confirmation, sign-in, recovery-code issuance, and factor disable all consume the accepted counter.
 - Rate limiting must be applied before expensive password-hash verification and must be scoped to account and source/network risk without trusting spoofable forwarding headers.
 - Monitor aggregate failure patterns without recording submitted codes or secrets.
 - Do not allow a recovery code to be used as an ordinary login factor or to bypass the account password.
@@ -128,7 +129,7 @@ The PSL recovery/key-management work must remain non-production until all gates 
 
 Updated 2026-11-25:
 
-- CI run #225 passed static checks, Compose validation, Docker/PostgreSQL startup, five migrations, and administrator/employee API integration flows including recovery-code issuance, regeneration, replay denial, session invalidation, mandatory post-recovery TOTP re-enrollment, and workspace unlock.
+- CI run #233 passed static checks, Compose validation, Docker/PostgreSQL startup, six migrations, and administrator/employee API integration flows including recovery-code issuance, regeneration, recovery replay denial, TOTP time-step replay rejection, session invalidation, mandatory post-recovery TOTP re-enrollment, and workspace unlock.
 - Recovery Desk and restricted re-enrollment UI are present on PR #27 for Control Plane and ITY CITY. Real-browser automation, cross-browser behavior, accessibility, and assistive-technology use remain unverified.
 - Unit tests cover recovery-code hashing/verification and versioned TOTP envelope primitives, including v1 compatibility.
 - Operational secret-manager wiring, database-wide key rotation, production backup/restore rehearsal, independent security review, and production deployment are NOT verified.
