@@ -6,8 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "NODE_ENV=development node --watch server.js",
-    "check": "node --check server.js && node --check ai-provider.js && node --check migrations.js",
-    "test": "node --test ../scripts/ai-provider.test.mjs && node --test ../scripts/migrations.test.mjs && node --test ../scripts/organization-migration.test.mjs && node ../scripts/verify-preservation.mjs && node --test ../scripts/locale-voice.test.mjs && node --test ../scripts/analytics-growth.test.mjs && node --test ../scripts/organization-desk.test.mjs"
+    "check": "node --check server.js && node --check ai-provider.js && node --check migrations.js && node --check security/totp.js",
+    "test": "node --test ../scripts/ai-provider.test.mjs && node --test ../scripts/migrations.test.mjs && node --test ../scripts/organization-migration.test.mjs && node ../scripts/verify-preservation.mjs && node --test ../scripts/locale-voice.test.mjs && node --test ../scripts/analytics-growth.test.mjs && node --test ../scripts/organization-desk.test.mjs && node --test ../scripts/totp.test.mjs"
   },
   "engines": {
     "node": ">=20"
