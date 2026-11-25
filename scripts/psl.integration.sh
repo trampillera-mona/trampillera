@@ -19,6 +19,12 @@ curl() { command curl -H 'Origin: http://127.0.0.1:3000' "$@"; }
 totp_code() {
   node --input-type=module -e 'import { totpCode } from "./app/security/totp.js"; console.log(totpCode(process.argv[1]));' "$1"
 }
+wait_for_next_totp_window() {
+  local now wait
+  now="$(date +%s)"
+  wait=$((30 - (now % 30) + 1))
+  sleep "$wait"
+}
 cleanup() { rm -f "$ADMIN_COOKIE" "$EMPLOYEE_COOKIE" "$TOTP_JSON" "$RECOVERY_JSON"; }
 trap cleanup EXIT
 
@@ -42,6 +48,7 @@ ADMIN_TOTP_CODE="$(totp_code "$ADMIN_TOTP_SECRET")"
 echo "PSL stage: PSL TOTP confirmation"
 curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"code\":\"$ADMIN_TOTP_CODE\"}" http://127.0.0.1:3000/api/auth/totp/confirm | jq -e '.enabled == true' >/dev/null
+wait_for_next_totp_window
 
 curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
   -d '{}' http://127.0.0.1:3000/api/auth/logout >/dev/null
@@ -56,6 +63,7 @@ echo "PSL stage: PSL TOTP login verification"
 curl --fail --silent -b "$ADMIN_COOKIE" -c "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"code\":\"$ADMIN_TOTP_CODE\"}" http://127.0.0.1:3000/api/auth/totp/verify-login | jq -e '.authenticated == true and .role == "admin"' >/dev/null
 
+wait_for_next_totp_window
 ADMIN_TOTP_CODE="$(totp_code "$ADMIN_TOTP_SECRET")"
 echo "PSL stage: administrator recovery code issue"
 curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
@@ -64,6 +72,8 @@ curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
 jq -e '.count == 10 and .displayOnce == true and (.codes | length == 10)' "$RECOVERY_JSON" >/dev/null
 ADMIN_RECOVERY_CODE="$(jq -r '.codes[0]' "$RECOVERY_JSON")"
 echo "PSL stage: recovery code regeneration revokes the previous set"
+wait_for_next_totp_window
+ADMIN_TOTP_CODE="$(totp_code "$ADMIN_TOTP_SECRET")"
 curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"password\":\"$ADMIN_PASSWORD\",\"sequence\":$VSC_SEQUENCE,\"code\":\"$ADMIN_TOTP_CODE\"}" \
   http://127.0.0.1:3000/api/auth/recovery-codes > "$RECOVERY_JSON"
@@ -74,6 +84,15 @@ OLD_CODE_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' -
   http://127.0.0.1:3000/api/auth/recovery/reset)"
 test "$OLD_CODE_STATUS" = "401"
 ADMIN_RECOVERY_CODE="$REPLACEMENT_RECOVERY_CODE"
+echo "PSL stage: replayed TOTP counter is rejected"
+curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:3000/api/auth/logout >/dev/null
+curl --fail --silent -c "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"password\":\"$ADMIN_PASSWORD\"}" http://127.0.0.1:3000/api/auth/login | jq -e '.requiresVsc == true and .authenticated == false' >/dev/null
+curl --fail --silent -b "$ADMIN_COOKIE" -c "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"sequence\":$VSC_SEQUENCE}" http://127.0.0.1:3000/api/auth/vsc/verify-login | jq -e '.requiresTotp == true' >/dev/null
+REPLAY_TOTP_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"code\":\"$ADMIN_TOTP_CODE\"}" http://127.0.0.1:3000/api/auth/totp/verify-login)"
+test "$REPLAY_TOTP_STATUS" = "401"
 BAD_RECOVERY_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Content-Type: application/json' \
   -d "{\"accountType\":\"admin\",\"password\":\"wrong-password\",\"recoveryCode\":\"$ADMIN_RECOVERY_CODE\"}" \
   http://127.0.0.1:3000/api/auth/recovery/reset)"
@@ -101,6 +120,7 @@ ADMIN_TOTP_CODE="$(totp_code "$ADMIN_TOTP_SECRET")"
 curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"code\":\"$ADMIN_TOTP_CODE\"}" http://127.0.0.1:3000/api/auth/totp/confirm | jq -e '.enabled == true and .recoveryReenrollRequired == false' >/dev/null
 curl --fail --silent -b "$ADMIN_COOKIE" http://127.0.0.1:3000/api/control/overview >/dev/null
+wait_for_next_totp_window
 ADMIN_TOTP_CODE="$(totp_code "$ADMIN_TOTP_SECRET")"
 curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"password\":\"$ADMIN_PASSWORD\",\"code\":\"$ADMIN_TOTP_CODE\"}" \
@@ -163,6 +183,7 @@ EMPLOYEE_TOTP_CODE="$(totp_code "$EMPLOYEE_TOTP_SECRET")"
 curl --fail --silent -b "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"code\":\"$EMPLOYEE_TOTP_CODE\"}" http://127.0.0.1:3000/api/auth/totp/confirm | jq -e '.enabled == true and .recoveryReenrollRequired == false' >/dev/null
 curl --fail --silent -b "$EMPLOYEE_COOKIE" http://127.0.0.1:3000/api/team/dashboard >/dev/null
+wait_for_next_totp_window
 EMPLOYEE_TOTP_CODE="$(totp_code "$EMPLOYEE_TOTP_SECRET")"
 curl --fail --silent -b "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"password\":\"$EMPLOYEE_PASSWORD\",\"code\":\"$EMPLOYEE_TOTP_CODE\"}" \
