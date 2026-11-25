@@ -224,7 +224,8 @@
         resetCameraView,
         nudgeEarth,
         stepSimTime,
-        toggleAtmosphereBoost
+        toggleAtmosphereBoost,
+        toggleAutoRotate
       };
       root.addEventListener('wheel', () => {}, { passive: true });
     } catch (error) {
@@ -252,8 +253,9 @@
   }
 
   function focusRegion(key) {
-    const aliases = { EUROPE:'EUROPE', europe:'EUROPE', ASIA:'ASIA', asia:'ASIA', japan:'ASIA', tokyo:'ASIA', AMERICAS:'AMERICAS', america:'AMERICAS', usa:'AMERICAS', AFRICA_ME:'AFRICA_ME', middleeast:'AFRICA_ME', dubai:'AFRICA_ME', africa:'AFRICA_ME', GLOBAL:'GLOBAL', global:'GLOBAL' };
-    currentRegionKey = aliases[String(key || 'GLOBAL')] || 'GLOBAL';
+    const aliases = { EUROPE:'EUROPE', europe:'EUROPE', ASIA:'ASIA', asia:'ASIA', japan:'ASIA', tokyo:'ASIA', AMERICAS:'AMERICAS', america:'AMERICAS', usa:'AMERICAS', newyork:'AMERICAS', AFRICA_ME:'AFRICA_ME', middleeast:'AFRICA_ME', dubai:'AFRICA_ME', africa:'AFRICA_ME', GLOBAL:'GLOBAL', global:'GLOBAL' };
+    const normalizedKey = String(key || 'GLOBAL').toLowerCase().replace(/\\s+/g, '');
+    currentRegionKey = aliases[normalizedKey] || 'GLOBAL';
     const item = regions[currentRegionKey];
     root.dataset.region = currentRegionKey;
     const badge = $('#ur-region-badge');
@@ -277,6 +279,14 @@
     }
     updateSolarLighting();
     safeCall(() => typeof playTactileSound === 'function' && playTactileSound('snap'));
+  }
+
+  function toggleAutoRotate() {
+    if (!controls) return false;
+    controls.autoRotate = !controls.autoRotate;
+    setStatus('3D globe ready · auto-rotate ' + (controls.autoRotate ? 'ON' : 'OFF'), 'ready');
+    safeCall(() => typeof playTactileSound === 'function' && playTactileSound('tick'));
+    return controls.autoRotate;
   }
 
   function zoomStep(delta) {
@@ -352,6 +362,11 @@
   $('#ur-camera-reset')?.addEventListener('click', resetCameraView);
   $('#ur-zoom-in')?.addEventListener('click', () => zoomStep(-.65));
   $('#ur-zoom-out')?.addEventListener('click', () => zoomStep(.65));
+  $('#ur-auto-rotate')?.addEventListener('click', () => {
+    const enabled = toggleAutoRotate();
+    const button = $('#ur-auto-rotate');
+    if (button) { button.textContent = enabled ? '↻ ON' : '↻ OFF'; button.setAttribute('aria-pressed', String(enabled)); }
+  });
   $('#ur-orbital-pulse')?.addEventListener('click', () => nudgeEarth(.45));
   $('#ur-atmosphere-toggle')?.addEventListener('click', () => {
     const enabled = toggleAtmosphereBoost();
