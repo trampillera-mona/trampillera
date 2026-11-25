@@ -22,6 +22,7 @@
   <button data-page="apps"><span class="ico">◇</span>Engines & Apps</button>
   <button data-page="templates"><span class="ico">▤</span>Workspace Templates</button>
   <button data-page="designer"><span class="ico">✣</span>Workspace Designer</button>
+  <button data-page="contributor"><span class="ico">◈</span>Partner Workspace</button>
  </nav></div>
  <div><div class="nav-label">COMMUNITY</div><nav class="nav">
   <button data-page="academy"><span class="ico">◎</span>Academy</button>
@@ -133,6 +134,21 @@
   <div class="grid three"><article class="template"><div class="app-icon">⚙️</div><h3>Engineering & R&D</h3><p>Engineering, systems design and research initiatives.</p><span class="tag">DEPARTMENT SPACE</span></article><article class="template"><div class="app-icon">✧</div><h3>AI & Automation</h3><p>Models, agents, automation and orchestration.</p><span class="tag">DEPARTMENT SPACE</span></article><article class="template"><div class="app-icon">📡</div><h3>Media & Intelligence</h3><p>Editorial, verification and information operations.</p><span class="tag">DEPARTMENT SPACE</span></article></div>
   <div class="card" style="margin-top:14px"><div class="section-head"><h2>Team channels</h2><small>PREVIEW</small></div><div class="widget-row"><div><strong># general</strong><br><small>Organization announcements and shared updates</small></div><span class="tag">DEMO</span></div><div class="widget-row"><div><strong># engineering-lab</strong><br><small>Technical discussion and research</small></div><span class="tag">DEMO</span></div><div class="widget-row"><div><strong># project-sdt5d</strong><br><small>Territorial intelligence project space</small></div><span class="tag">DEMO</span></div></div>
  </section>
+ <section class="page" id="page-contributor">
+  <div class="hero"><div><div class="eyebrow">SECURE COLLABORATION</div><h1>Partner Workspace</h1><p>Project-scoped tasks, proposals and reviewed deliverables.</p></div></div>
+  <div id="partnerAuth" class="card" style="max-width:620px">
+   <div class="section-head"><h2 id="partnerAuthTitle">Sign in to Partner Workspace</h2><small>SERVER AUTHENTICATED</small></div>
+   <div id="partnerInviteFields" style="display:none"><label>Display name</label><input id="partnerDisplayName" autocomplete="name"></div>
+   <label>Email</label><input id="partnerEmail" type="email" autocomplete="username">
+   <label>Password</label><input id="partnerPassword" type="password" autocomplete="current-password">
+   <button class="btn primary" id="partnerAuthSubmit">Sign in</button><p id="partnerAuthMessage" class="footer-note">Invitation holders can activate their account with a personal link.</p>
+  </div>
+  <div id="partnerDashboard" style="display:none">
+   <div class="card"><div class="section-head"><h2 id="partnerWelcome">Projects</h2><button class="btn" id="partnerLogout">Sign out</button></div><div id="partnerProjects" class="grid two"></div></div>
+   <div class="card" style="margin-top:14px"><h2>Submit a proposal</h2><input id="proposalTitle" placeholder="Proposal title"><textarea id="proposalRationale" placeholder="Rationale" rows="4"></textarea><input id="proposalImpact" placeholder="Expected impact"><button class="btn primary" id="proposalSubmit">Submit proposal</button></div>
+   <div class="card" style="margin-top:14px"><h2>My proposals & review</h2><div id="partnerProposals"></div></div>
+  </div>
+ </section>
  <section class="page" id="page-profile">
   <div class="hero"><div><div class="eyebrow">EMPLOYEE IDENTITY</div><h1>My Profile</h1><p>A personal identity card for the corporate digital environment.</p></div></div>
   <div class="card" style="max-width:650px"><div class="rankbox"><div class="avatar" style="width:64px;height:64px;font-size:22px">YZ</div><div><strong>Yurii Zhuk</strong><p>Concept Development · Digital Systems</p><span class="tag">DEMO PROFILE · NOT CONNECTED TO HR</span></div></div><div class="widget-row" style="margin-top:18px"><span>Workspace role</span><b>Explorer</b></div><div class="widget-row"><span>Department</span><b>Engineering & R&D</b></div><div class="widget-row"><span>Level</span><b>04</b></div><div class="widget-row"><span>Experience</span><b id="profileXp">1,280 XP</b></div></div>
@@ -148,7 +164,7 @@
 (()=>{
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const toast=(m)=>{const t=$("#toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2400)};
-const pageNames={home:"WORKSPACE",missions:"MISSIONS",campus:"CAMPUS",apps:"ENGINES & APPS",templates:"TEMPLATES",designer:"WORKSPACE DESIGNER",academy:"ACADEMY",community:"COMMUNITY",profile:"PROFILE",settings:"PREFERENCES"};
+const pageNames={home:"WORKSPACE",missions:"MISSIONS",campus:"CAMPUS",apps:"ENGINES & APPS",templates:"TEMPLATES",designer:"WORKSPACE DESIGNER",academy:"ACADEMY",community:"COMMUNITY",profile:"PROFILE",settings:"PREFERENCES",contributor:"PARTNER WORKSPACE"};
 function go(name){$$(".page").forEach(p=>p.classList.toggle("active",p.id==="page-"+name));$$(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===name));$("#crumb").textContent=pageNames[name]||"WORKSPACE";$("#sidebar").classList.remove("open");window.scrollTo({top:0,behavior:"smooth"})}
 $$("[data-page]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.page)));
 $$("[data-go]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.go)));
@@ -170,6 +186,17 @@ $("#themeBtn").addEventListener("click",()=>{const dark=document.documentElement
 $("#darkToggle").addEventListener("change",e=>{document.documentElement.dataset.theme=e.target.checked?"dark":"light";document.documentElement.style.setProperty("--bg",e.target.checked?"#090e16":"#eef3f7")});
 $("#compactToggle").addEventListener("change",e=>{document.querySelectorAll(".card").forEach(c=>c.style.padding=e.target.checked?"12px":"17px")});
 $("#notifyBtn").addEventListener("click",()=>toast("You are all caught up · sample notification state."));
+const partnerAuth=$("#partnerAuth"),partnerDashboard=$("#partnerDashboard"),partnerMsg=$("#partnerAuthMessage");let inviteToken="";
+function partnerMessage(s){partnerMsg.textContent=s}
+async function partnerRequest(url,opt={}){const r=await fetch(url,{credentials:"same-origin",headers:{"Content-Type":"application/json"},...opt});const d=await r.json().catch(()=>({error:"Unexpected server response"}));if(!r.ok)throw Error(d.error||"Request failed");return d}
+function partnerNode(tag,s){const e=document.createElement(tag);e.textContent=s;return e}
+function showPartnerAuth(invite){partnerAuth.style.display="block";partnerDashboard.style.display="none";$("#partnerInviteFields").style.display=invite?"block":"none";$("#partnerAuthTitle").textContent=invite?"Activate invitation":"Sign in to Partner Workspace";$("#partnerAuthSubmit").textContent=invite?"Activate account":"Sign in"}
+async function loadPartnerWorkspace(){const d=await partnerRequest("/api/partner/workspace");partnerAuth.style.display="none";partnerDashboard.style.display="block";$("#partnerWelcome").textContent="Welcome, "+d.profile.display_name;const root=$("#partnerProjects");root.replaceChildren();if(!d.projects.length)root.append(partnerNode("p","No project access assigned yet. An administrator must grant project membership."));d.projects.forEach(p=>{const card=document.createElement("article");card.className="template";card.append(partnerNode("h3",p.name),partnerNode("p",p.description));p.tasks.forEach(t=>{const row=document.createElement("div");row.className="widget-row";row.append(partnerNode("span",t.title+" · "+t.status));if(t.status==="OPEN"){const b=partnerNode("button","Volunteer");b.className="btn";b.onclick=async()=>{try{await partnerRequest("/api/partner/projects/"+p.id+"/tasks/"+t.id+"/claim",{method:"POST",body:"{}"});await loadPartnerWorkspace()}catch(e){partnerMessage(e.message)}};row.append(b)}else if(t.claimedByMe&&["CLAIMED","CHANGES_REQUESTED"].includes(t.status)){const b=partnerNode("button","Submit deliverable");b.className="btn";b.onclick=async()=>{const body=prompt("Describe your work");if(!body)return;const artifactUrl=prompt("Optional artifact URL")||"";try{await partnerRequest("/api/partner/tasks/"+t.id+"/submissions",{method:"POST",body:JSON.stringify({body,artifactUrl})});await loadPartnerWorkspace()}catch(e){partnerMessage(e.message)}};row.append(b)}card.append(row)});root.append(card)});const list=$("#partnerProposals");list.replaceChildren();if(!d.proposals.length)list.append(partnerNode("p","No proposals yet."));d.proposals.forEach(p=>list.append(partnerNode("div",p.title+" · "+p.status+(p.review_note?" · "+p.review_note:""))))}
+async function checkPartnerWorkspace(){const h=new URLSearchParams(location.hash.slice(1));inviteToken=h.get("invite")||"";if(inviteToken){history.replaceState(null,"",location.pathname+location.search);showPartnerAuth(true);partnerMessage("Create a password to activate this email invitation.");return}try{const m=await partnerRequest("/api/auth/me");if(m.authenticated&&m.role==="partner"){await loadPartnerWorkspace();return}}catch{}showPartnerAuth(false)}
+$("#partnerAuthSubmit").addEventListener("click",async()=>{try{if(inviteToken){await partnerRequest("/api/auth/partner-invitation/redeem",{method:"POST",body:JSON.stringify({token:inviteToken,password:$("#partnerPassword").value,displayName:$("#partnerDisplayName").value})});inviteToken=""}else await partnerRequest("/api/auth/partner-login",{method:"POST",body:JSON.stringify({email:$("#partnerEmail").value,password:$("#partnerPassword").value})});await loadPartnerWorkspace()}catch(e){partnerMessage(e.message)}});
+$("#partnerLogout").addEventListener("click",async()=>{await partnerRequest("/api/auth/logout",{method:"POST",body:"{}"});showPartnerAuth(false)});
+$("#proposalSubmit").addEventListener("click",async()=>{try{await partnerRequest("/api/partner/proposals",{method:"POST",body:JSON.stringify({title:$("#proposalTitle").value,rationale:$("#proposalRationale").value,expectedImpact:$("#proposalImpact").value})});$("#proposalTitle").value="";$("#proposalRationale").value="";$("#proposalImpact").value="";await loadPartnerWorkspace()}catch(e){alert(e.message)}});
+const oldGo=go;go=function(n){oldGo(n);if(n==="contributor")checkPartnerWorkspace()};
 function tick(){const d=new Date();$("#clock").textContent=d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}tick();setInterval(tick,30000);
 })();
 </script>

@@ -27,6 +27,8 @@ jobs:
           npm --prefix app run check
           node --test scripts/ai-provider.test.mjs
           node --test scripts/migrations.test.mjs
+          node --test scripts/partner-access.test.mjs
+          node --test scripts/partner-workspace-ui.test.mjs
           node --test scripts/organization-migration.test.mjs
           node scripts/verify-preservation.mjs
           node --test scripts/locale-voice.test.mjs
@@ -37,7 +39,7 @@ jobs:
 
       - name: Validate Compose configuration
         run: |
-          printf '%s\n' 'POSTGRES_PASSWORD=ci-temporary-db-password' 'ADMIN_PASSWORD=ci-temporary-admin-password-123' 'SESSION_SECRET=ci-temporary-session-secret-which-is-long-enough-123456' > .env
+          printf '%s\n' 'POSTGRES_PASSWORD=ci-temporary-db-password' 'ADMIN_PASSWORD=ci-temporary-admin-password-123' 'SESSION_SECRET=ci-temporary-session-secret-which-is-long-enough-123456' 'PUBLIC_APP_URL=https://trampillera-ci.example.test' > .env
           docker compose config --quiet
 
       - name: Build and start application with PostgreSQL
@@ -57,9 +59,10 @@ jobs:
             sleep 2
           done
           echo "CI: verify PostgreSQL migrations and normalized organization schema"
-          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '2'
+          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '3'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '\''public'\'' AND table_name IN ('\''org_units'\'','\''positions'\'','\''employee_org_assignments'\'')"' | tr -d '\r' | grep -qx '3'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM employee_org_assignments"' | tr -d '\r' | grep -qx '0'
+          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '\''public'\'' AND table_name IN ('\''partner_accounts'\'','\''partner_affiliations'\'','\''partner_invitations'\'','\''partner_projects'\'','\''partner_project_members'\'','\''partner_tasks'\'','\''partner_task_submissions'\'','\''partner_proposals'\'')" ' | tr -d '\r' | grep -qx '8'
           docker compose restart app
           for attempt in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:3000/api/health > /dev/null; then
@@ -71,7 +74,7 @@ jobs:
             fi
             sleep 2
           done
-          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '2'
+          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '3'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM employee_org_assignments"' | tr -d '\r' | grep -qx '0'
           curl --fail --silent http://127.0.0.1:3000/
           curl --fail --silent http://127.0.0.1:3000/shared/trampillera-global-controls.js | grep -q 'TrampilleraLocaleCore'
@@ -92,6 +95,42 @@ jobs:
           MISSING_ORIGIN_STATUS=$(command curl --silent --output /dev/null --write-out '%{http_code}' -H 'Content-Type: application/json' -d '{"password":"not-a-real-password"}' http://127.0.0.1:3000/api/auth/login)
           test "$MISSING_ORIGIN_STATUS" = "403"
           curl --fail --silent -c /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"password":"ci-temporary-admin-password-123"}' http://127.0.0.1:3000/api/auth/login
+
+          echo "CI: verify partner invitation lifecycle, role isolation and project-scoped collaboration"
+          INVITE_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"email":"ci-partner@example.test","name":"CI Partner"}' http://127.0.0.1:3000/api/control/partners/invitations)
+          INVITE_TOKEN=$(printf '%s' "$INVITE_JSON" | jq -r '.inviteUrl | split("#invite=")[1]')
+          test -n "$INVITE_TOKEN"
+          REDEEM_JSON=$(curl --fail --silent -c /tmp/ci-partner-cookies.txt -H 'Content-Type: application/json' -d "{\"token\":\"$INVITE_TOKEN\",\"password\":\"ci-partner-password-123\",\"displayName\":\"CI Partner\"}" http://127.0.0.1:3000/api/auth/partner-invitation/redeem)
+          printf '%s' "$REDEEM_JSON" | jq -e '.authenticated == true and .role == "partner"'
+          PARTNER_ID=$(curl --fail --silent -b /tmp/ci-partner-cookies.txt http://127.0.0.1:3000/api/auth/me | jq -r '.partner.id')
+          test -n "$PARTNER_ID"
+          curl --fail --silent -b /tmp/ci-partner-cookies.txt http://127.0.0.1:3000/api/partner/workspace | jq -e '.profile.email == "ci-partner@example.test" and (.projects | length == 0)'
+          REPLAY_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Content-Type: application/json' -d "{\"token\":\"$INVITE_TOKEN\",\"password\":\"ci-partner-password-123\",\"displayName\":\"CI Partner\"}" http://127.0.0.1:3000/api/auth/partner-invitation/redeem)
+          test "$REPLAY_STATUS" = "410"
+          PARTNER_ADMIN_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/ci-partner-cookies.txt http://127.0.0.1:3000/api/control/partners/invitations)
+          test "$PARTNER_ADMIN_STATUS" = "401"
+          PROJECT_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"projectKey":"ci-partner-project","name":"CI Partner Project","description":"Automated access-control verification"}' http://127.0.0.1:3000/api/control/partners/projects)
+          PROJECT_ID=$(printf '%s' "$PROJECT_JSON" | jq -r '.item.id')
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d "{\"partnerId\":$PARTNER_ID}" "http://127.0.0.1:3000/api/control/partners/projects/$PROJECT_ID/members" | jq -e '.item.partner_id != null'
+          TASK_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"title":"CI scoped task","description":"Claim and submit test"}' "http://127.0.0.1:3000/api/control/partners/projects/$PROJECT_ID/tasks")
+          TASK_ID=$(printf '%s' "$TASK_JSON" | jq -r '.item.id')
+          curl --fail --silent -b /tmp/ci-partner-cookies.txt -H 'Content-Type: application/json' -d '{}' "http://127.0.0.1:3000/api/partner/projects/$PROJECT_ID/tasks/$TASK_ID/claim" | jq -e '.item.status == "CLAIMED"'
+          curl --fail --silent -b /tmp/ci-partner-cookies.txt -H 'Content-Type: application/json' -d '{"body":"CI verified contribution","artifactUrl":"https://example.test/artifact"}' "http://127.0.0.1:3000/api/partner/tasks/$TASK_ID/submissions" | jq -e '.item.status == "PENDING"'
+          SUBMISSION_ID=$(curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/partners/submissions | jq -r '.items[0].id')
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"decision":"ACCEPTED","note":"CI review passed"}' "http://127.0.0.1:3000/api/control/partners/submissions/$SUBMISSION_ID/review" | jq -e '.reviewed == true and .decision == "ACCEPTED"'
+          PROJECT2_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"projectKey":"ci-other-project","name":"CI Other Project"}' http://127.0.0.1:3000/api/control/partners/projects)
+          PROJECT2_ID=$(printf '%s' "$PROJECT2_JSON" | jq -r '.item.id')
+          TASK2_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"title":"Out of scope task"}' "http://127.0.0.1:3000/api/control/partners/projects/$PROJECT2_ID/tasks")
+          TASK2_ID=$(printf '%s' "$TASK2_JSON" | jq -r '.item.id')
+          IDOR_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/ci-partner-cookies.txt -H 'Content-Type: application/json' -d '{}' "http://127.0.0.1:3000/api/partner/projects/$PROJECT2_ID/tasks/$TASK2_ID/claim")
+          test "$IDOR_STATUS" = "409"
+          REVOKE_INVITE=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"email":"revoked-partner@example.test","name":"Revoked Partner"}' http://127.0.0.1:3000/api/control/partners/invitations)
+          REVOKE_ID=$(printf '%s' "$REVOKE_INVITE" | jq -r '.item.id')
+          REVOKE_TOKEN=$(printf '%s' "$REVOKE_INVITE" | jq -r '.inviteUrl | split("#invite=")[1]')
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{}' "http://127.0.0.1:3000/api/control/partners/invitations/$REVOKE_ID/revoke" | jq -e '.item.status == "REVOKED"'
+          REVOKED_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Content-Type: application/json' -d "{\"token\":\"$REVOKE_TOKEN\",\"password\":\"ci-partner-password-123\",\"displayName\":\"Revoked Partner\"}" http://127.0.0.1:3000/api/auth/partner-invitation/redeem)
+          test "$REVOKED_STATUS" = "410"
+
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/overview
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/analytics/summary?days=7 | jq -e '.totals.visitors == 1 and (.daily | length == 7)'
           CAMPAIGN_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"name":"CI Growth Campaign","channel":"SOCIAL","objective":"Verify campaign attribution","destinationUrl":"https://example.com/landing","budget":0}' http://127.0.0.1:3000/api/control/growth/campaigns)
@@ -131,6 +170,13 @@ jobs:
           PENDING_ACCESS_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/ity-employee-cookies.txt http://127.0.0.1:3000/api/team/dashboard)
           test "$PENDING_ACCESS_STATUS" = "403"
           curl --fail --silent -b /tmp/ity-employee-cookies.txt -c /tmp/ity-employee-cookies.txt -H 'Content-Type: application/json' -d '{"newPassword":"ci-test-personal-password-123"}' http://127.0.0.1:3000/api/auth/change-password
+          echo "CI: verify partner affiliation links to an existing employee account"
+          EMPLOYEE_INVITE=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"email":"ci-teammate@example.test","name":"CI Teammate"}' http://127.0.0.1:3000/api/control/partners/invitations)
+          EMPLOYEE_INVITE_TOKEN=$(printf '%s' "$EMPLOYEE_INVITE" | jq -r '.inviteUrl | split("#invite=")[1]')
+          curl --fail --silent -c /tmp/ci-linked-partner-cookies.txt -H 'Content-Type: application/json' -d "{\"token\":\"$EMPLOYEE_INVITE_TOKEN\",\"password\":\"ci-linked-partner-password-123\",\"displayName\":\"CI Teammate\"}" http://127.0.0.1:3000/api/auth/partner-invitation/redeem | jq -e '.authenticated == true'
+          curl --fail --silent -b /tmp/ity-employee-cookies.txt http://127.0.0.1:3000/api/auth/me | jq -e '.role == "employee" and (.affiliations | contains(["PARTNER","TEAM_MEMBER"]))'
+          curl --fail --silent -b /tmp/ity-employee-cookies.txt http://127.0.0.1:3000/api/partner/workspace | jq -e '.profile.email == "ci-teammate@example.test"'
+
           EMPLOYEE2_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"name":"CI Teammate Two","email":"ci-teammate-two@example.test","department":"QA","jobTitle":"Collaborator"}' http://127.0.0.1:3000/api/control/team/employees)
           EMPLOYEE2_ID=$(printf '%s' "$EMPLOYEE2_JSON" | jq -r '.item.id')
           TEMP_PASSWORD2=$(printf '%s' "$EMPLOYEE2_JSON" | jq -r '.temporaryPassword')

@@ -1,0 +1,91 @@
+import {createInvitationToken,hashInvitationToken,normalizePartnerEmail,isValidPartnerEmail,buildPartnerInvitationUrl} from "./partner-access.js";
+
+export function configurePartnerRoutes({app,pool,clean,asyncRoute,requireAdmin,audit,auditWithClient,passwordHash,passwordMatches,rateLimit}) {
+ const requirePartner=asyncRoute(async(req,res,next)=>{
+  if(req.session?.authenticated!==true)return res.status(401).json({error:"Partner session required."});
+  if(req.session.role==="employee"&&req.session.employeeId){
+   const employee=await pool.query("SELECT id FROM employees WHERE id=$1 AND active=TRUE AND must_change_password=FALSE AND auth_version=$2",[req.session.employeeId,req.session.authVersion]);
+   if(!employee.rowCount)return res.status(401).json({error:"Employee session is no longer valid."});
+   const linked=await pool.query("SELECT id,auth_version FROM partner_accounts WHERE employee_id=$1 AND active=TRUE",[req.session.employeeId]);
+   if(!linked.rowCount)return res.status(403).json({error:"No partner affiliation is linked to this employee account."});
+   req.session.partnerId=linked.rows[0].id;req.session.partnerAuthVersion=linked.rows[0].auth_version;
+  }
+  if(req.session.role!=="partner"&&req.session.role!=="employee")return res.status(401).json({error:"Partner session required."});
+  if(!req.session.partnerId)return res.status(401).json({error:"Partner session required."});
+  const r=await pool.query("SELECT active,auth_version FROM partner_accounts WHERE id=$1",[req.session.partnerId]);
+  if(!r.rowCount||!r.rows[0].active||Number(req.session.partnerAuthVersion)!==Number(r.rows[0].auth_version)){req.session=null;return res.status(401).json({error:"Partner session is no longer valid."})}
+  next();
+ });
+ app.post("/api/auth/partner-invitation/redeem",rateLimit({windowMs:900000,limit:8}),asyncRoute(async(req,res)=>{
+  const token=typeof req.body?.token==="string"?req.body.token:"",password=typeof req.body?.password==="string"?req.body.password:"",name=clean(req.body?.displayName,120);
+  if(password.length<12||password.length>200||!name)return res.status(400).json({error:"A display name and password of at least 12 characters are required."});
+  let digest;try{digest=hashInvitationToken(token)}catch{return res.status(400).json({error:"Invitation is invalid or expired."})}
+  const c=await pool.connect();try{
+   await c.query("BEGIN");const i=await c.query("SELECT id,email,status,expires_at FROM partner_invitations WHERE token_hash=$1 FOR UPDATE",[digest]);
+   if(!i.rowCount||i.rows[0].status!=="PENDING"||new Date(i.rows[0].expires_at).getTime()<=Date.now()){await c.query("ROLLBACK");return res.status(410).json({error:"Invitation is invalid, expired, already used or revoked."})}
+   const email=i.rows[0].email,employee=await c.query("SELECT id FROM employees WHERE email=$1 AND active=TRUE",[email]),exists=await c.query("SELECT id FROM partner_accounts WHERE email=$1",[email]);if(exists.rowCount){await c.query("ROLLBACK");return res.status(409).json({error:"Partner account already exists for this email."})}
+   const employeeId=employee.rowCount?employee.rows[0].id:null;
+   const p=await c.query("INSERT INTO partner_accounts(email,employee_id,display_name,password_hash) VALUES($1,$2,$3,$4) RETURNING id,auth_version",[email,employeeId,name,passwordHash(password)]);
+   await c.query("INSERT INTO partner_affiliations(partner_id,affiliation,operational_role) VALUES($1,'PARTNER','TEAM_CONTRIBUTOR'),($1,'TEAM_MEMBER','TEAM_CONTRIBUTOR')",[p.rows[0].id]);
+   await c.query("UPDATE partner_invitations SET status='REDEEMED',redeemed_at=NOW() WHERE id=$1",[i.rows[0].id]);
+   await auditWithClient(c,"PARTNER_INVITATION_REDEEMED","partner",String(p.rows[0].id),"Invitation redeemed; possession of the emailed token proves email control","partner:"+p.rows[0].id);
+   await c.query("COMMIT");req.session={authenticated:true,role:"partner",partnerId:p.rows[0].id,partnerAuthVersion:p.rows[0].auth_version,actor:"partner:"+p.rows[0].id,issuedAt:Date.now(),lastSeenAt:Date.now()};res.status(201).json({authenticated:true,role:"partner"});
+  }catch(e){await c.query("ROLLBACK");if(e.code==="23505")return res.status(409).json({error:"Invitation already redeemed."});throw e}finally{c.release()}
+ }));
+ app.post("/api/auth/partner-login",rateLimit({windowMs:900000,limit:8}),asyncRoute(async(req,res)=>{
+  const email=normalizePartnerEmail(req.body?.email),password=typeof req.body?.password==="string"?req.body.password:"";
+  if(!isValidPartnerEmail(email)||!password)return res.status(400).json({error:"Valid email and password are required."});
+  const r=await pool.query("SELECT id,password_hash,auth_version,active FROM partner_accounts WHERE email=$1",[email]),p=r.rows[0];
+  if(!p||!p.active||!passwordMatches(password,p.password_hash))return res.status(401).json({error:"Email or password is incorrect."});
+  req.session={authenticated:true,role:"partner",partnerId:p.id,partnerAuthVersion:p.auth_version,actor:"partner:"+p.id,issuedAt:Date.now(),lastSeenAt:Date.now()};
+  await audit("PARTNER_LOGIN","partner",String(p.id),"Partner session created","partner:"+p.id);res.json({authenticated:true,role:"partner"});
+ }));
+ app.get("/api/partner/workspace",requirePartner,asyncRoute(async(req,res)=>{
+  const [profile,projects,proposals]=await Promise.all([
+   pool.query("SELECT id,email,display_name FROM partner_accounts WHERE id=$1",[req.session.partnerId]),
+   pool.query(`SELECT p.id,p.project_key,p.name,p.description,COALESCE(json_agg(json_build_object('id',t.id,'title',t.title,'description',t.description,'status',t.status,'claimedByMe',t.claimed_by=$1) ORDER BY t.created_at DESC) FILTER(WHERE t.id IS NOT NULL),'[]') tasks FROM partner_project_members m JOIN partner_projects p ON p.id=m.project_id LEFT JOIN partner_tasks t ON t.project_id=p.id WHERE m.partner_id=$1 AND p.status='ACTIVE' GROUP BY p.id ORDER BY p.name`,[req.session.partnerId]),
+   pool.query("SELECT id,title,rationale,expected_impact,status,review_note,created_at FROM partner_proposals WHERE partner_id=$1 ORDER BY created_at DESC LIMIT 50",[req.session.partnerId])
+  ]);res.json({profile:profile.rows[0],projects:projects.rows,proposals:proposals.rows});
+ }));
+ app.post("/api/partner/projects/:projectId/tasks/:taskId/claim",requirePartner,asyncRoute(async(req,res)=>{
+  const r=await pool.query(`UPDATE partner_tasks t SET status='CLAIMED',claimed_by=$3,updated_at=NOW() WHERE t.id=$2 AND t.project_id=$1 AND t.status='OPEN' AND EXISTS(SELECT 1 FROM partner_project_members m WHERE m.project_id=t.project_id AND m.partner_id=$3) RETURNING t.id,t.title,t.status`,[req.params.projectId,req.params.taskId,req.session.partnerId]);
+  if(!r.rowCount)return res.status(409).json({error:"Task unavailable or outside your project access."});
+  await audit("PARTNER_TASK_CLAIMED","partner_task",String(r.rows[0].id),"Partner volunteered for task","partner:"+req.session.partnerId);res.json({item:r.rows[0]});
+ }));
+ app.post("/api/partner/tasks/:taskId/submissions",requirePartner,asyncRoute(async(req,res)=>{
+  const body=clean(req.body?.body,12000),url=clean(req.body?.artifactUrl,1000);if(!body)return res.status(400).json({error:"Submission description is required."});
+  if(url){try{if(!["http:","https:"].includes(new URL(url).protocol))throw Error()}catch{return res.status(400).json({error:"Artifact URL must be HTTP(S)."})}}
+  const c=await pool.connect();try{await c.query("BEGIN");const t=await c.query(`SELECT t.id FROM partner_tasks t JOIN partner_project_members m ON m.project_id=t.project_id AND m.partner_id=$2 WHERE t.id=$1 AND t.claimed_by=$2 AND t.status IN ('CLAIMED','CHANGES_REQUESTED') FOR UPDATE`,[req.params.taskId,req.session.partnerId]);
+   if(!t.rowCount){await c.query("ROLLBACK");return res.status(404).json({error:"Claimed task not found in your project scope."})}
+   const r=await c.query("INSERT INTO partner_task_submissions(task_id,partner_id,body,artifact_url) VALUES($1,$2,$3,$4) RETURNING id,status,created_at",[req.params.taskId,req.session.partnerId,body,url]);
+   await c.query("UPDATE partner_tasks SET status='SUBMITTED',updated_at=NOW() WHERE id=$1",[req.params.taskId]);await auditWithClient(c,"PARTNER_DELIVERABLE_SUBMITTED","partner_task",String(req.params.taskId),"Partner submitted deliverable","partner:"+req.session.partnerId);await c.query("COMMIT");res.status(201).json({item:r.rows[0]});
+  }catch(e){await c.query("ROLLBACK");throw e}finally{c.release()}
+ }));
+ app.post("/api/partner/proposals",requirePartner,asyncRoute(async(req,res)=>{
+  const title=clean(req.body?.title,180),rationale=clean(req.body?.rationale,12000),impact=clean(req.body?.expectedImpact,3000),projectId=req.body?.projectId==null?null:Number(req.body.projectId);
+  if(!title||!rationale)return res.status(400).json({error:"Proposal title and rationale are required."});
+  if(projectId!==null){if(!Number.isSafeInteger(projectId)||projectId<1)return res.status(400).json({error:"Invalid project."});const m=await pool.query("SELECT 1 FROM partner_project_members WHERE project_id=$1 AND partner_id=$2",[projectId,req.session.partnerId]);if(!m.rowCount)return res.status(404).json({error:"Project outside your access scope."})}
+  const r=await pool.query("INSERT INTO partner_proposals(partner_id,project_id,title,rationale,expected_impact) VALUES($1,$2,$3,$4,$5) RETURNING id,title,status,created_at",[req.session.partnerId,projectId,title,rationale,impact]);
+  await audit("PARTNER_PROPOSAL_SUBMITTED","partner_proposal",String(r.rows[0].id),"Partner submitted proposal","partner:"+req.session.partnerId);res.status(201).json({item:r.rows[0]});
+ }));
+ app.get("/api/control/partners",requireAdmin,asyncRoute(async(_req,res)=>{const r=await pool.query(`SELECT p.id,p.email,p.display_name,p.active,p.created_at,COALESCE(array_agg(a.affiliation ORDER BY a.affiliation) FILTER(WHERE a.affiliation IS NOT NULL),'{}') affiliations FROM partner_accounts p LEFT JOIN partner_affiliations a ON a.partner_id=p.id GROUP BY p.id ORDER BY p.created_at DESC`);res.json({items:r.rows})}));
+ app.get("/api/control/partners/projects",requireAdmin,asyncRoute(async(_req,res)=>{const r=await pool.query(`SELECT p.id,p.project_key,p.name,p.description,p.status,COUNT(DISTINCT m.partner_id)::int member_count,COUNT(DISTINCT t.id)::int task_count FROM partner_projects p LEFT JOIN partner_project_members m ON m.project_id=p.id LEFT JOIN partner_tasks t ON t.project_id=p.id GROUP BY p.id ORDER BY p.created_at DESC`);res.json({items:r.rows})}));
+ app.get("/api/control/partners/submissions",requireAdmin,asyncRoute(async(_req,res)=>{const r=await pool.query(`SELECT s.id,s.task_id,s.partner_id,s.body,s.artifact_url,s.created_at,t.title task_title,p.email,p.display_name FROM partner_task_submissions s JOIN partner_tasks t ON t.id=s.task_id JOIN partner_accounts p ON p.id=s.partner_id WHERE s.status='PENDING' ORDER BY s.created_at ASC LIMIT 100`);res.json({items:r.rows})}));
+ app.get("/api/control/partners/proposals",requireAdmin,asyncRoute(async(_req,res)=>{const r=await pool.query(`SELECT x.id,x.title,x.rationale,x.expected_impact,x.status,x.created_at,p.email,p.display_name FROM partner_proposals x JOIN partner_accounts p ON p.id=x.partner_id WHERE x.status IN ('SUBMITTED','UNDER_REVIEW') ORDER BY x.created_at ASC LIMIT 100`);res.json({items:r.rows})}));
+ app.get("/api/control/partners/invitations",requireAdmin,asyncRoute(async(_req,res)=>{const r=await pool.query("SELECT id,email,display_name,status,expires_at,created_at,redeemed_at,revoked_at FROM partner_invitations ORDER BY created_at DESC LIMIT 100");res.json({items:r.rows})}));
+ app.post("/api/control/partners/invitations",requireAdmin,asyncRoute(async(req,res)=>{
+  const email=normalizePartnerEmail(req.body?.email),name=clean(req.body?.name,120);if(!isValidPartnerEmail(email)||!name)return res.status(400).json({error:"Valid email and display name are required."});
+  const token=createInvitationToken(),digest=hashInvitationToken(token);let inviteUrl;try{inviteUrl=buildPartnerInvitationUrl(process.env.PUBLIC_APP_URL,token)}catch{return res.status(503).json({error:"Invitation service is not configured: PUBLIC_APP_URL must be set to the canonical HTTPS application origin."})}const c=await pool.connect();try{await c.query("BEGIN");const exists=await c.query("SELECT id FROM partner_accounts WHERE email=$1 AND active=TRUE",[email]);if(exists.rowCount){await c.query("ROLLBACK");return res.status(409).json({error:"Active partner account already exists."})}
+   await c.query("UPDATE partner_invitations SET status='REVOKED',revoked_at=NOW() WHERE email=$1 AND status='PENDING'",[email]);
+   const r=await c.query("INSERT INTO partner_invitations(email,display_name,token_hash,expires_at,created_by) VALUES($1,$2,$3,NOW()+INTERVAL '72 hours',$4) RETURNING id,email,display_name,status,expires_at,created_at",[email,name,digest,req.session.actor||"admin"]);
+   await auditWithClient(c,"PARTNER_INVITATION_CREATED","partner_invitation",String(r.rows[0].id),"Invitation issued for "+email+"; expires in 72 hours");await c.query("COMMIT");
+   res.status(201).json({item:r.rows[0],inviteUrl,delivery:"NOT_SENT",warning:"Send this one-time link only to the invited email. The token is shown once and stored hashed."});
+  }catch(e){await c.query("ROLLBACK");throw e}finally{c.release()}
+ }));
+ app.post("/api/control/partners/invitations/:id/revoke",requireAdmin,asyncRoute(async(req,res)=>{const r=await pool.query("UPDATE partner_invitations SET status='REVOKED',revoked_at=NOW() WHERE id=$1 AND status='PENDING' RETURNING id,email,status",[req.params.id]);if(!r.rowCount)return res.status(404).json({error:"Pending invitation not found."});await audit("PARTNER_INVITATION_REVOKED","partner_invitation",String(req.params.id),"Administrator revoked invitation");res.json({item:r.rows[0]})}));
+ app.post("/api/control/partners/projects",requireAdmin,asyncRoute(async(req,res)=>{const key=clean(req.body?.projectKey,80).toLowerCase(),name=clean(req.body?.name,160),description=clean(req.body?.description,2000);if(!/^[a-z0-9][a-z0-9._-]{1,79}$/.test(key)||!name)return res.status(400).json({error:"Valid project key and name required."});try{const r=await pool.query("INSERT INTO partner_projects(project_key,name,description,created_by) VALUES($1,$2,$3,$4) RETURNING id,project_key,name,status",[key,name,description,req.session.actor||"admin"]);res.status(201).json({item:r.rows[0]})}catch(e){if(e.code==="23505")return res.status(409).json({error:"Project key already exists."});throw e}}));
+ app.post("/api/control/partners/projects/:projectId/members",requireAdmin,asyncRoute(async(req,res)=>{const id=Number(req.body?.partnerId);if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({error:"Valid partnerId required."});const r=await pool.query("INSERT INTO partner_project_members(project_id,partner_id,granted_by) SELECT p.id,a.id,$3 FROM partner_projects p CROSS JOIN partner_accounts a WHERE p.id=$1 AND a.id=$2 AND a.active=TRUE ON CONFLICT DO NOTHING RETURNING project_id,partner_id",[req.params.projectId,id,req.session.actor||"admin"]);if(!r.rowCount)return res.status(404).json({error:"Project or active partner not found, or membership exists."});res.status(201).json({item:r.rows[0]})}));
+ app.post("/api/control/partners/projects/:projectId/tasks",requireAdmin,asyncRoute(async(req,res)=>{const title=clean(req.body?.title,180),description=clean(req.body?.description,4000);if(!title)return res.status(400).json({error:"Task title required."});const r=await pool.query("INSERT INTO partner_tasks(project_id,title,description,created_by) SELECT id,$2,$3,$4 FROM partner_projects WHERE id=$1 AND status='ACTIVE' RETURNING id,project_id,title,status",[req.params.projectId,title,description,req.session.actor||"admin"]);if(!r.rowCount)return res.status(404).json({error:"Active project not found."});res.status(201).json({item:r.rows[0]})}));
+ app.post("/api/control/partners/submissions/:id/review",requireAdmin,asyncRoute(async(req,res)=>{const d=req.body?.decision,n=clean(req.body?.note,3000);if(!["ACCEPTED","CHANGES_REQUESTED"].includes(d))return res.status(400).json({error:"Invalid review decision."});const c=await pool.connect();try{await c.query("BEGIN");const s=await c.query("UPDATE partner_task_submissions SET status=$2,review_note=$3,reviewed_by=$4,reviewed_at=NOW() WHERE id=$1 AND status='PENDING' RETURNING task_id,partner_id",[req.params.id,d,n,req.session.actor||"admin"]);if(!s.rowCount){await c.query("ROLLBACK");return res.status(404).json({error:"Pending submission not found."})}await c.query("UPDATE partner_tasks SET status=$2,updated_at=NOW() WHERE id=$1 AND claimed_by=$3",[s.rows[0].task_id,d,s.rows[0].partner_id]);await auditWithClient(c,"PARTNER_DELIVERABLE_REVIEWED","partner_task",String(s.rows[0].task_id),"Decision="+d+"; "+n);await c.query("COMMIT");res.json({reviewed:true,decision:d})}catch(e){await c.query("ROLLBACK");throw e}finally{c.release()}}));
+ app.post("/api/control/partners/proposals/:id/review",requireAdmin,asyncRoute(async(req,res)=>{const d=req.body?.decision,n=clean(req.body?.note,3000);if(!["UNDER_REVIEW","ACCEPTED","DECLINED"].includes(d))return res.status(400).json({error:"Invalid proposal decision."});const r=await pool.query("UPDATE partner_proposals SET status=$2,review_note=$3,reviewed_by=$4,reviewed_at=NOW() WHERE id=$1 AND status IN ('SUBMITTED','UNDER_REVIEW') RETURNING id,status",[req.params.id,d,n,req.session.actor||"admin"]);if(!r.rowCount)return res.status(404).json({error:"Proposal not found or closed."});res.json({item:r.rows[0]})}));
+}
