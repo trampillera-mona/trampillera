@@ -219,3 +219,10 @@ For the current dated operational snapshot, see [Release Baseline, Recovery Poin
 
 The proposed module is intended to integrate with the existing employee identity/session model, Control Plane, Operations Desk, notifications, audit and future calendar/workflow domains. Its security contract explicitly separates transport encryption from end-to-end encryption and forbids logging message content or media as ordinary audit metadata. The proposal does not authorize recording or hidden employee-content monitoring.
 
+
+
+### 14.1 Capacity and event-mode requirement — 2026-11-25
+
+The user-defined planning range is **2–100 participants per communication session**. The product must support two distinct experience classes: (1) Everyday Communication for direct messages, small groups and ad-hoc calls; and (2) Corporate Events & Broadcasts for leadership/departments presenting news, products, developments, briefings, announcements and celebrations.
+
+This is a design target, not verified capacity. A 100-person event should be evaluated with an SFU-based topology and separate publisher/presenter/viewer roles. The proof of concept must test 2-person calls, small groups, 20-person interactive meetings and 100-person town-hall/presentation with limited publishers. Full-camera 100-person interactivity must not be promised without load-test evidence. Announcements require audience targeting, priority, delivery and optional acknowledgement states; publication, delivery and acknowledgement are distinct facts.
