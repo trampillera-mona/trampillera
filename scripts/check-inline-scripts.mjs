@@ -4,8 +4,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 const targets = [
-  "app/public/control/index.html",
-  "app/public/city/team/index.html"
+  "public/control/index.html",
+  "public/city/team/index.html"
 ];
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "trampillera-inline-check-"));
 let checked = 0;
