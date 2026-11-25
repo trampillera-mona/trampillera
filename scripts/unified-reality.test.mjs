@@ -11,9 +11,14 @@ test('Unified Reality banner is mounted once and loads its shared assets', () =>
   assert.match(html, /href="\/shared\/trampillera-unified-reality\.css"/);
   assert.match(html, /src="\/shared\/trampillera-unified-reality\.js"/);
   assert.match(css, /#unified-reality-banner/);
-  assert.match(css, /max-width:840px/);
+  assert.match(css, /width:100vw/);
+  assert.match(css, /max-width:none/);
+  assert.match(css, /margin-left:calc\\(50% - 50vw\\)/);
+  assert.doesNotMatch(css, /max-width:840px/);
   assert.match(css, /height:260px/);
   assert.match(css, /min-height:260px/);
+  assert.match(css, /min-height:360px/);
+  assert.doesNotMatch(css, /min-height:440px/);
   assert.match(css, /#unified-reality-banner \.ur-main[^}]*min-height:140px/);
 });
 
