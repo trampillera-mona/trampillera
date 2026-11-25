@@ -513,8 +513,8 @@ app.post("/api/auth/recovery/reset",pslRecoveryLimiter,asyncRoute(async(req,res)
     if(account.type==="admin"){
       await client.query("SELECT auth_version FROM admin_auth_state WHERE singleton_id=1 FOR UPDATE");
     }else{
-      const locked=await client.query("SELECT id FROM employees WHERE id=$1 AND active=TRUE FOR UPDATE",[account.id]);
-      if(!locked.rowCount){await client.query("ROLLBACK");return res.status(401).json({error:"Account credentials or recovery code are invalid."});}
+      const locked=await client.query("SELECT id,password_hash FROM employees WHERE id=$1 AND active=TRUE FOR UPDATE",[account.id]);
+      if(!locked.rowCount || !passwordMatches(password,locked.rows[0].password_hash)){await client.query("ROLLBACK");return res.status(401).json({error:"Account credentials or recovery code are invalid."});}
     }
     const selected=await client.query("SELECT id,verifier FROM account_recovery_codes WHERE account_type=$1 AND account_id=$2 AND selector=$3 AND consumed_at IS NULL AND revoked_at IS NULL FOR UPDATE",[account.type,account.id,parsed.selector]);
     if(!selected.rowCount||!verifyRecoveryCode(req.body.recoveryCode,selected.rows[0].verifier)){
