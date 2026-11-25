@@ -432,3 +432,84 @@ Important announcements should support:
 
 A published announcement is not automatically acknowledged. Delivery and acknowledgement evidence must be tracked separately. Critical notices should support an escalation policy without treating a missing acknowledgement as proof that the employee read or understood the message.
 
+
+
+## 17. Employee participation: Announcement Board and Innovation & Development Board
+
+TRAMPILLERA Communications includes two first-class participation workspaces. They are not informal chat threads: each has a clear purpose, ownership, lifecycle, visibility rules and auditable outcomes. Their purpose is to make organizational information accessible and to give every employee a practical route to contribute to improvement.
+
+### 17.1 Announcement Board
+
+**Purpose:** a reliable, searchable organizational noticeboard for information that employees need to know. It complements direct messages and channels; important organizational notices must not disappear in a fast-moving chat stream.
+
+Supported announcement classes:
+- company-wide news and leadership messages;
+- department, team and project updates;
+- operational notices, policy/process changes and deadlines;
+- product, service, research and development announcements;
+- events, presentations, training and internal opportunities;
+- achievements, employee/team recognition, celebrations and congratulations;
+- urgent operational or safety notices, where applicable.
+
+Each announcement carries: title, body, category, priority (NORMAL, IMPORTANT, CRITICAL), audience scope (organization, department, team, project or explicitly selected employees), author/issuing authority, publication and expiry timestamps, attachments/links, language, optional translation provenance, and acknowledgement policy. Users can follow categories and scopes; critical notices may override ordinary notification preferences according to policy.
+
+Publication lifecycle: DRAFT → REVIEW (if required) → SCHEDULED/PUBLISHED → EXPIRED/ARCHIVED, with FAILED and UNKNOWN represented explicitly. Delivery state is tracked separately per recipient where technically supported: PENDING, DELIVERED, ACKNOWLEDGED, FAILED, UNKNOWN. Publication is not delivery; delivery is not acknowledgement; acknowledgement is not proof that a person read, understood or agreed with the message.
+
+Authorized publishers may target only audiences within their scope. Critical announcements require a defined authorized role and may require a second approver. Corrections and withdrawals preserve an audit trail; edits to published notices show a visible updated timestamp and change history. Acknowledgement is required only when justified by policy, not as a routine surveillance mechanism.
+
+### 17.2 Innovation & Development Board
+
+**Purpose:** an inclusive, employee-accessible pipeline for ideas, problems, proposals and practical improvements. Any employee may submit a proposal regardless of department or seniority, subject to clear confidentiality and safety boundaries.
+
+Proposal categories include:
+- product/service innovation and new business opportunities;
+- process simplification, quality and operational efficiency;
+- technology, automation, AI and digital transformation;
+- customer/partner experience;
+- workplace safety, accessibility and working conditions;
+- sustainability, resource use and cost reduction;
+- training, knowledge sharing and organizational development.
+
+A guided submission should ask for only useful information: short title, problem/opportunity, proposed change, expected benefit, affected area, optional evidence/attachments, estimated effort or dependencies if known, and whether the proposal may be shared broadly. Employees are not expected to produce a business case before submitting an idea; reviewers can help develop it.
+
+Every proposal receives a stable ID, submission timestamp, acknowledgement and visible lifecycle. Proposed lifecycle: DRAFT → SUBMITTED → TRIAGE → UNDER_REVIEW → NEEDS_INFORMATION / PILOT_PROPOSED → ACCEPTED → PILOT_IN_PROGRESS → ADOPTED, with alternative terminal/holding states DECLINED, DUPLICATE, ON_HOLD, WITHDRAWN, ARCHIVED, plus UNKNOWN where evidence is absent. A decline or hold must include a respectful explanation and, where possible, a suggested alternative or revisit condition.
+
+Participation features:
+- comments and constructive discussion, with moderation and anti-harassment controls;
+- support signals and optional peer collaboration requests; popularity is not the sole selection criterion;
+- tags, related proposals and duplicate linking without erasing the original contributor's record;
+- an assigned reviewer/owner, next action and target review date;
+- requests for clarification and the ability for the author to revise or add evidence;
+- pilot proposals with scope, sponsor, success criteria, risks, budget/effort estimate and review date;
+- links to approved tasks, projects, Process Studio workflows and meeting decisions;
+- contributor recognition and outcome reporting, with public attribution only according to the contributor's preference and organizational policy.
+
+A proposal must never silently disappear. The submitter can see its current status, responsible review function, last update, next expected step and decision rationale, subject to confidentiality rules. Configurable service targets should govern acknowledgement and first review; missed targets surface to the responsible owner rather than being hidden. No automatic acceptance, funding or implementation is implied by submission or peer support.
+
+### 17.3 Fairness, confidentiality and governance
+
+- Submission is open to all employees; evaluation authority is assigned by domain expertise and policy, not by the submitter's rank.
+- Separate idea visibility (PRIVATE_TO_AUTHOR_AND_REVIEWERS, TEAM, ORGANIZATION) from proposal lifecycle and access permissions.
+- Provide a confidential route for sensitive operational, personnel or security-related concerns; route these to a restricted authorized function rather than a public idea feed. Do not describe a submission as anonymous unless identity handling and metadata leakage have been independently verified.
+- Protect employees from retaliation for good-faith proposals and respectful criticism; provide moderation, reporting and escalation routes.
+- Record decision metadata and status history, not unnecessary private discussion content. Restrict access to confidential proposals and attachments.
+- Declare intellectual-property, confidentiality and external-publication rules before submission. Do not silently transfer employee ownership or grant publication rights through a generic submit button; obtain legal review for the applicable jurisdiction and employment arrangements.
+- Publish aggregate outcomes such as proposals received, reviewed, piloted and adopted only when cohort sizes and privacy controls prevent re-identification. Do not create coercive employee leaderboards or rank individuals by idea count.
+- Distinguish SUBMITTED, REVIEWED, PILOTED and ADOPTED in analytics. A submission count is not an innovation outcome.
+
+### 17.4 Proposed data and API contracts
+
+Proposed TRAMPILLERA-owned records (contracts only; not implemented):
+- communication_announcements, communication_announcement_audiences, communication_announcement_deliveries, communication_announcement_acknowledgements;
+- innovation_proposals, innovation_proposal_tags, innovation_proposal_comments, innovation_proposal_support, innovation_proposal_reviews, innovation_proposal_status_events, innovation_pilots.
+
+Proposed API namespace (not implemented):
+- /api/v1/communications/announcements and /api/v1/communications/announcements/:id/acknowledgements;
+- /api/v1/communications/innovation/proposals, /proposals/:id, /proposals/:id/comments, /proposals/:id/reviews, /proposals/:id/status, /proposals/:id/pilots;
+- /api/v1/communications/participation/metrics for privacy-preserving aggregate metrics.
+
+All writes require server-side identity, scope authorization, validation, rate limits, CSRF protection where applicable, correlation IDs and audit events. Status transitions are validated server-side. These records must integrate with the existing audit and notification boundaries and must not be represented as live capabilities until implemented and tested.
+
+### 17.5 Acceptance gates
+
+Before release, test audience isolation, unauthorized publication and review attempts, scheduled delivery, expiry, correction history, failed/unknown delivery, acknowledgement semantics, notification preferences, confidential proposal visibility, reviewer assignment, state-transition enforcement, comment moderation, attachment access, offboarding, retention/deletion, accessibility and mobile-responsive behavior. Verify that an employee can submit an idea, receive acknowledgement, track its owner and status, and see a reasoned outcome end-to-end. Until these tests pass, the boards remain architecture-only / NOT IMPLEMENTED.
