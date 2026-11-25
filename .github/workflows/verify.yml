@@ -26,6 +26,7 @@ jobs:
         run: |
           npm --prefix app run check
           node --test scripts/ai-provider.test.mjs
+          node --test scripts/migrations.test.mjs
           node scripts/verify-preservation.mjs
           node --test scripts/locale-voice.test.mjs
           node --check app/public/shared/trampillera-analytics.js
