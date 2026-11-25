@@ -63,6 +63,17 @@ curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
   http://127.0.0.1:3000/api/auth/recovery-codes > "$RECOVERY_JSON"
 jq -e '.count == 10 and .displayOnce == true and (.codes | length == 10)' "$RECOVERY_JSON" >/dev/null
 ADMIN_RECOVERY_CODE="$(jq -r '.codes[0]' "$RECOVERY_JSON")"
+echo "PSL stage: recovery code regeneration revokes the previous set"
+curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"password\":\"$ADMIN_PASSWORD\",\"sequence\":$VSC_SEQUENCE,\"code\":\"$ADMIN_TOTP_CODE\"}" \
+  http://127.0.0.1:3000/api/auth/recovery-codes > "$RECOVERY_JSON"
+REPLACEMENT_RECOVERY_CODE="$(jq -r '.codes[0]' "$RECOVERY_JSON")"
+test "$REPLACEMENT_RECOVERY_CODE" != "$ADMIN_RECOVERY_CODE"
+OLD_CODE_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Content-Type: application/json' \
+  -d "{\"accountType\":\"admin\",\"password\":\"$ADMIN_PASSWORD\",\"recoveryCode\":\"$ADMIN_RECOVERY_CODE\"}" \
+  http://127.0.0.1:3000/api/auth/recovery/reset)"
+test "$OLD_CODE_STATUS" = "401"
+ADMIN_RECOVERY_CODE="$REPLACEMENT_RECOVERY_CODE"
 BAD_RECOVERY_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Content-Type: application/json' \
   -d "{\"accountType\":\"admin\",\"password\":\"wrong-password\",\"recoveryCode\":\"$ADMIN_RECOVERY_CODE\"}" \
   http://127.0.0.1:3000/api/auth/recovery/reset)"
