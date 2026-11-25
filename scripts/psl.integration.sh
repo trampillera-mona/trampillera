@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ADMIN_PASSWORD="\${1:?admin password required}"
-EMPLOYEE_EMAIL="\${2:?employee email required}"
-EMPLOYEE_PASSWORD="\${3:?employee password required}"
+set -a
+source .env
+set +a
+test -n "\${ADMIN_PASSWORD:-}"
+test -n "\${PSL_ENCRYPTION_KEY:-}"
+
 ADMIN_COOKIE="/tmp/psl-admin-cookie.txt"
 EMPLOYEE_COOKIE="/tmp/psl-employee-cookie.txt"
 TOTP_JSON="/tmp/psl-totp-enrollment.json"
+EMPLOYEE_EMAIL="ci-vsc-$RANDOM-$(date +%s)@example.test"
+EMPLOYEE_PASSWORD="$(openssl rand -hex 24)"
 VSC_SEQUENCE='["ember","sun","leaf","aqua","sky","indigo"]'
 
 curl() { command curl -H 'Origin: http://127.0.0.1:3000' "$@"; }
@@ -53,9 +58,16 @@ curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
   http://127.0.0.1:3000/api/auth/vsc/disable | jq -e '.enabled == false' >/dev/null
 
 echo "PSL integration: employee VSC enrollment and sign-in"
+EMPLOYEE_JSON="$(curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"name\":\"CI VSC Employee\",\"email\":\"$EMPLOYEE_EMAIL\",\"department\":\"QA\",\"jobTitle\":\"Security Test\"}" \
+  http://127.0.0.1:3000/api/control/team/employees)"
+TEMP_PASSWORD="$(printf '%s' "$EMPLOYEE_JSON" | jq -r '.temporaryPassword')"
+test -n "$TEMP_PASSWORD" && test "$TEMP_PASSWORD" != "null"
 curl --fail --silent -c "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$EMPLOYEE_EMAIL\",\"password\":\"$EMPLOYEE_PASSWORD\"}" \
-  http://127.0.0.1:3000/api/auth/employee-login | jq -e '.authenticated == true and .role == "employee"' >/dev/null
+  -d "{\"email\":\"$EMPLOYEE_EMAIL\",\"password\":\"$TEMP_PASSWORD\"}" \
+  http://127.0.0.1:3000/api/auth/employee-login | jq -e '.authenticated == true and .mustChangePassword == true' >/dev/null
+curl --fail --silent -b "$EMPLOYEE_COOKIE" -c "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"newPassword\":\"$EMPLOYEE_PASSWORD\"}" http://127.0.0.1:3000/api/auth/change-password >/dev/null
 curl --fail --silent -b "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"password\":\"$EMPLOYEE_PASSWORD\",\"sequence\":$VSC_SEQUENCE}" \
   http://127.0.0.1:3000/api/auth/vsc/enroll | jq -e '.pending == true' >/dev/null
