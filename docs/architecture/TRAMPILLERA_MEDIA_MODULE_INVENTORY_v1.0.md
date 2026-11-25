@@ -209,3 +209,32 @@ These tests establish the tested source and CI behaviors only. They do not prove
 - database backups can be restored.
 
 For the current dated operational snapshot, see [Release Baseline, Recovery Point & Deployment Readiness — 2026-11-25](audit/TRAMPILLERA_RELEASE_BASELINE_AND_RECOVERY_2026-11-25.md).
+
+
+## 14. Proposed module — TRAMPILLERA Communications (2026-11-25)
+
+| Module / experience | Current status | Architecture boundary | Recommended next action |
+|---|---|---|---|
+| TRAMPILLERA Communications | NOT IMPLEMENTED | Architecture proposal is documented in [Communications & Collaboration Architecture Specification v0.1](../communications/TRAMPILLERA_COMMUNICATIONS_AND_COLLABORATION_ARCHITECTURE_v0.1.md). No production messaging server, E2EE key service, realtime transport, WebRTC SFU, TURN service, meeting API, or secure file exchange is claimed. | Stage 0 proof of concept: evaluate a private Matrix-based messaging deployment and a separately hosted WebRTC SFU/TURN candidate; validate message and media E2EE, identity integration, browser support, hosting cost, and recovery before implementation. |
+
+The proposed module is intended to integrate with the existing employee identity/session model, Control Plane, Operations Desk, notifications, audit and future calendar/workflow domains. Its security contract explicitly separates transport encryption from end-to-end encryption and forbids logging message content or media as ordinary audit metadata. The proposal does not authorize recording or hidden employee-content monitoring.
+
+
+
+### 14.1 Capacity and event-mode requirement — 2026-11-25
+
+The user-defined planning range is **2–100 participants per communication session**. The product must support two distinct experience classes: (1) Everyday Communication for direct messages, small groups and ad-hoc calls; and (2) Corporate Events & Broadcasts for leadership/departments presenting news, products, developments, briefings, announcements and celebrations.
+
+This is a design target, not verified capacity. A 100-person event should be evaluated with an SFU-based topology and separate publisher/presenter/viewer roles. The proof of concept must test 2-person calls, small groups, 20-person interactive meetings and 100-person town-hall/presentation with limited publishers. Full-camera 100-person interactivity must not be promised without load-test evidence. Announcements require audience targeting, priority, delivery and optional acknowledgement states; publication, delivery and acknowledgement are distinct facts.
+
+
+## 14.2 Announcement Board and Innovation & Development Board
+
+**Status:** NOT IMPLEMENTED — architecture proposal only; no live board, persistence, delivery pipeline, review workflow or employee participation metrics are asserted.
+
+- **Announcement Board:** organization/department/team/project notices, leadership updates, operational changes, product/development news, events, achievements and celebrations. Supports audience scopes, priority, scheduling, expiry, correction history and optional acknowledgement. Publication, delivery and acknowledgement are distinct states and evidence.
+- **Innovation & Development Board:** any employee can submit improvement and innovation proposals; guided lightweight intake; discussion/support; reviewer and owner assignment; status tracking; clarification requests; pilot and adoption outcomes; reasoned decisions and contributor recognition by preference.
+- **Governance:** visibility and confidentiality are separate from lifecycle; restricted handling for sensitive concerns; no claim of anonymity without verification; no coercive popularity leaderboard; no proposal silently disappears; IP/confidentiality terms require legal review.
+- **Integration:** shared identity and access control, Communications notifications, audit events, Process Studio tasks/projects and aggregate privacy-preserving analytics.
+- **Proposed states:** announcement DRAFT/REVIEW/SCHEDULED/PUBLISHED/EXPIRED/ARCHIVED/FAILED/UNKNOWN; proposal DRAFT/SUBMITTED/TRIAGE/UNDER_REVIEW/NEEDS_INFORMATION/PILOT_PROPOSED/ACCEPTED/PILOT_IN_PROGRESS/ADOPTED/DECLINED/DUPLICATE/ON_HOLD/WITHDRAWN/ARCHIVED/UNKNOWN.
+- **Verification gate:** prove audience isolation, delivery/acknowledgement semantics, confidential access, state transitions, review ownership, reasoned outcomes, moderation, retention and end-to-end employee journey before marking REAL.
