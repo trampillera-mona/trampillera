@@ -1,6 +1,6 @@
 # PostgreSQL Migration Foundation v0.1
 
-**Status:** Implemented in source branch; NOT deployed  
+**Status:** Migration runner merged in PR #23; migration 0002 under review in PR branch; NOT deployed  
 **Date:** 2026-11-25  
 **Scope:** Versioned additive schema changes for the existing TRAMPILLERA PostgreSQL database.
 
@@ -8,7 +8,7 @@
 
 Introduce a controlled path for future database schema evolution without rewriting the existing startup bootstrap or changing existing employee/business records in this release.
 
-The first release deliberately establishes a migration ledger and stamps the schema that the legacy bootstrap already creates. It does not yet move all historical DDL into migration files and does not add organization, role, permission or duty tables.
+The migration foundation establishes a ledger and stamps the schema that the legacy bootstrap already creates. Migration `0002_normalized_organization.sql` adds normalized organization units, positions and effective-dated employee placements. It does not move historical DDL out of the legacy bootstrap and does not add roles, permissions or duties.
 
 ## 2. Current behavior
 
@@ -16,7 +16,7 @@ At application startup:
 1. Existing `initializeDatabase()` continues to create/verify the current tables and indexes using its existing idempotent `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` statements.
 2. After the legacy schema bootstrap succeeds, `runMigrations(pool)` acquires a PostgreSQL advisory lock.
 3. The runner creates `schema_migrations` if it does not exist.
-4. It applies `0001_legacy_schema_baseline.sql` as an intentionally no-op marker and records its SHA-256 checksum.
+4. It applies `0001_legacy_schema_baseline.sql` as an intentionally no-op marker and records its SHA-256 checksum.\n5. It applies `0002_normalized_organization.sql` as an additive schema migration and records its checksum.\n6. The lock is released and the client returned to the pool.
 5. Future numbered SQL files are applied in lexical/numeric order, each inside its own transaction.
 6. The lock is released and the client returned to the pool.
 
@@ -72,7 +72,7 @@ The existing GitHub Actions Docker/PostgreSQL smoke test continues to exercise r
 
 - Legacy schema DDL still lives in `initializeDatabase()`; the migration runner does not retroactively version or replay it.
 - The first baseline is a stamp, not an independently reproducible schema snapshot.
-- No normalized organization, scoped RBAC, duties or employee invitation schema is included.
+- Normalized organization tables are added by migration 0002; no CRUD APIs, directory UI, scoped RBAC, duties or employee invitation schema are included.
 - No production database was inspected or modified during development.
 - Source implementation and CI success do not establish Render deployment or production database backup/restore status.
 
