@@ -13,12 +13,13 @@ The migration foundation establishes a ledger and stamps the schema that the leg
 ## 2. Current behavior
 
 At application startup:
-1. Existing `initializeDatabase()` continues to create/verify the current tables and indexes using its existing idempotent `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` statements.
-2. After the legacy schema bootstrap succeeds, `runMigrations(pool)` acquires a PostgreSQL advisory lock.
+1. Existing `initializeDatabase()` continues to create/verify the legacy tables and indexes.
+2. After that bootstrap succeeds, `runMigrations(pool)` acquires a PostgreSQL advisory lock.
 3. The runner creates `schema_migrations` if it does not exist.
-4. It applies `0001_legacy_schema_baseline.sql` as an intentionally no-op marker and records its SHA-256 checksum.\n5. It applies `0002_normalized_organization.sql` as an additive schema migration and records its checksum.\n6. The lock is released and the client returned to the pool.
-5. Future numbered SQL files are applied in lexical/numeric order, each inside its own transaction.
-6. The lock is released and the client returned to the pool.
+4. It applies `0001_legacy_schema_baseline.sql` as an intentionally no-op marker and records its SHA-256 checksum.
+5. It applies `0002_normalized_organization.sql` as an additive schema migration and records its checksum.
+6. Future numbered SQL files are applied in order, each inside its own transaction.
+7. The lock is released and the client returned to the pool.
 
 This sequence is important: the baseline marker is recorded only after the existing bootstrap succeeds. It does not claim to reconstruct the original database history.
 
@@ -76,11 +77,23 @@ The existing GitHub Actions Docker/PostgreSQL smoke test continues to exercise r
 - No production database was inspected or modified during development.
 - Source implementation and CI success do not establish Render deployment or production database backup/restore status.
 
-## 8. Next stage
+## 8. Migration 0002 — normalized organization schema
 
-After this foundation is merged and verified:
-1. Add a tested additive migration for organization units and positions.
-2. Add effective-dated employee organization assignments with explicit, reviewed mapping from legacy free-text department/title fields.
-3. Add permission/role catalogues and scoped grants only after route-by-route authorization design.
-4. Add duties and evidence as a separate domain.
-5. Preserve legacy auth and Team Game compatibility at every stage.
+The review branch for PR #24 adds three tables without modifying existing business tables:
+- `org_units`: typed organizational hierarchy with a self-reference and cycle guard.
+- `positions`: normalized organizational designations, explicitly separate from access roles.
+- `employee_org_assignments`: effective-dated employee placements with foreign keys and overlapping-primary-period protection.
+
+The migration does not seed organizational units, positions or employee assignments. Existing `employees.department` and `employees.job_title` values remain untouched. No mapping is inferred from free text, names or spelling variants. Assignment rows remain empty until a separately reviewed mapping or authorized assignment workflow is implemented.
+
+CI is extended to verify the three tables exist, the migration ledger contains two entries after startup and restart, and existing/new employee records are not automatically assigned. This is source/CI evidence, not production database evidence.
+
+## 9. Next stage
+
+After PR #24 is merged and verified:
+1. Build a read-only organization directory and mapping review surface.
+2. Review legacy department/title values explicitly; leave ambiguous records UNASSIGNED.
+3. Add controlled organization and position management APIs with cycle and effective-date validation.
+4. Add permission/role catalogues and scoped grants only after route-by-route authorization design.
+5. Add duties and evidence as a separate domain.
+6. Preserve legacy auth and Team Game compatibility at every stage.
