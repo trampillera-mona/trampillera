@@ -409,3 +409,18 @@ The review branch `feat/organization-normalization-migration` adds `0002_normali
 No legacy `department` or `job_title` text is transformed. No organization rows, position rows or employee placements are seeded. Existing `employees` columns, IDs, credentials, auth versions, Team Game tables and foreign keys are not altered. The migration adds schema capability only; organization APIs, UI, authorization and reviewed mapping are future work.
 
 The PR's CI must prove clean PostgreSQL startup, migration ledger idempotency, schema presence, zero inferred assignments and continued employee/Team Game compatibility. Until those checks pass and the PR is merged/deployed, this remains source under review, not production capability.
+
+
+## Organization Desk implementation delta — 2026-11-25
+
+The proposed Control Plane Organization Desk adds admin-only read/write API routes and a dedicated directory workspace for the migration-0002 schema:
+
+- list organizational units, positions and existing employee accounts with current effective assignment (if any);
+- create organizational units and positions;
+- create explicit effective-dated employee placements after validating active employee, active unit and optional active position;
+- write audit events for created units, positions and assignments;
+- display legacy free-text department/job-title values for human review without automatic mapping or mutation.
+
+The interface intentionally distinguishes organizational position from system role/permission. It does not implement scoped RBAC, reporting-line authority, duties, payroll, performance management or employee self-service. Assignment creation does not rewrite legacy employee fields or grant access.
+
+Source implementation is proposed in PR #25 and is not deployed. Runtime and production-database verification remain outstanding. Before deployment, verify that the admin authorization middleware covers all new routes, that audit writes are atomic with each transaction, and that the SQL constraints and API payloads match the exact merged migration 0002.
