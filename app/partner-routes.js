@@ -4,7 +4,7 @@ export function configurePartnerRoutes({app,pool,clean,asyncRoute,requireAdmin,a
  const requirePartner=asyncRoute(async(req,res,next)=>{
   if(req.session?.authenticated!==true)return res.status(401).json({error:"Partner session required."});
   if(req.session.role==="employee"&&req.session.employeeId){
-   const employee=await pool.query("SELECT id FROM employees WHERE id=$1 AND active=TRUE AND auth_version=$2",[req.session.employeeId,req.session.authVersion]);
+   const employee=await pool.query("SELECT id FROM employees WHERE id=$1 AND active=TRUE AND must_change_password=FALSE AND auth_version=$2",[req.session.employeeId,req.session.authVersion]);
    if(!employee.rowCount)return res.status(401).json({error:"Employee session is no longer valid."});
    const linked=await pool.query("SELECT id,auth_version FROM partner_accounts WHERE employee_id=$1 AND active=TRUE",[req.session.employeeId]);
    if(!linked.rowCount)return res.status(403).json({error:"No partner affiliation is linked to this employee account."});
