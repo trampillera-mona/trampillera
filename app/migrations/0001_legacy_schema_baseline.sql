@@ -1,0 +1,4 @@
+-- Immutable baseline marker for the schema created by the legacy initializeDatabase() bootstrap.
+-- This migration intentionally performs no DDL. Existing installations are stamped only after
+-- the legacy bootstrap has successfully created/verified its tables. Fresh installations follow
+-- the same bootstrap path. All new schema changes must be added as later numbered migrations.
