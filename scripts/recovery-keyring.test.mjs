@@ -28,12 +28,12 @@ test("versioned TOTP keyring encrypts and decrypts with key ID binding", () => {
   const newKey = crypto.randomBytes(32).toString("base64");
   const oldRing = { key_2026_01: oldKey };
   const envelope = encryptTotpWithKeyring("JBSWY3DPEHPK3PXP", oldRing, "key_2026_01");
-  assert.match(envelope, /^v2\\.key_2026_01\\./);
+  assert.match(envelope, /^v2\.key_2026_01\./);
   assert.equal(decryptTotpWithKeyring(envelope, oldRing), "JBSWY3DPEHPK3PXP");
   assert.throws(() => decryptTotpWithKeyring(envelope, { key_2026_02: newKey }));
   const rotatedRing = { key_2026_01: oldKey, key_2026_02: newKey };
   const rotated = rotateTotpEnvelope(envelope, rotatedRing, "key_2026_02");
-  assert.match(rotated, /^v2\\.key_2026_02\\./);
+  assert.match(rotated, /^v2\.key_2026_02\./);
   assert.equal(decryptTotpWithKeyring(rotated, rotatedRing), "JBSWY3DPEHPK3PXP");
   assert.equal(decryptTotpWithKeyring(envelope, rotatedRing), "JBSWY3DPEHPK3PXP");
 });
@@ -43,6 +43,6 @@ test("legacy v1 envelopes can be read and migrated without losing the old key", 
   const legacy = encryptTotpSecret("JBSWY3DPEHPK3PXP", legacyKey);
   const nextKey = crypto.randomBytes(32).toString("base64");
   const migrated = rotateTotpEnvelope(legacy, { key_2026_02: nextKey }, "key_2026_02", legacyKey);
-  assert.match(migrated, /^v2\\.key_2026_02\\./);
+  assert.match(migrated, /^v2\.key_2026_02\./);
   assert.equal(decryptTotpWithKeyring(migrated, { key_2026_02: nextKey }), "JBSWY3DPEHPK3PXP");
 });
