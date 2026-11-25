@@ -12,7 +12,7 @@
   let renderer, scene, camera, controls, earth, raf = 0, resizeObserver;
   let webglReady = false;
   let sunLight, ambientLight, rimLight, clouds, atmosphere, stars;
-  let targetCameraPosition = null, solarTimer = 0;
+  let targetCameraPosition = null, solarTimer = 0, orbitTargetX = 0;
   let timeOffsetHours = 0, currentRegionKey = 'GLOBAL', lastSolarPhase = '', atmosphereBoost = true;
   const regions = {
     GLOBAL: { label: 'GLOBAL', lat: 20, lon: 0 },
@@ -88,7 +88,7 @@
       const radius = 2.48;
       // Keep the Earth at the scene origin. The orbit target is deliberately
       // offset, matching the reference banner's wide orbital composition.
-      let orbitTargetX = Math.min(2.6, Math.max(.72, width * .0022));
+      orbitTargetX = Math.min(2.6, Math.max(.72, width * .0022));
       const viewTarget = new THREE.Vector3(orbitTargetX, 0, 0);
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(43, width / height, .1, 120);
