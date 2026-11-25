@@ -209,3 +209,13 @@ These tests establish the tested source and CI behaviors only. They do not prove
 - database backups can be restored.
 
 For the current dated operational snapshot, see [Release Baseline, Recovery Point & Deployment Readiness — 2026-11-25](audit/TRAMPILLERA_RELEASE_BASELINE_AND_RECOVERY_2026-11-25.md).
+
+
+## 14. Proposed module — TRAMPILLERA Communications (2026-11-25)
+
+| Module / experience | Current status | Architecture boundary | Recommended next action |
+|---|---|---|---|
+| TRAMPILLERA Communications | NOT IMPLEMENTED | Architecture proposal is documented in [Communications & Collaboration Architecture Specification v0.1](../communications/TRAMPILLERA_COMMUNICATIONS_AND_COLLABORATION_ARCHITECTURE_v0.1.md). No production messaging server, E2EE key service, realtime transport, WebRTC SFU, TURN service, meeting API, or secure file exchange is claimed. | Stage 0 proof of concept: evaluate a private Matrix-based messaging deployment and a separately hosted WebRTC SFU/TURN candidate; validate message and media E2EE, identity integration, browser support, hosting cost, and recovery before implementation. |
+
+The proposed module is intended to integrate with the existing employee identity/session model, Control Plane, Operations Desk, notifications, audit and future calendar/workflow domains. Its security contract explicitly separates transport encryption from end-to-end encryption and forbids logging message content or media as ordinary audit metadata. The proposal does not authorize recording or hidden employee-content monitoring.
+
