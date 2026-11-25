@@ -465,7 +465,7 @@ async function pslVerifyActiveFactors(account, body) {
   }
   return true;
 }
-const pslRecoveryLimiter=rateLimit({windowMs:15*60_000,limit:6,standardHeaders:"draft-8",legacyHeaders:false});
+const pslRecoveryLimiter=rateLimit({windowMs:15*60_000,limit:12,standardHeaders:"draft-8",legacyHeaders:false});
 app.post("/api/auth/recovery-codes",pslRecoveryLimiter,pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
   const account=pslAccountFromSession(req);
   if(!await pslCurrentPasswordMatches(account,req.body?.password)) return res.status(401).json({error:"Current password is incorrect."});
