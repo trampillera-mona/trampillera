@@ -26,6 +26,7 @@ jobs:
         run: |
           npm --prefix app run check
           node --test scripts/ai-provider.test.mjs
+          node --test scripts/migrations.test.mjs
           node scripts/verify-preservation.mjs
           node --test scripts/locale-voice.test.mjs
           node --check app/public/shared/trampillera-analytics.js
@@ -52,6 +53,20 @@ jobs:
             fi
             sleep 2
           done
+          echo "CI: verify PostgreSQL migration baseline and restart idempotency"
+          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '1'
+          docker compose restart app
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3000/api/health > /dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker compose logs app db
+              exit 1
+            fi
+            sleep 2
+          done
+          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '1'
           curl --fail --silent http://127.0.0.1:3000/
           curl --fail --silent http://127.0.0.1:3000/shared/trampillera-global-controls.js | grep -q 'TrampilleraLocaleCore'
           curl --fail --silent http://127.0.0.1:3000/shared/trampillera-analytics.js | grep -q 'trampillera.analytics.consent.v1'

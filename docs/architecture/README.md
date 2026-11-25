@@ -23,6 +23,7 @@ This directory is the canonical documentation index for the TRAMPILLERA reposito
 ## Domain architecture
 
 - [Identity & Duties Foundation Specification v0.1](identity/TRAMPILLERA_IDENTITY_AND_DUTIES_FOUNDATION_v0.1.md)
+- [PostgreSQL Migration Foundation v0.1](identity/POSTGRES_MIGRATION_FOUNDATION_v0.1.md)
 - [Audience Intelligence & Growth Module v1.0](analytics-growth/TRAMPILLERA_AUDIENCE_INTELLIGENCE_GROWTH_v1.0.md)
 
 ## Documentation rules
