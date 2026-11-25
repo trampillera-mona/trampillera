@@ -6,7 +6,7 @@ import rateLimit from "express-rate-limit";
 import pg from "pg";
 import { runMigrations } from "./migrations.js";
 import crypto from "node:crypto";
-import { generateTotpSecret, encryptTotpSecret, decryptTotpSecret, buildOtpAuthUri, verifyTotp } from "./security/totp.js";
+import { generateTotpSecret, encryptTotpSecret, decryptTotpSecret, buildOtpAuthUri, matchingTotpCounter } from "./security/totp.js";
 import { createVscVerifier, verifyVscSequence } from "./security/vsc.js";
 import { generateRecoveryCodes, parseRecoveryCode, verifyRecoveryCode } from "./security/recovery-keyring.js";
 import path from "node:path";
@@ -486,7 +486,7 @@ async function pslCurrentPasswordMatches(account,password){
   return !!r.rowCount&&passwordMatches(password,r.rows[0].password_hash);
 }
 async function pslVerifyActiveFactors(account, body) {
-  const factors=await pool.query("SELECT id,factor_type,verifier,secret_ciphertext,failed_attempts,locked_until FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND status='ACTIVE' AND factor_type IN ('TOTP','VSC') ORDER BY factor_type",[account.type,account.id]);
+  const factors=await pool.query("SELECT id,factor_type,verifier,secret_ciphertext,failed_attempts,locked_until,last_totp_counter FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND status='ACTIVE' AND factor_type IN ('TOTP','VSC') ORDER BY factor_type",[account.type,account.id]);
   for(const factor of factors.rows){
     if(factor.locked_until && new Date(factor.locked_until).getTime()>Date.now()) return false;
     let valid=false;
@@ -494,13 +494,20 @@ async function pslVerifyActiveFactors(account, body) {
     if(factor.factor_type==="TOTP"){
       const masterKey=process.env.PSL_ENCRYPTION_KEY;
       if(!masterKey || Buffer.byteLength(masterKey,"utf8")<32) throw new Error("TOTP verification is not configured.");
-      try{valid=verifyTotp(decryptTotpSecret(factor.secret_ciphertext,masterKey),typeof body?.code==="string"?body.code.trim():"");}catch{valid=false;}
+      try{
+        const secret=decryptTotpSecret(factor.secret_ciphertext,masterKey);
+        const counter=matchingTotpCounter(secret,typeof body?.code==="string"?body.code.trim():"");
+        if(counter!==null){
+          const consumed=await pool.query("UPDATE account_security_factors SET last_totp_counter=$2,failed_attempts=0,locked_until=NULL,last_used_at=NOW() WHERE id=$1 AND status='ACTIVE' AND (last_totp_counter IS NULL OR last_totp_counter<$2) RETURNING id",[factor.id,counter]);
+          valid=consumed.rowCount===1;
+        }
+      }catch{valid=false;}
     }
     if(!valid){
       await pool.query("UPDATE account_security_factors SET failed_attempts=failed_attempts+1,locked_until=CASE WHEN failed_attempts+1>=5 THEN NOW()+INTERVAL '15 minutes' ELSE locked_until END WHERE id=$1",[factor.id]);
       return false;
     }
-    await pool.query("UPDATE account_security_factors SET failed_attempts=0,locked_until=NULL,last_used_at=NOW() WHERE id=$1",[factor.id]);
+    if(factor.factor_type==="VSC") await pool.query("UPDATE account_security_factors SET failed_attempts=0,locked_until=NULL,last_used_at=NOW() WHERE id=$1",[factor.id]);
   }
   return true;
 }
@@ -605,20 +612,25 @@ app.post("/api/auth/totp/verify-login",pslLoginVerifyLimiter,asyncRoute(async(re
   if(pending.requiresVsc&&!pending.vscVerified) return res.status(409).json({error:"Complete the visual security check first."});
   const token=typeof req.body?.code==="string"?req.body.code.trim():"";
   if(!/^\d{6}$/.test(token)) return res.status(400).json({error:"Enter the six-digit authenticator code."});
-  const factor=await pool.query("SELECT id,secret_ciphertext,failed_attempts,locked_until FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND factor_type='TOTP' AND status='ACTIVE' LIMIT 1",[pending.accountType,pending.accountId]);
+  const factor=await pool.query("SELECT id,secret_ciphertext,failed_attempts,locked_until,last_totp_counter FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND factor_type='TOTP' AND status='ACTIVE' LIMIT 1",[pending.accountType,pending.accountId]);
   if(!factor.rowCount){req.session=null;return res.status(401).json({error:"Security factor is unavailable. Sign in again."});}
   const row=factor.rows[0];
   if(row.locked_until && new Date(row.locked_until).getTime()>Date.now()) return res.status(429).json({error:"Authenticator verification is temporarily locked. Try again later."});
   const masterKey=process.env.PSL_ENCRYPTION_KEY;
   if(!masterKey) return res.status(503).json({error:"Authenticator verification is temporarily unavailable. Contact an administrator."});
-  let valid=false;
-  try{valid=verifyTotp(decryptTotpSecret(row.secret_ciphertext,masterKey),token);}catch{valid=false;}
-  if(!valid){
+  let counter=null;
+  try{counter=matchingTotpCounter(decryptTotpSecret(row.secret_ciphertext,masterKey),token);}catch{counter=null;}
+  if(counter===null){
     await pool.query("UPDATE account_security_factors SET failed_attempts=failed_attempts+1,locked_until=CASE WHEN failed_attempts+1>=5 THEN NOW()+INTERVAL '15 minutes' ELSE locked_until END WHERE id=$1",[row.id]);
     await audit("PSL_TOTP_LOGIN_FAILED","security",pending.accountType+":"+pending.accountId,"Authenticator challenge rejected","system");
-    return res.status(401).json({error:"Authenticator code is incorrect."});
+    return res.status(401).json({error:"Authenticator code is incorrect or already used."});
   }
-  await pool.query("UPDATE account_security_factors SET failed_attempts=0,locked_until=NULL,last_used_at=NOW() WHERE id=$1",[row.id]);
+  const consumed=await pool.query("UPDATE account_security_factors SET last_totp_counter=$2,failed_attempts=0,locked_until=NULL,last_used_at=NOW() WHERE id=$1 AND status='ACTIVE' AND (last_totp_counter IS NULL OR last_totp_counter<$2) RETURNING id",[row.id,counter]);
+  if(!consumed.rowCount){
+    await pool.query("UPDATE account_security_factors SET failed_attempts=failed_attempts+1,locked_until=CASE WHEN failed_attempts+1>=5 THEN NOW()+INTERVAL '15 minutes' ELSE locked_until END WHERE id=$1",[row.id]);
+    await audit("PSL_TOTP_REPLAY_REJECTED","security",pending.accountType+":"+pending.accountId,"Previously accepted authenticator time-step rejected","system");
+    return res.status(401).json({error:"Authenticator code is incorrect or already used."});
+  }
   return pslCompletePreAuth(req,res,pending);
 }));
 app.get("/api/auth/security",pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
@@ -660,15 +672,15 @@ app.post("/api/auth/totp/confirm",pslFactorLimiter,pslVerifyCurrentAccount,async
   if(!masterKey) return res.status(503).json({error:"Authenticator enrollment is not configured."});
   const pending=await pool.query("SELECT id,secret_ciphertext,created_at FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND factor_type='TOTP' AND status='PENDING' ORDER BY created_at DESC LIMIT 1",[account.type,account.id]);
   if(!pending.rowCount || Date.now()-new Date(pending.rows[0].created_at).getTime()>10*60_000) return res.status(404).json({error:"No active enrollment challenge. Start enrollment again."});
-  let valid=false;try{valid=verifyTotp(decryptTotpSecret(pending.rows[0].secret_ciphertext,masterKey),token);}catch{valid=false;}
-  if(!valid) return res.status(401).json({error:"Authenticator code is incorrect."});
+  let acceptedCounter=null;try{acceptedCounter=matchingTotpCounter(decryptTotpSecret(pending.rows[0].secret_ciphertext,masterKey),token);}catch{acceptedCounter=null;}
+  if(acceptedCounter===null) return res.status(401).json({error:"Authenticator code is incorrect."});
   const client=await pool.connect();
   try{
     await client.query("BEGIN");
     const locked=await client.query("SELECT id,status FROM account_security_factors WHERE id=$1 FOR UPDATE",[pending.rows[0].id]);
     if(!locked.rowCount || locked.rows[0].status!=="PENDING") throw new Error("Enrollment challenge is no longer pending.");
     await client.query("UPDATE account_security_factors SET status='REVOKED',revoked_at=NOW() WHERE account_type=$1 AND account_id=$2 AND factor_type='TOTP' AND status='ACTIVE'",[account.type,account.id]);
-    await client.query("UPDATE account_security_factors SET status='ACTIVE',activated_at=NOW(),failed_attempts=0,locked_until=NULL WHERE id=$1",[pending.rows[0].id]);
+    await client.query("UPDATE account_security_factors SET status='ACTIVE',activated_at=NOW(),failed_attempts=0,locked_until=NULL,last_totp_counter=$2 WHERE id=$1",[pending.rows[0].id,acceptedCounter]);
     await client.query("INSERT INTO account_security_settings(account_type,account_id,recovery_reenroll_required,updated_at) VALUES($1,$2,FALSE,NOW()) ON CONFLICT(account_type,account_id) DO UPDATE SET recovery_reenroll_required=FALSE,updated_at=NOW()",[account.type,account.id]);
     await auditWithClient(client,"PSL_TOTP_ENABLED","security",account.type+":"+account.id,"Authenticator factor enabled",account.type==="admin"?"admin":account.id);
     await client.query("COMMIT");
@@ -681,16 +693,16 @@ app.post("/api/auth/totp/disable",pslFactorLimiter,pslVerifyCurrentAccount,async
   if(account.type==="admin"){const expected=Buffer.from(ADMIN_PASSWORD),supplied=Buffer.from(password);passwordOk=expected.length===supplied.length&&crypto.timingSafeEqual(expected,supplied);}
   else{const r=await pool.query("SELECT password_hash FROM employees WHERE id=$1",[account.id]);passwordOk=!!r.rowCount&&passwordMatches(password,r.rows[0].password_hash);}
   if(!passwordOk) return res.status(401).json({error:"Current password is incorrect."});
-  const active=await pool.query("SELECT id,secret_ciphertext FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND factor_type='TOTP' AND status='ACTIVE'",[account.type,account.id]);
+  const active=await pool.query("SELECT id,secret_ciphertext,last_totp_counter FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND factor_type='TOTP' AND status='ACTIVE'",[account.type,account.id]);
   if(!active.rowCount) return res.status(404).json({error:"No active authenticator is configured."});
   const masterKey=process.env.PSL_ENCRYPTION_KEY;
   if(!masterKey) return res.status(503).json({error:"Authenticator verification is unavailable."});
-  let valid=false;try{valid=verifyTotp(decryptTotpSecret(active.rows[0].secret_ciphertext,masterKey),token);}catch{valid=false;}
-  if(!valid) return res.status(401).json({error:"Authenticator code is incorrect."});
+  let acceptedCounter=null;try{acceptedCounter=matchingTotpCounter(decryptTotpSecret(active.rows[0].secret_ciphertext,masterKey),token);}catch{acceptedCounter=null;}
+  if(acceptedCounter===null) return res.status(401).json({error:"Authenticator code is incorrect or already used."});
   const client=await pool.connect();
   try{
     await client.query("BEGIN");
-    const revoked=await client.query("UPDATE account_security_factors SET status='REVOKED',revoked_at=NOW() WHERE id=$1 AND status='ACTIVE' RETURNING id",[active.rows[0].id]);
+    const revoked=await client.query("UPDATE account_security_factors SET status='REVOKED',revoked_at=NOW(),last_totp_counter=$2 WHERE id=$1 AND status='ACTIVE' AND (last_totp_counter IS NULL OR last_totp_counter<$2) RETURNING id",[active.rows[0].id,acceptedCounter]);
     if(!revoked.rowCount) throw new Error("Authenticator factor is no longer active.");
     await auditWithClient(client,"PSL_TOTP_DISABLED","security",account.type+":"+account.id,"Authenticator factor disabled",account.type==="admin"?"admin":account.id);
     await client.query("COMMIT");
