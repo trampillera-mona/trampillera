@@ -11,15 +11,15 @@ function derive(value, salt) {
 
 function normalizeRecoveryCode(value) {
   if (typeof value !== "string") return null;
-  const normalized = value.replace(/[\\s-]/g, "").toUpperCase();
-  return /^[A-Z0-9_-]{32}$/.test(normalized) ? normalized : null;
+  const normalized = value.replace(/[\s-]/g, "").toUpperCase();
+  return /^[A-F0-9]{48}$/.test(normalized) ? normalized : null;
 }
 
 export function generateRecoveryCodes(count = RECOVERY_CODE_COUNT) {
   if (!Number.isInteger(count) || count < 1 || count > 20) {
     throw new RangeError("Recovery code count must be between 1 and 20.");
   }
-  const codes = Array.from({ length: count }, () => crypto.randomBytes(RECOVERY_CODE_BYTES).toString("base64url").toUpperCase());
+  const codes = Array.from({ length: count }, () => crypto.randomBytes(RECOVERY_CODE_BYTES).toString("hex").toUpperCase());
   return {
     codes,
     verifiers: codes.map((code) => hashRecoveryCode(code))
