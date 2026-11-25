@@ -337,6 +337,35 @@ function validateBody(fields) {
   };
 }
 
+// After recovery, authenticated sessions may reach only password setup and factor re-enrollment.
+const recoverySetupRoutes = new Set([
+  "GET /api/auth/me",
+  "GET /api/auth/security",
+  "POST /api/auth/totp/enroll",
+  "POST /api/auth/totp/confirm",
+  "POST /api/auth/vsc/enroll",
+  "POST /api/auth/vsc/confirm",
+  "POST /api/auth/change-password",
+  "POST /api/auth/logout"
+]);
+app.use("/api", asyncRoute(async (req,res,next) => {
+  if (req.session?.authenticated !== true) return next();
+  let account = null;
+  if (req.session.role === "admin") account = { type:"admin", id:"1" };
+  else if (req.session.role === "employee" && req.session.employeeId) account = { type:"employee", id:String(req.session.employeeId) };
+  if (!account) return next();
+  const gate = await pool.query(
+    "SELECT recovery_reenroll_required FROM account_security_settings WHERE account_type=$1 AND account_id=$2",
+    [account.type,account.id]
+  );
+  if (gate.rows[0]?.recovery_reenroll_required !== true) return next();
+  if (recoverySetupRoutes.has(req.method + " " + req.path)) return next();
+  return res.status(423).json({
+    error:"Complete authenticator re-enrollment before using the workspace.",
+    code:"SECURITY_REENROLLMENT_REQUIRED"
+  });
+}));
+
 app.get("/api/health", asyncRoute(async (_req,res) => {
   await pool.query("SELECT 1");
   res.json({ status:"ok", service:"trampillera-unified", database:"connected", timestamp:new Date().toISOString() });
@@ -396,6 +425,8 @@ app.post("/api/auth/login", asyncRoute(async (req,res) => {
   if (!authState.rowCount) return res.status(503).json({ error:"Administrator authentication state is unavailable." });
   const version=Number(authState.rows[0].auth_version);
   const factors=await pool.query("SELECT factor_type FROM account_security_factors WHERE account_type='admin' AND account_id='1' AND status='ACTIVE' AND factor_type IN ('TOTP','VSC')");
+  const gate=await pool.query("SELECT recovery_reenroll_required FROM account_security_settings WHERE account_type='admin' AND account_id='1'");
+  const requiresFactorEnrollment=gate.rows[0]?.recovery_reenroll_required===true;
   const requiresVsc=factors.rows.some(x=>x.factor_type==="VSC"),requiresTotp=factors.rows.some(x=>x.factor_type==="TOTP");
   if(requiresVsc||requiresTotp){
     req.session={preAuth:{accountType:"admin",accountId:"1",authVersion:version,expiresAt:Date.now()+5*60_000,requiresVsc,requiresTotp,vscVerified:false}};
@@ -403,6 +434,10 @@ app.post("/api/auth/login", asyncRoute(async (req,res) => {
   }
   const now=Date.now();
   req.session = { authenticated:true, role:"admin", adminAuthVersion:version, actor:"admin", issuedAt:now, lastSeenAt:now };
+  if(requiresFactorEnrollment) {
+    await audit("PSL_RECOVERY_REENROLLMENT_REQUIRED","security","admin:1","Restricted session created; TOTP re-enrollment required","system");
+    return res.json({authenticated:true,role:"admin",requiresFactorEnrollment:true});
+  }
   await audit("AUTH_LOGIN","security","admin","Administrator session created");
   res.json({ authenticated:true });
 }));
@@ -412,11 +447,15 @@ app.get("/api/auth/me", asyncRoute(async (req,res) => {
     const r=await pool.query("SELECT id,email,display_name,department,job_title,must_change_password,active,auth_version FROM employees WHERE id=$1",[req.session.employeeId]);
     if(!r.rowCount || !r.rows[0].active || Number(req.session.authVersion)!==Number(r.rows[0].auth_version)) { req.session=null; return res.json({authenticated:false}); }
     const e=r.rows[0];
-    return res.json({authenticated:true,role:"employee",employee:{id:e.id,email:e.email,name:e.display_name,department:e.department,jobTitle:e.job_title,mustChangePassword:e.must_change_password}});
+    const gate=await pool.query("SELECT recovery_reenroll_required FROM account_security_settings WHERE account_type='employee' AND account_id=$1",[String(e.id)]);
+    return res.json({authenticated:true,role:"employee",requiresFactorEnrollment:gate.rows[0]?.recovery_reenroll_required===true,employee:{id:e.id,email:e.email,name:e.display_name,department:e.department,jobTitle:e.job_title,mustChangePassword:e.must_change_password}});
   }
   if(req.session.role === "admin" && Number.isSafeInteger(Number(req.session.adminAuthVersion))) {
     const r=await pool.query("SELECT auth_version FROM admin_auth_state WHERE singleton_id=1");
-    if(r.rowCount && Number(req.session.adminAuthVersion)===Number(r.rows[0].auth_version)) return res.json({authenticated:true,role:"admin"});
+    if(r.rowCount && Number(req.session.adminAuthVersion)===Number(r.rows[0].auth_version)) {
+      const gate=await pool.query("SELECT recovery_reenroll_required FROM account_security_settings WHERE account_type='admin' AND account_id='1'");
+      return res.json({authenticated:true,role:"admin",requiresFactorEnrollment:gate.rows[0]?.recovery_reenroll_required===true});
+    }
   }
   req.session=null;
   return res.json({authenticated:false});
@@ -524,6 +563,7 @@ app.post("/api/auth/recovery/reset",pslRecoveryLimiter,asyncRoute(async(req,res)
     await client.query("UPDATE account_recovery_codes SET consumed_at=NOW() WHERE id=$1",[selected.rows[0].id]);
     await client.query("UPDATE account_recovery_codes SET revoked_at=NOW() WHERE account_type=$1 AND account_id=$2 AND id<>$3 AND consumed_at IS NULL AND revoked_at IS NULL",[account.type,account.id,selected.rows[0].id]);
     await client.query("UPDATE account_security_factors SET status='REVOKED',revoked_at=NOW() WHERE account_type=$1 AND account_id=$2 AND status IN ('ACTIVE','PENDING')",[account.type,account.id]);
+    await client.query("INSERT INTO account_security_settings(account_type,account_id,recovery_reenroll_required,updated_at) VALUES($1,$2,TRUE,NOW()) ON CONFLICT(account_type,account_id) DO UPDATE SET recovery_reenroll_required=TRUE,updated_at=NOW()",[account.type,account.id]);
     if(account.type==="admin") await client.query("UPDATE admin_auth_state SET auth_version=auth_version+1,updated_at=NOW() WHERE singleton_id=1");
     else await client.query("UPDATE employees SET auth_version=auth_version+1,updated_at=NOW() WHERE id=$1",[account.id]);
     await auditWithClient(client,"PSL_ACCOUNT_RECOVERY_COMPLETED","security",account.type+":"+account.id,"Recovery code consumed; factors revoked and existing sessions invalidated","system");
@@ -535,22 +575,27 @@ app.post("/api/auth/recovery/reset",pslRecoveryLimiter,asyncRoute(async(req,res)
 
 async function pslCompletePreAuth(req,res,pending){
   let session;
+  let requiresFactorEnrollment=false;
   if(pending.accountType==="admin"){
     const current=await pool.query("SELECT auth_version FROM admin_auth_state WHERE singleton_id=1");
     if(!current.rowCount || Number(current.rows[0].auth_version)!==pending.authVersion){req.session=null;return res.status(401).json({error:"Administrator credentials changed. Sign in again."});}
+    const gate=await pool.query("SELECT recovery_reenroll_required FROM account_security_settings WHERE account_type='admin' AND account_id='1'");
+    requiresFactorEnrollment=gate.rows[0]?.recovery_reenroll_required===true;
     session={authenticated:true,role:"admin",adminAuthVersion:pending.authVersion,actor:"admin"};
   }else{
     const current=await pool.query("SELECT id,active,must_change_password,auth_version,display_name FROM employees WHERE id=$1",[pending.accountId]);
     if(!current.rowCount || !current.rows[0].active || Number(current.rows[0].auth_version)!==pending.authVersion){req.session=null;return res.status(401).json({error:"Employee account changed. Sign in again."});}
+    const gate=await pool.query("SELECT recovery_reenroll_required FROM account_security_settings WHERE account_type='employee' AND account_id=$1",[String(pending.accountId)]);
+    requiresFactorEnrollment=gate.rows[0]?.recovery_reenroll_required===true;
     session={authenticated:true,role:"employee",employeeId:Number(pending.accountId),authVersion:pending.authVersion,actor:"employee:"+pending.accountId};
   }
   const now=Date.now();req.session={...session,issuedAt:now,lastSeenAt:now};
   await audit("PSL_LOGIN_VERIFIED","security",pending.accountType+":"+pending.accountId,"Required sign-in challenges verified",pending.accountType==="admin"?"admin":pending.accountId);
   if(pending.accountType==="employee"){
     const e=await pool.query("SELECT must_change_password,display_name FROM employees WHERE id=$1",[pending.accountId]);
-    return res.json({authenticated:true,role:"employee",mustChangePassword:e.rows[0].must_change_password,name:e.rows[0].display_name});
+    return res.json({authenticated:true,role:"employee",mustChangePassword:e.rows[0].must_change_password,name:e.rows[0].display_name,requiresFactorEnrollment});
   }
-  return res.json({authenticated:true,role:"admin"});
+  return res.json({authenticated:true,role:"admin",requiresFactorEnrollment});
 }
 app.post("/api/auth/totp/verify-login",pslLoginVerifyLimiter,asyncRoute(async(req,res)=>{
   const pending=req.session?.preAuth;
@@ -579,11 +624,11 @@ app.post("/api/auth/totp/verify-login",pslLoginVerifyLimiter,asyncRoute(async(re
 app.get("/api/auth/security",pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
   const account=pslAccountFromSession(req);
   const [settings,factor]=await Promise.all([
-    pool.query("SELECT security_profile FROM account_security_settings WHERE account_type=$1 AND account_id=$2",[account.type,account.id]),
+    pool.query("SELECT security_profile,recovery_reenroll_required FROM account_security_settings WHERE account_type=$1 AND account_id=$2",[account.type,account.id]),
     pool.query("SELECT factor_type,status FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND factor_type IN ('TOTP','VSC') AND status IN ('PENDING','ACTIVE') ORDER BY created_at DESC",[account.type,account.id])
   ]);
   const totp=factor.rows.find(x=>x.factor_type==="TOTP"),vsc=factor.rows.find(x=>x.factor_type==="VSC");
-  res.json({profile:settings.rows[0]?.security_profile||"STANDARD",totpEnabled:totp?.status==="ACTIVE",totpPending:totp?.status==="PENDING",vscEnabled:vsc?.status==="ACTIVE",vscPending:vsc?.status==="PENDING",available:Buffer.byteLength(process.env.PSL_ENCRYPTION_KEY||"","utf8")>=32});
+  res.json({profile:settings.rows[0]?.security_profile||"STANDARD",recoveryReenrollRequired:settings.rows[0]?.recovery_reenroll_required===true,totpEnabled:totp?.status==="ACTIVE",totpPending:totp?.status==="PENDING",vscEnabled:vsc?.status==="ACTIVE",vscPending:vsc?.status==="PENDING",available:Buffer.byteLength(process.env.PSL_ENCRYPTION_KEY||"","utf8")>=32});
 }));
 app.post("/api/auth/security/profile",pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
   const profile=String(req.body?.profile||"").toUpperCase();
@@ -624,10 +669,11 @@ app.post("/api/auth/totp/confirm",pslFactorLimiter,pslVerifyCurrentAccount,async
     if(!locked.rowCount || locked.rows[0].status!=="PENDING") throw new Error("Enrollment challenge is no longer pending.");
     await client.query("UPDATE account_security_factors SET status='REVOKED',revoked_at=NOW() WHERE account_type=$1 AND account_id=$2 AND factor_type='TOTP' AND status='ACTIVE'",[account.type,account.id]);
     await client.query("UPDATE account_security_factors SET status='ACTIVE',activated_at=NOW(),failed_attempts=0,locked_until=NULL WHERE id=$1",[pending.rows[0].id]);
+    await client.query("INSERT INTO account_security_settings(account_type,account_id,recovery_reenroll_required,updated_at) VALUES($1,$2,FALSE,NOW()) ON CONFLICT(account_type,account_id) DO UPDATE SET recovery_reenroll_required=FALSE,updated_at=NOW()",[account.type,account.id]);
     await auditWithClient(client,"PSL_TOTP_ENABLED","security",account.type+":"+account.id,"Authenticator factor enabled",account.type==="admin"?"admin":account.id);
     await client.query("COMMIT");
   }catch(err){await client.query("ROLLBACK");throw err;}finally{client.release();}
-  res.json({enabled:true});
+  res.json({enabled:true,recoveryReenrollRequired:false});
 }));
 app.post("/api/auth/totp/disable",pslFactorLimiter,pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
   const account=pslAccountFromSession(req),password=typeof req.body?.password==="string"?req.body.password:"",token=typeof req.body?.code==="string"?req.body.code.trim():"";
@@ -995,6 +1041,8 @@ app.post("/api/auth/employee-login", rateLimit({windowMs:15*60_000,limit:8,stand
   const employee=r.rows[0];
   if(!employee || !employee.active || !passwordMatches(password,employee.password_hash)) return res.status(401).json({error:"Email or password is incorrect."});
   const factors=await pool.query("SELECT factor_type FROM account_security_factors WHERE account_type='employee' AND account_id=$1 AND status='ACTIVE' AND factor_type IN ('TOTP','VSC')",[String(employee.id)]);
+  const gate=await pool.query("SELECT recovery_reenroll_required FROM account_security_settings WHERE account_type='employee' AND account_id=$1",[String(employee.id)]);
+  const requiresFactorEnrollment=gate.rows[0]?.recovery_reenroll_required===true;
   const requiresVsc=factors.rows.some(x=>x.factor_type==="VSC"),requiresTotp=factors.rows.some(x=>x.factor_type==="TOTP");
   if(requiresVsc||requiresTotp){
     req.session={preAuth:{accountType:"employee",accountId:String(employee.id),authVersion:Number(employee.auth_version),expiresAt:Date.now()+5*60_000,requiresVsc,requiresTotp,vscVerified:false}};
@@ -1002,8 +1050,12 @@ app.post("/api/auth/employee-login", rateLimit({windowMs:15*60_000,limit:8,stand
   }
   const now=Date.now();
   req.session={authenticated:true,role:"employee",employeeId:employee.id,authVersion:employee.auth_version,actor:`employee:${employee.id}`,issuedAt:now,lastSeenAt:now};
+  if(requiresFactorEnrollment) {
+    await audit("PSL_RECOVERY_REENROLLMENT_REQUIRED","security","employee:"+employee.id,"Restricted session created; TOTP re-enrollment required","system");
+    return res.json({authenticated:true,role:"employee",mustChangePassword:employee.must_change_password,name:employee.display_name,requiresFactorEnrollment:true});
+  }
   await audit("EMPLOYEE_LOGIN","employee",String(employee.id),"Employee session created",String(employee.id));
-  res.json({authenticated:true,role:"employee",mustChangePassword:employee.must_change_password,name:employee.display_name});
+  res.json({authenticated:true,role:"employee",mustChangePassword:employee.must_change_password,name:employee.display_name,requiresFactorEnrollment:false});
 }));
 app.post("/api/auth/change-password", requireEmployeeSetup, asyncRoute(async (req,res) => {
   if(req.session?.role!=="employee") return res.status(403).json({error:"Employee session required."});
