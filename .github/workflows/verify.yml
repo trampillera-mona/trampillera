@@ -169,6 +169,13 @@ jobs:
           PENDING_ACCESS_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/ity-employee-cookies.txt http://127.0.0.1:3000/api/team/dashboard)
           test "$PENDING_ACCESS_STATUS" = "403"
           curl --fail --silent -b /tmp/ity-employee-cookies.txt -c /tmp/ity-employee-cookies.txt -H 'Content-Type: application/json' -d '{"newPassword":"ci-test-personal-password-123"}' http://127.0.0.1:3000/api/auth/change-password
+          echo "CI: verify partner affiliation links to an existing employee account"
+          EMPLOYEE_INVITE=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"email":"ci-teammate@example.test","name":"CI Teammate"}' http://127.0.0.1:3000/api/control/partners/invitations)
+          EMPLOYEE_INVITE_TOKEN=$(printf '%s' "$EMPLOYEE_INVITE" | jq -r '.inviteUrl | split("#invite=")[1]')
+          curl --fail --silent -c /tmp/ity-employee-cookies.txt -b /tmp/ity-employee-cookies.txt -H 'Content-Type: application/json' -d "{\"token\":\"$EMPLOYEE_INVITE_TOKEN\",\"password\":\"ci-linked-partner-password-123\",\"displayName\":\"CI Teammate\"}" http://127.0.0.1:3000/api/auth/partner-invitation/redeem | jq -e '.authenticated == true'
+          curl --fail --silent -b /tmp/ity-employee-cookies.txt http://127.0.0.1:3000/api/auth/me | jq -e '(.role == "partner") or (.role == "employee" and (.affiliations | contains(["PARTNER","TEAM_MEMBER"])))'
+          curl --fail --silent -b /tmp/ity-employee-cookies.txt http://127.0.0.1:3000/api/partner/workspace | jq -e '.profile.email == "ci-teammate@example.test"'
+
           EMPLOYEE2_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"name":"CI Teammate Two","email":"ci-teammate-two@example.test","department":"QA","jobTitle":"Collaborator"}' http://127.0.0.1:3000/api/control/team/employees)
           EMPLOYEE2_ID=$(printf '%s' "$EMPLOYEE2_JSON" | jq -r '.item.id')
           TEMP_PASSWORD2=$(printf '%s' "$EMPLOYEE2_JSON" | jq -r '.temporaryPassword')
