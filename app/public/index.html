@@ -877,7 +877,7 @@
         <span id="u-date" class="ur-muted">—</span><span class="ur-muted">·</span>
         <strong id="u-time" class="ur-cyan">—</strong><span class="ur-muted">·</span>
         <span id="u-utc" class="ur-muted">UTC —</span><span class="ur-muted">·</span>
-        <span id="system-status" class="ur-live"><span data-i18n="connecting">trampillera.com UNIFIED OS</span></span>
+        <span id="system-status" class="ur-live"><span data-i18n="connecting">trampillera.com UNIFIED OS</span></span><span class="ur-muted">SOLAR <b id="solar-phase-label" style="color:#f6c66c">DAYLIGHT</b></span>
         <span class="ur-muted">VISITORS <b id="visitor-counter-value" style="color:#e2e8f0">—</b></span>
       </div>
       <div class="ur-telemetry-right">
@@ -893,6 +893,7 @@
         <button id="theme-toggle-btn" class="ur-plain" type="button">LIGHT / DARK</button>
         <button id="sfx-toggle-btn" class="ur-plain" type="button">🔊 SFX: ON</button>
         <button id="radio-quick-btn" class="ur-plain ur-cyan" type="button">📻 SYNTH: OFF</button>
+        <button id="ur-orbital-pulse" class="ur-plain" type="button" title="Orbital pulse · rotate the globe">𝕏</button>
       </div>
     </div>
     <div class="ur-main">
@@ -918,7 +919,8 @@
           <option value="AFRICA_ME">🌍 MENA</option>
         </select>
         <button id="ur-cycle-region" class="ur-pill" type="button" title="Cycle globe region">REGION CYCLE</button>
-        <button id="ur-time-travel" class="ur-pill" type="button">⏳ TIME-TRAVEL</button>
+        <button id="ur-time-travel" class="ur-pill" type="button" title="Advance simulated solar time by six hours and open recovery timeline">⏳ TIME-TRAVEL</button>
+        <button id="ur-atmosphere-toggle" class="ur-pill" type="button" title="Toggle cloud layer and atmospheric glow" aria-pressed="true">☁ ATMOSPHERE: ON</button>
         <button id="ur-fui-save" class="ur-pill" type="button" title="Save current 3D FUI workspace">💾 SAVE FUI</button>
         <button id="ur-assistant" class="ur-pill" type="button">🤖 ASSISTANT</button>
         <button id="ur-globe-open" class="ur-pill" type="button">🌐 GLOBE DESK</button>
@@ -930,6 +932,7 @@
           <button id="ur-zoom-in" type="button" title="Zoom in" aria-label="Zoom in">＋</button>
           <button id="ur-zoom-out" type="button" title="Zoom out" aria-label="Zoom out">－</button>
           <button id="ur-camera-reset" type="button" title="Reset globe view" aria-label="Reset globe view">↺</button>
+          <button id="ur-auto-rotate" type="button" title="Toggle automatic globe rotation" aria-label="Toggle automatic globe rotation" aria-pressed="true">↻ ON</button>
         </div>
         <a id="ur-control-plane" class="ur-control-link" href="/control/" title="Open authenticated Control Plane">⚙ CONTROL PLANE ↗</a>
       </div>

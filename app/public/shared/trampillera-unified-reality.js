@@ -10,8 +10,10 @@
   const status = $('#ur-globe-status');
   const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let renderer, scene, camera, controls, earth, raf = 0, resizeObserver;
-  let targetRotation = { x: 0, y: 0 };
   let webglReady = false;
+  let sunLight, ambientLight, rimLight, clouds, atmosphere, stars;
+  let targetCameraPosition = null, solarTimer = 0;
+  let timeOffsetHours = 0, currentRegionKey = 'GLOBAL', lastSolarPhase = '', atmosphereBoost = true;
   const regions = {
     GLOBAL: { label: 'GLOBAL', lat: 20, lon: 0 },
     EUROPE: { label: 'EUROPE', lat: 50, lon: 15 },
@@ -24,14 +26,24 @@
     status.textContent = message;
     status.dataset.state = state || 'unknown';
   }
-  function fallbackTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024; canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    const sea = ctx.createLinearGradient(0, 0, 0, 512);
-    sea.addColorStop(0, '#061a35'); sea.addColorStop(.5, '#0b4771'); sea.addColorStop(1, '#061a35');
-    ctx.fillStyle = sea; ctx.fillRect(0, 0, 1024, 512);
-    const land = [
+  function fallbackTextures() {
+    const width = 1024, height = 512;
+    const diffuseCanvas = document.createElement('canvas');
+    diffuseCanvas.width = width; diffuseCanvas.height = height;
+    const d = diffuseCanvas.getContext('2d');
+    const nightCanvas = document.createElement('canvas');
+    nightCanvas.width = width; nightCanvas.height = height;
+    const n = nightCanvas.getContext('2d');
+    const cloudCanvas = document.createElement('canvas');
+    cloudCanvas.width = width; cloudCanvas.height = height;
+    const c = cloudCanvas.getContext('2d');
+
+    const ocean = d.createLinearGradient(0, 0, 0, height);
+    ocean.addColorStop(0, '#092347'); ocean.addColorStop(.5, '#104a8e'); ocean.addColorStop(1, '#092347');
+    d.fillStyle = ocean; d.fillRect(0, 0, width, height);
+    n.fillStyle = '#02050b'; n.fillRect(0, 0, width, height);
+
+    const landmasses = [
       [[90,105],[145,65],[225,72],[265,115],[250,170],[205,205],[180,260],[145,235],[115,180]],
       [[215,275],[275,285],[310,345],[290,420],[260,475],[235,405],[220,335]],
       [[455,100],[525,70],[585,100],[565,160],[505,180],[470,150]],
@@ -39,104 +51,286 @@
       [[590,95],[700,65],[825,95],[900,160],[865,220],[780,245],[700,220],[635,175]],
       [[780,310],[850,300],[890,350],[860,405],[800,390]]
     ];
-    ctx.fillStyle = '#54785a';
-    land.forEach(poly => { ctx.beginPath(); poly.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); ctx.fill(); });
-    ctx.strokeStyle = 'rgba(104,205,220,.18)'; ctx.lineWidth = 1;
-    for(let y=0;y<=512;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(1024,y);ctx.stroke();}
-    for(let x=0;x<=1024;x+=64){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,512);ctx.stroke();}
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace || texture.colorSpace;
-    return texture;
+    landmasses.forEach((poly, index) => {
+      d.beginPath();
+      poly.forEach((point, i) => i ? d.lineTo(point[0], point[1]) : d.moveTo(point[0], point[1]));
+      d.closePath(); d.fillStyle = index === 2 ? '#c5d5e5' : '#54785a'; d.fill();
+      if (index !== 2) {
+        const cx = poly.reduce((sum, p) => sum + p[0], 0) / poly.length;
+        const cy = poly.reduce((sum, p) => sum + p[1], 0) / poly.length;
+        for (let i = 0; i < 85; i++) {
+          n.fillStyle = 'rgba(255,190,95,.72)';
+          n.beginPath(); n.arc(cx + (Math.random() - .5) * 85, cy + (Math.random() - .5) * 55, 1.1, 0, Math.PI * 2); n.fill();
+        }
+      }
+    });
+    for (let i = 0; i < 220; i++) {
+      const x = Math.random() * width, y = Math.random() * height;
+      c.fillStyle = 'rgba(255,255,255,.22)';
+      c.beginPath(); c.ellipse(x, y, 22 + Math.random() * 75, 5 + Math.random() * 14, -.2, 0, Math.PI * 2); c.fill();
+    }
+    const make = canvas => {
+      const texture = new THREE.CanvasTexture(canvas);
+      if (THREE.SRGBColorSpace) texture.colorSpace = THREE.SRGBColorSpace;
+      return texture;
+    };
+    return { diffuse: make(diffuseCanvas), night: make(nightCanvas), clouds: make(cloudCanvas) };
   }
   function initGlobe() {
     const canvas = $('#ur-earth-canvas');
-    if (!canvas || !window.THREE || !THREE.WebGLRenderer) { setStatus('3D unavailable · portal remains functional', 'fallback'); return; }
+    if (!canvas || !window.THREE || !THREE.WebGLRenderer) {
+      setStatus('3D unavailable · portal remains functional', 'fallback');
+      return;
+    }
     try {
       const width = Math.max(1, root.clientWidth);
       const height = Math.max(1, root.clientHeight);
+      const radius = 2.48;
+      const earthX = width < 640 ? 1.28 : width < 980 ? 1.72 : 2.05;
+      const viewTarget = new THREE.Vector3(0, 0, 0);
       scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(38, width / height, .1, 100);
-      camera.position.set(0, 0, 9.4);
+      camera = new THREE.PerspectiveCamera(43, width / height, .1, 120);
+      camera.position.set(0, 0, 8.6);
       renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       renderer.setSize(width, height, false);
-      renderer.outputColorSpace = THREE.SRGBColorSpace || renderer.outputColorSpace;
-      const material = new THREE.MeshPhongMaterial({ map: fallbackTexture(), bumpScale: .035, shininess: 8, specular: new THREE.Color(0x29445a), emissive: new THREE.Color(0x07101b), emissiveIntensity: .28 });
-      earth = new THREE.Mesh(new THREE.SphereGeometry(2.8, 64, 64), material);
-      earth.position.set(width < 640 ? 1.5 : width < 980 ? 2.1 : 2.8, 0, 0);
-      earth.rotation.z = 23.4 * Math.PI / 180;
+      if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+      const fallback = fallbackTextures();
+      const material = new THREE.MeshPhongMaterial({
+        map: fallback.diffuse,
+        bumpMap: fallback.diffuse,
+        bumpScale: .045,
+        emissiveMap: fallback.night,
+        emissive: new THREE.Color(0xffffff),
+        emissiveIntensity: .62,
+        shininess: 8,
+        specular: new THREE.Color(0x29445a)
+      });
+      earth = new THREE.Mesh(new THREE.SphereGeometry(radius, 72, 72), material);
+      earth.position.set(earthX, 0, 0);
+      earth.rotation.z = 23.5 * Math.PI / 180;
       scene.add(earth);
-      const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(2.88, 64, 64), new THREE.MeshBasicMaterial({ color: 0x08bfe4, transparent: true, opacity: .09, side: THREE.BackSide }));
-      atmosphere.position.copy(earth.position); scene.add(atmosphere);
-      scene.add(new THREE.AmbientLight(0x8caac5, .78));
-      const sun = new THREE.DirectionalLight(0xffffff, 1.55); sun.position.set(-4, 3, 7); scene.add(sun);
-      const rim = new THREE.DirectionalLight(0x00bfe9, 1.1); rim.position.set(5, -2, -5); scene.add(rim);
+
+      const cloudMaterial = new THREE.MeshPhongMaterial({
+        map: fallback.clouds, transparent: true, opacity: .34, depthWrite: false,
+        blending: THREE.NormalBlending, shininess: 0
+      });
+      clouds = new THREE.Mesh(new THREE.SphereGeometry(radius * 1.006, 64, 64), cloudMaterial);
+      clouds.position.copy(earth.position);
+      scene.add(clouds);
+
+      atmosphere = new THREE.Mesh(
+        new THREE.SphereGeometry(radius * 1.045, 64, 64),
+        new THREE.MeshBasicMaterial({ color: 0x00cde8, transparent: true, opacity: .14, side: THREE.BackSide, blending: THREE.AdditiveBlending })
+      );
+      atmosphere.position.copy(earth.position);
+      scene.add(atmosphere);
+
+      ambientLight = new THREE.AmbientLight(0x18253a, .78);
+      sunLight = new THREE.DirectionalLight(0xffffff, 1.55);
+      rimLight = new THREE.DirectionalLight(0x00bfe9, 1.1);
+      sunLight.position.set(5, 3, 7);
+      rimLight.position.set(-5, -2, -5);
+      scene.add(ambientLight, sunLight, rimLight);
+
       const starsGeometry = new THREE.BufferGeometry();
-      const positions = new Float32Array(1100 * 3);
-      for (let i=0;i<positions.length;i++) positions[i]=(Math.random()-.5)*45;
-      starsGeometry.setAttribute('position', new THREE.BufferAttribute(positions,3));
-      scene.add(new THREE.Points(starsGeometry,new THREE.PointsMaterial({color:0xb9d8ef,size:.045,transparent:true,opacity:.62})));
+      const starCount = 3000;
+      const starPositions = new Float32Array(starCount * 3);
+      for (let i = 0; i < starPositions.length; i++) starPositions[i] = (Math.random() - .5) * 95;
+      starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+      stars = new THREE.Points(starsGeometry, new THREE.PointsMaterial({
+        color: 0xd9eaff, size: .065, transparent: true, opacity: .72
+      }));
+      scene.add(stars);
+
       if (THREE.OrbitControls) {
         controls = new THREE.OrbitControls(camera, root);
-        controls.target.copy(earth.position);
-        controls.enableDamping = true; controls.dampingFactor = .055;
-        controls.enablePan = false; controls.enableZoom = true;
-        controls.minDistance = 6.2; controls.maxDistance = 14;
-        controls.autoRotate = !reducedMotion; controls.autoRotateSpeed = .32;
-        controls.rotateSpeed = .55;
+        controls.target.copy(viewTarget);
+        controls.enableDamping = true;
+        controls.dampingFactor = .055;
+        controls.enablePan = false;
+        controls.enableZoom = true;
+        controls.minDistance = 5.25;
+        controls.maxDistance = 13.5;
+        controls.rotateSpeed = .62;
+        controls.zoomSpeed = .8;
+        controls.autoRotate = !reducedMotion;
+        controls.autoRotateSpeed = .38;
       }
+
       const textureLoader = new THREE.TextureLoader();
-      textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg', texture => {
-        if (!earth || !earth.material) return;
-        texture.colorSpace = THREE.SRGBColorSpace || texture.colorSpace;
-        earth.material.map = texture; earth.material.needsUpdate = true;
-      }, undefined, () => setStatus('Procedural globe · external texture unavailable', 'fallback'));
+      const loadTexture = (url, onLoad, onError) => textureLoader.load(url, texture => {
+        if (THREE.SRGBColorSpace) texture.colorSpace = THREE.SRGBColorSpace;
+        onLoad(texture);
+      }, undefined, onError);
+      loadTexture('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg', texture => {
+        if (earth && earth.material) { earth.material.map = texture; earth.material.needsUpdate = true; }
+      }, () => setStatus('Procedural Earth texture active', 'fallback'));
+      loadTexture('https://unpkg.com/three-globe/example/img/earth-topology.png', texture => {
+        if (earth && earth.material) { earth.material.bumpMap = texture; earth.material.needsUpdate = true; }
+      }, () => {});
+      loadTexture('https://unpkg.com/three-globe/example/img/earth-night.jpg', texture => {
+        if (earth && earth.material) { earth.material.emissiveMap = texture; earth.material.needsUpdate = true; }
+      }, () => {});
+      loadTexture('https://unpkg.com/three-globe/example/img/earth-clouds.png', texture => {
+        if (clouds && clouds.material) { clouds.material.map = texture; clouds.material.needsUpdate = true; }
+      }, () => {});
+
+      const interactive = root.querySelectorAll('button, a, select, input');
+      interactive.forEach(element => element.addEventListener('pointerdown', event => event.stopPropagation()));
+      root.style.touchAction = 'pan-y';
+
       webglReady = true;
       setStatus('3D globe ready · drag to rotate · wheel to zoom', 'ready');
+      updateSolarLighting();
       const render = () => {
         if (!webglReady) return;
-        if (earth && !controls && !reducedMotion) earth.rotation.y += .0008;
+        if (targetCameraPosition && camera) {
+          camera.position.lerp(targetCameraPosition, .075);
+          if (camera.position.distanceTo(targetCameraPosition) < .035) targetCameraPosition = null;
+          if (controls) controls.update();
+        }
         if (controls) controls.update();
+        if (stars) stars.rotation.y += .00012;
+        if (clouds) clouds.rotation.y += .00016;
         renderer.render(scene, camera);
         raf = window.requestAnimationFrame(render);
       };
       render();
+      solarTimer = window.setInterval(updateSolarLighting, 30000);
+
       const resize = () => {
         if (!renderer || !camera) return;
         const w = Math.max(1, root.clientWidth), h = Math.max(1, root.clientHeight);
-        camera.aspect = w / h; camera.updateProjectionMatrix();
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
         renderer.setSize(w, h, false);
-        if (earth) {
-          const x = w < 640 ? 1.55 : w < 980 ? 2.1 : 2.8;
+        if (earth && clouds && atmosphere) {
+          const x = w < 640 ? 1.28 : w < 980 ? 1.72 : 2.05;
           earth.position.x = x;
-          if (controls) controls.target.set(x,0,0);
+          clouds.position.x = x;
+          atmosphere.position.x = x;
         }
       };
-      if (window.ResizeObserver) { resizeObserver = new ResizeObserver(resize); resizeObserver.observe(root); }
-      else window.addEventListener('resize', resize, { passive: true });
+      if (window.ResizeObserver) {
+        resizeObserver = new ResizeObserver(resize);
+        resizeObserver.observe(root);
+      } else window.addEventListener('resize', resize, { passive: true });
+      window.GlobeAPI = {
+        controls, earth, camera,
+        focusRegion,
+        zoomStep,
+        resetCameraView,
+        nudgeEarth,
+        stepSimTime,
+        toggleAtmosphereBoost,
+        toggleAutoRotate
+      };
+      root.addEventListener('wheel', () => {}, { passive: true });
     } catch (error) {
       webglReady = false;
       setStatus('3D unavailable · portal remains functional', 'fallback');
+      console.warn('[Unified Reality] globe initialization failed', error);
       try { if (renderer) renderer.dispose(); } catch (_) {}
     }
   }
+
+  function updateSolarLighting() {
+    if (!sunLight) return;
+    const simulated = new Date(Date.now() + timeOffsetHours * 3600000);
+    const utcHours = simulated.getUTCHours() + simulated.getUTCMinutes() / 60;
+    const sunAngle = (utcHours / 24) * Math.PI * 2 - Math.PI;
+    const lat = (regions[currentRegionKey] || regions.GLOBAL).lat * Math.PI / 180;
+    sunLight.position.set(Math.cos(sunAngle) * 12, Math.sin(sunAngle) * 7 + Math.sin(lat) * 2, 8);
+    const phase = Math.abs(Math.sin(sunAngle)) < .32 ? 'TWILIGHT' : Math.sin(sunAngle) < -.15 ? 'NIGHT GLOW' : 'DAYLIGHT';
+    const phaseLabel = $('#solar-phase-label');
+    if (phaseLabel) phaseLabel.textContent = phase;
+    if (phase !== lastSolarPhase) {
+      lastSolarPhase = phase;
+      setStatus('3D globe ready · ' + phase + (timeOffsetHours ? ' · T+' + timeOffsetHours + 'H' : ''), 'ready');
+    }
+  }
+
   function focusRegion(key) {
-    const item = regions[key] || regions.GLOBAL;
-    root.dataset.region = key;
+    const aliases = { EUROPE:'EUROPE', europe:'EUROPE', ASIA:'ASIA', asia:'ASIA', japan:'ASIA', tokyo:'ASIA', AMERICAS:'AMERICAS', america:'AMERICAS', usa:'AMERICAS', newyork:'AMERICAS', AFRICA_ME:'AFRICA_ME', middleeast:'AFRICA_ME', dubai:'AFRICA_ME', africa:'AFRICA_ME', GLOBAL:'GLOBAL', global:'GLOBAL' };
+    const normalizedKey = String(key || 'GLOBAL').toLowerCase().replace(/\s+/g, '');
+    currentRegionKey = aliases[normalizedKey] || 'GLOBAL';
+    const item = regions[currentRegionKey];
+    root.dataset.region = currentRegionKey;
     const badge = $('#ur-region-badge');
     if (badge) badge.textContent = '· ' + item.label;
-    if (region && region.value !== key) region.value = key;
-    if (earth) {
-      targetRotation.y = -item.lon * Math.PI / 180;
-      targetRotation.x = item.lat * Math.PI / 180;
-      earth.rotation.y = targetRotation.y;
-      earth.rotation.x = targetRotation.x;
+    if (region && region.value !== currentRegionKey) region.value = currentRegionKey;
+    if (controls) controls.autoRotate = false;
+    if (camera && earth && THREE) {
+      const distance = Math.max(controls ? controls.minDistance + .35 : 6.4, Math.min(controls ? controls.maxDistance - .5 : 13, camera.position.distanceTo(earth.position)));
+      const phi = (90 - item.lat) * Math.PI / 180;
+      const theta = (item.lon + 180) * Math.PI / 180;
+      const target = new THREE.Vector3(
+        -distance * Math.sin(phi) * Math.cos(theta),
+        distance * Math.cos(phi),
+        distance * Math.sin(phi) * Math.sin(theta)
+      );
+      targetCameraPosition = earth.position.clone().add(target);
+      if (controls) controls.target.copy(earth.position);
+      window.setTimeout(() => {
+        if (controls && !reducedMotion) controls.autoRotate = true;
+      }, 8000);
     }
-    if (controls && camera) {
-      controls.autoRotate = false;
-      window.setTimeout(() => { if (controls && !reducedMotion) controls.autoRotate = true; }, 6500);
+    updateSolarLighting();
+    safeCall(() => typeof playTactileSound === 'function' && playTactileSound('snap'));
+  }
+
+  function toggleAutoRotate() {
+    if (!controls) return false;
+    controls.autoRotate = !controls.autoRotate;
+    setStatus('3D globe ready · auto-rotate ' + (controls.autoRotate ? 'ON' : 'OFF'), 'ready');
+    safeCall(() => typeof playTactileSound === 'function' && playTactileSound('tick'));
+    return controls.autoRotate;
+  }
+
+  function zoomStep(delta) {
+    if (!camera || !controls) return;
+    const offset = camera.position.clone().sub(controls.target);
+    const distance = Math.max(controls.minDistance, Math.min(controls.maxDistance, offset.length() + delta));
+    offset.setLength(distance);
+    camera.position.copy(controls.target).add(offset);
+    controls.update();
+  }
+
+  function resetCameraView() {
+    timeOffsetHours = 0;
+    currentRegionKey = 'GLOBAL';
+    targetCameraPosition = null;
+    if (region) region.value = 'GLOBAL';
+    const badge = $('#ur-region-badge');
+    if (badge) badge.textContent = '· GLOBAL';
+    if (camera && controls && earth) {
+      controls.autoRotate = !reducedMotion;
+      controls.target.set(0, 0, 0);
+      camera.position.set(0, 0, 8.6);
+      controls.update();
     }
-    try { if (typeof playTactileSound === 'function') playTactileSound('snap'); } catch (_) {}
+    updateSolarLighting();
+  }
+
+  function nudgeEarth(delta) {
+    if (earth) earth.rotation.y += Number(delta) || .45;
+    safeCall(() => typeof playTactileSound === 'function' && playTactileSound('snap'));
+  }
+
+  function stepSimTime(hours) {
+    timeOffsetHours = (timeOffsetHours + (Number(hours) || 6)) % 24;
+    updateSolarLighting();
+    return timeOffsetHours;
+  }
+
+  function toggleAtmosphereBoost() {
+    atmosphereBoost = !atmosphereBoost;
+    if (clouds) clouds.visible = atmosphereBoost;
+    if (atmosphere && atmosphere.material) atmosphere.material.opacity = atmosphereBoost ? .25 : .14;
+    setStatus('3D globe ready · atmosphere ' + (atmosphereBoost ? 'boosted' : 'normal'), 'ready');
+    return atmosphereBoost;
   }
   function safeCall(fn) { try { if (typeof fn === 'function') fn(); } catch (error) { console.warn('[Unified Reality]', error); } }
   root.querySelectorAll('[data-ur-realm]').forEach(button => {
@@ -154,6 +348,7 @@
     const keys = Object.keys(regions); const next = (keys.indexOf(region?.value || 'GLOBAL') + 1) % keys.length; focusRegion(keys[next]);
   });
   $('#ur-time-travel')?.addEventListener('click', () => {
+    stepSimTime(6);
     const dock = document.getElementById('time-travel-dock');
     if (dock) { dock.classList.toggle('visible'); safeCall(() => typeof SnapshotStore !== 'undefined' && SnapshotStore.updateSliderUI()); }
   });
@@ -164,12 +359,20 @@
     safeCall(() => typeof RealmRouter !== 'undefined' && RealmRouter.switchRealm('classic'));
     safeCall(() => typeof Router !== 'undefined' && Router.go('globe'));
   });
-  $('#ur-camera-reset')?.addEventListener('click', () => {
-    focusRegion('GLOBAL');
-    if (camera && controls) { camera.position.set(0,0,9.4); controls.target.copy(earth.position); controls.update(); }
+  $('#ur-camera-reset')?.addEventListener('click', resetCameraView);
+  $('#ur-zoom-in')?.addEventListener('click', () => zoomStep(-.65));
+  $('#ur-zoom-out')?.addEventListener('click', () => zoomStep(.65));
+  $('#ur-auto-rotate')?.addEventListener('click', () => {
+    const enabled = toggleAutoRotate();
+    const button = $('#ur-auto-rotate');
+    if (button) { button.textContent = enabled ? '↻ ON' : '↻ OFF'; button.setAttribute('aria-pressed', String(enabled)); }
   });
-  $('#ur-zoom-in')?.addEventListener('click', () => { if (camera && controls) { camera.position.addScaledVector(camera.position.clone().sub(controls.target).normalize(), -.65); controls.update(); } });
-  $('#ur-zoom-out')?.addEventListener('click', () => { if (camera && controls) { camera.position.addScaledVector(camera.position.clone().sub(controls.target).normalize(), .65); controls.update(); } });
+  $('#ur-orbital-pulse')?.addEventListener('click', () => nudgeEarth(.45));
+  $('#ur-atmosphere-toggle')?.addEventListener('click', () => {
+    const enabled = toggleAtmosphereBoost();
+    const button = $('#ur-atmosphere-toggle');
+    if (button) { button.textContent = enabled ? '☁ ATMOSPHERE: ON' : '☁ ATMOSPHERE: OFF'; button.setAttribute('aria-pressed', String(enabled)); }
+  });
 
   const language = $('#global-lang');
   language?.addEventListener('change', () => {
@@ -202,6 +405,7 @@
   focusRegion('GLOBAL');
   window.addEventListener('pagehide', () => {
     webglReady = false; if (raf) cancelAnimationFrame(raf);
+    if (solarTimer) clearInterval(solarTimer);
     if (resizeObserver) resizeObserver.disconnect();
     if (controls) controls.dispose();
     if (renderer) renderer.dispose();

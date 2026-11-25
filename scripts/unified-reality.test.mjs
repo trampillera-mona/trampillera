@@ -11,10 +11,10 @@ test('Unified Reality banner is mounted once and loads its shared assets', () =>
   assert.match(html, /href="\/shared\/trampillera-unified-reality\.css"/);
   assert.match(html, /src="\/shared\/trampillera-unified-reality\.js"/);
   assert.match(css, /#unified-reality-banner/);
-  assert.match(css, /max-width:1440px/);
-  assert.match(css, /height:388px/);
-  assert.match(css, /min-height:388px/);
-  assert.match(css, /#unified-reality-banner \.ur-main[^}]*min-height:220px/);
+  assert.match(css, /max-width:960px/);
+  assert.match(css, /height:260px/);
+  assert.match(css, /min-height:260px/);
+  assert.match(css, /#unified-reality-banner \.ur-main[^}]*min-height:140px/);
 });
 
 test('banner preserves unique application IDs and required navigation controls', () => {
@@ -25,7 +25,8 @@ test('banner preserves unique application IDs and required navigation controls',
     'u-date','u-time','u-utc','system-status','global-lang','theme-toggle-btn',
     'sfx-toggle-btn','radio-quick-btn','tab-intro','tab-fui','tab-classic',
     'pill-xp','pill-trp','ur-region','ur-time-travel','ur-fui-save',
-    'ur-assistant','ur-globe-open','ur-passport','ur-control-plane','ur-earth-canvas'
+    'ur-assistant','ur-globe-open','ur-passport','ur-control-plane','ur-earth-canvas',
+    'ur-orbital-pulse','ur-auto-rotate','ur-atmosphere-toggle','solar-phase-label'
   ]) assert.ok(ids.includes(id), `missing banner integration element: ${id}`);
   assert.match(html, /href="\/control\//);
 });
@@ -36,5 +37,8 @@ test('banner delegates actions to existing application modules instead of fake l
   }
   assert.match(js, /fetch\('\/api\/platform\/status'/);
   assert.match(js, /controls\.dispose\(\)/);
+  assert.match(js, /window\.GlobeAPI\s*=/);
+  assert.match(js, /function focusRegion\(key\)/);
+  assert.match(js, /function updateSolarLighting\(\)/);
   assert.match(js, /prefers-reduced-motion/);
 });
