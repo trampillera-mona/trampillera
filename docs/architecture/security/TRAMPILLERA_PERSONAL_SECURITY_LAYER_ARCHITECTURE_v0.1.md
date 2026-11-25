@@ -271,3 +271,34 @@ The following remain incomplete and block production release:
 - Security review and production rollout plan.
 
 A VSC sequence has 10^6 possible combinations (approximately 19.9 bits) and is a memorized knowledge secret. It is supplemental protection only, not a replacement for TOTP, passkeys, or other independent factors. A downloaded/copied PNG is a full credential copy; the platform cannot control OS screenshots, clipboard history, gallery synchronization, or cloud backups.
+
+## 17. Recovery & Key Management Desk — implementation status (2026-11-25)
+
+### Implemented foundation (PR #27; not production-enabled)
+
+- Added `account_recovery_codes` as an additive migration. It stores a per-code verifier and lifecycle timestamps only; it has no plaintext-code column.
+- Added secure random recovery-code generation (10 codes by default, 192 random bits before display normalization), unique per-code salts, scrypt verifiers, and timing-safe verifier comparison.
+- Added versioned TOTP envelope primitives. New `v2` envelopes bind the key ID as authenticated additional data and identify the encryption key required for decryption.
+- Added a keyring API that can retain old key IDs while a new active key is used for re-encryption.
+- Added a compatibility reader for the existing `v1` envelope, provided the legacy key is explicitly supplied.
+- Added tests for recovery-code generation/verification, malformed input, key-ID lookup, v1 compatibility, and v2 re-encryption.
+
+### Explicitly not implemented
+
+- No recovery-code generation, display, redemption, or regeneration API is wired into the application.
+- No recovery-code one-time-consumption transaction or login fallback is wired yet. The database lifecycle fields are groundwork, not proof of replay prevention.
+- No factor reset, account recovery review, owner notification, or session invalidation workflow is implemented.
+- No production keyring format, secret-manager integration, key custody procedure, key backup, or operator runbook is configured.
+- No database-wide TOTP re-encryption job or rollback procedure is implemented or executed.
+- The existing `PSL_ENCRYPTION_KEY` and production Render configuration remain unchanged. Do not rotate or replace the legacy key until a reviewed migration job has re-encrypted and verified every active TOTP envelope and a tested rollback path exists.
+
+### Required next gates
+
+1. Define the deployment secret-manager representation for key IDs and key material; keep key material out of PostgreSQL, source control, logs, and application responses.
+2. Implement a bounded, resumable, auditable TOTP re-encryption job with dual-read compatibility, per-row verification, and a rollback plan. Retain the old key until every active envelope is verified under the new key.
+3. Implement code generation and one-time redemption in database transactions. Redemption must lock the selected unused row, compare its verifier, mark it consumed atomically, and reject concurrent/replayed use.
+4. Require current primary-password proof before issuing recovery codes. Show plaintext only once; regeneration must revoke all previous unused codes atomically.
+5. Design recovery factor-reset policy separately. Recovery must revoke affected factors, increment the account auth version, invalidate active sessions, and require fresh factor enrollment where policy requires it.
+6. Add browser/UI, concurrency, replay, failure, migration, and restore tests; complete independent security review before production rollout.
+
+**Release status:** Foundation code and CI tests are being added to the draft PR. Recovery is not yet available to users; key rotation has not been performed; production remains unchanged.
