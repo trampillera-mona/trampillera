@@ -34,6 +34,6 @@ test("organization migration guards hierarchy cycles and overlapping primary pla
   assert.match(migration, /trampillera_guard_org_unit_cycle/);
   assert.match(migration, /pg_advisory_xact_lock\(742019, 2\)/);
   assert.match(migration, /trampillera_guard_primary_org_assignment/);
-  assert.match(migration, /pg_advisory_xact_lock\(742019, NEW\.employee_id\)/);
+  assert.match(migration, /pg_advisory_xact_lock\(742019, 3\)/);
   assert.match(migration, /daterange\(existing\.valid_from, existing\.valid_until, '\[\]'\)/);
 });
