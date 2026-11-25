@@ -359,3 +359,76 @@ These decisions must be resolved during Stage 0, not guessed:
 - No deployment to Render until the infrastructure and cost review confirms that the chosen media topology is suitable.
 
 **Governing rule:** TRAMPILLERA may claim only the security properties demonstrated by tests and independently reviewable evidence.
+
+
+## 16. Capacity and communication modes — user requirement (2026-11-25)
+
+**Initial product planning range:** 2–100 simultaneous participants in a communication session. This is a design target to validate, not a demonstrated capacity or a hosting guarantee. Stage 0 must test representative network conditions and define supported concurrency per topology.
+
+### 16.1 Mode A — Everyday Communication
+
+Designed for two colleagues or working groups:
+- one-to-one direct messages and calls;
+- small group conversations and ad-hoc audio/video calls;
+- department, project and topic channels;
+- threaded replies, reactions, mentions, presence and file exchange;
+- quick screen sharing and collaborative discussion.
+
+The product should make a two-person call frictionless while retaining the same identity, security and audit rules as larger rooms.
+
+### 16.2 Mode B — Corporate Events & Broadcasts
+
+Designed for presentations, product/development demonstrations, news briefings, department updates, leadership announcements, organization-wide meetings and celebrations.
+
+Required event formats:
+- **Interactive meeting:** participants may speak, share camera/screen and ask questions subject to host controls.
+- **Presentation / town hall:** one or several presenters publish audio/video/screen; audience microphones are muted by default and enabled by host or moderated Q&A.
+- **Announcement:** an authorized person publishes a prominent organization/department notice with priority, audience, effective time and acknowledgement policy. This is a notification/workflow, not merely a chat message.
+- **Celebration / social event:** optional informal event with reactions and moderated participation, without weakening account security.
+
+Event controls:
+- organizer, host, co-host, presenter, moderator and attendee roles;
+- invitation by organization, department, team or selected employees;
+- registration/RSVP where useful;
+- scheduled start, agenda, presenter materials and event description;
+- lobby, admission, room lock, mute controls and moderated Q&A;
+- audience reactions and hand-raising;
+- persistent event notice and calendar/reminder integration;
+- post-event links/materials and explicitly assigned follow-up tasks;
+- optional recording only when separately authorized, visibly indicated and covered by participant notice/consent and retention policy.
+
+### 16.3 Capacity and media topology
+
+A 100-person event must not be implemented as 100 browser-to-browser mesh connections. Evaluate an SFU-based topology for multiparty media. Distinguish:
+- **interactive participants** who publish audio/video;
+- **presenters** who publish high-resolution media or screen share;
+- **view-only attendees** who primarily receive streams;
+- **moderators/hosts** who control the event.
+
+The capacity target must be specified separately for each class. For example, a room with a few active presenters and many view-only attendees has a different resource profile from a room where every participant publishes camera and microphone.
+
+The initial proof of concept must test:
+- 2-person direct call;
+- small group meeting;
+- a 20-person interactive meeting;
+- a 100-person presentation/town hall with a limited number of publishers;
+- screen sharing, participant admission, reconnect, TURN relay and network degradation;
+- bandwidth, CPU, latency, packet loss, concurrency and cost.
+
+Do not promise 100-person full-camera interactive capacity until load testing on the selected infrastructure proves it. The system must show its tested room limits and refuse or degrade gracefully beyond them.
+
+### 16.4 Security and access by event type
+
+Every event has an audience scope and classification. Private department briefings, organization-wide announcements and informal celebrations may have different visibility, retention and guest policies. E2EE requirements must be declared per event class and supported by the chosen conference topology. A live broadcast must not be labelled E2EE merely because its transport uses TLS/DTLS-SRTP.
+
+### 16.5 Announcement delivery and acknowledgement
+
+Important announcements should support:
+- priority: NORMAL / IMPORTANT / CRITICAL;
+- audience: organization / department / team / named recipients;
+- delivery channels: in-app inbox, prominent Control Plane notice, push/browser notification where enabled;
+- optional acknowledgement: NOT_REQUIRED / REQUIRED;
+- states: DRAFT / SCHEDULED / PUBLISHED / DELIVERED / ACKNOWLEDGED / EXPIRED / FAILED / UNKNOWN.
+
+A published announcement is not automatically acknowledged. Delivery and acknowledgement evidence must be tracked separately. Critical notices should support an escalation policy without treating a missing acknowledgement as proof that the employee read or understood the message.
+
