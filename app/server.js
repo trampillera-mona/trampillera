@@ -512,9 +512,16 @@ app.post("/api/auth/totp/confirm",pslFactorLimiter,pslVerifyCurrentAccount,async
   if(!pending.rowCount || Date.now()-new Date(pending.rows[0].created_at).getTime()>10*60_000) return res.status(404).json({error:"No active enrollment challenge. Start enrollment again."});
   let valid=false;try{valid=verifyTotp(decryptTotpSecret(pending.rows[0].secret_ciphertext,masterKey),token);}catch{valid=false;}
   if(!valid) return res.status(401).json({error:"Authenticator code is incorrect."});
-  await pool.query("UPDATE account_security_factors SET status='REVOKED',revoked_at=NOW() WHERE account_type=$1 AND account_id=$2 AND factor_type='TOTP' AND status='ACTIVE'",[account.type,account.id]);
-  await pool.query("UPDATE account_security_factors SET status='ACTIVE',activated_at=NOW(),failed_attempts=0 WHERE id=$1",[pending.rows[0].id]);
-  await audit("PSL_TOTP_ENABLED","security",account.type+":"+account.id,"Authenticator factor enabled",account.type==="admin"?"admin":account.id);
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const locked=await client.query("SELECT id,status FROM account_security_factors WHERE id=$1 FOR UPDATE",[pending.rows[0].id]);
+    if(!locked.rowCount || locked.rows[0].status!=="PENDING") throw new Error("Enrollment challenge is no longer pending.");
+    await client.query("UPDATE account_security_factors SET status='REVOKED',revoked_at=NOW() WHERE account_type=$1 AND account_id=$2 AND factor_type='TOTP' AND status='ACTIVE'",[account.type,account.id]);
+    await client.query("UPDATE account_security_factors SET status='ACTIVE',activated_at=NOW(),failed_attempts=0,locked_until=NULL WHERE id=$1",[pending.rows[0].id]);
+    await auditWithClient(client,"PSL_TOTP_ENABLED","security",account.type+":"+account.id,"Authenticator factor enabled",account.type==="admin"?"admin":account.id);
+    await client.query("COMMIT");
+  }catch(err){await client.query("ROLLBACK");throw err;}finally{client.release();}
   res.json({enabled:true});
 }));
 app.post("/api/auth/totp/disable",pslFactorLimiter,pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
@@ -529,8 +536,14 @@ app.post("/api/auth/totp/disable",pslFactorLimiter,pslVerifyCurrentAccount,async
   if(!masterKey) return res.status(503).json({error:"Authenticator verification is unavailable."});
   let valid=false;try{valid=verifyTotp(decryptTotpSecret(active.rows[0].secret_ciphertext,masterKey),token);}catch{valid=false;}
   if(!valid) return res.status(401).json({error:"Authenticator code is incorrect."});
-  await pool.query("UPDATE account_security_factors SET status='REVOKED',revoked_at=NOW() WHERE id=$1",[active.rows[0].id]);
-  await audit("PSL_TOTP_DISABLED","security",account.type+":"+account.id,"Authenticator factor disabled",account.type==="admin"?"admin":account.id);
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const revoked=await client.query("UPDATE account_security_factors SET status='REVOKED',revoked_at=NOW() WHERE id=$1 AND status='ACTIVE' RETURNING id",[active.rows[0].id]);
+    if(!revoked.rowCount) throw new Error("Authenticator factor is no longer active.");
+    await auditWithClient(client,"PSL_TOTP_DISABLED","security",account.type+":"+account.id,"Authenticator factor disabled",account.type==="admin"?"admin":account.id);
+    await client.query("COMMIT");
+  }catch(err){await client.query("ROLLBACK");throw err;}finally{client.release();}
   res.json({enabled:false});
 }));
 
