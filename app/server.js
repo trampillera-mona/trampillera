@@ -423,7 +423,7 @@ app.get("/api/auth/me", asyncRoute(async (req,res) => {
 app.post("/api/auth/logout", (req,res) => { req.session = null; res.json({ authenticated:false }); });
 
 const pslLoginVerifyLimiter=rateLimit({windowMs:10*60_000,limit:8,standardHeaders:"draft-8",legacyHeaders:false});
-const pslFactorLimiter=rateLimit({windowMs:15*60_000,limit:5,standardHeaders:"draft-8",legacyHeaders:false});
+const pslFactorLimiter=rateLimit({windowMs:15*60_000,limit:12,standardHeaders:"draft-8",legacyHeaders:false});
 function pslAccountFromSession(req){
   if(req.session?.authenticated!==true) return null;
   if(req.session.role==="admin") return {type:"admin",id:"1"};
