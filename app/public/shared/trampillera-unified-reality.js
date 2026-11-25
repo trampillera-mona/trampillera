@@ -170,18 +170,7 @@
   });
   $('#ur-zoom-in')?.addEventListener('click', () => { if (camera && controls) { camera.position.addScaledVector(camera.position.clone().sub(controls.target).normalize(), -.65); controls.update(); } });
   $('#ur-zoom-out')?.addEventListener('click', () => { if (camera && controls) { camera.position.addScaledVector(camera.position.clone().sub(controls.target).normalize(), .65); controls.update(); } });
-  $('#ur-synth')?.addEventListener('click', () => {
-    const existing = document.getElementById('radio-quick-btn');
-    if (existing) existing.click();
-  });
-  $('#ur-sfx')?.addEventListener('click', () => {
-    const existing = document.getElementById('sfx-toggle-btn');
-    if (existing) existing.click();
-  });
-  $('#ur-theme')?.addEventListener('click', () => {
-    const existing = document.getElementById('theme-toggle-btn');
-    if (existing) existing.click();
-  });
+
   const language = $('#global-lang');
   language?.addEventListener('change', () => {
     const pill = $('#ur-language-pill'); if (pill) pill.textContent = '🌐 ' + language.value;
