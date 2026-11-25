@@ -486,7 +486,7 @@ async function pslCurrentPasswordMatches(account,password){
   return !!r.rowCount&&passwordMatches(password,r.rows[0].password_hash);
 }
 async function pslVerifyActiveFactors(account, body) {
-  const factors=await pool.query("SELECT id,factor_type,verifier,secret_ciphertext,failed_attempts,locked_until,last_totp_counter FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND status='ACTIVE' AND factor_type IN ('TOTP','VSC') ORDER BY factor_type",[account.type,account.id]);
+  const factors=await pool.query("SELECT id,factor_type,verifier,secret_ciphertext,failed_attempts,locked_until,last_totp_counter FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND status='ACTIVE' AND factor_type IN ('TOTP','VSC') ORDER BY CASE factor_type WHEN 'VSC' THEN 0 ELSE 1 END",[account.type,account.id]);
   for(const factor of factors.rows){
     if(factor.locked_until && new Date(factor.locked_until).getTime()>Date.now()) return false;
     let valid=false;
