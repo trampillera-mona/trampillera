@@ -142,7 +142,7 @@
   root.querySelectorAll('[data-ur-realm]').forEach(button => {
     button.addEventListener('click', () => {
       const realm = button.dataset.urRealm;
-      safeCall(() => window.RealmRouter && RealmRouter.switchRealm(realm));
+      safeCall(() => typeof RealmRouter !== 'undefined' && RealmRouter.switchRealm(realm));
       root.querySelectorAll('[data-ur-realm]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
     });
   });
@@ -152,14 +152,14 @@
   });
   $('#ur-time-travel')?.addEventListener('click', () => {
     const dock = document.getElementById('time-travel-dock');
-    if (dock) { dock.classList.toggle('visible'); safeCall(() => window.SnapshotStore && SnapshotStore.updateSliderUI()); }
+    if (dock) { dock.classList.toggle('visible'); safeCall(() => typeof SnapshotStore !== 'undefined' && SnapshotStore.updateSliderUI()); }
   });
-  $('#ur-fui-save')?.addEventListener('click', () => safeCall(() => window.FUIWorkspace && FUIWorkspace.save()));
-  $('#ur-assistant')?.addEventListener('click', () => safeCall(() => window.MischiefNavigator && MischiefNavigator.toggle()));
-  $('#ur-passport')?.addEventListener('click', () => safeCall(() => window.MV && MV.openPassport()));
+  $('#ur-fui-save')?.addEventListener('click', () => safeCall(() => typeof FUIWorkspace !== 'undefined' && FUIWorkspace.save()));
+  $('#ur-assistant')?.addEventListener('click', () => safeCall(() => typeof MischiefNavigator !== 'undefined' && MischiefNavigator.toggle()));
+  $('#ur-passport')?.addEventListener('click', () => safeCall(() => typeof MV !== 'undefined' && MV.openPassport()));
   $('#ur-globe-open')?.addEventListener('click', () => {
-    safeCall(() => window.RealmRouter && RealmRouter.switchRealm('classic'));
-    safeCall(() => window.Router && Router.go('globe'));
+    safeCall(() => typeof RealmRouter !== 'undefined' && RealmRouter.switchRealm('classic'));
+    safeCall(() => typeof Router !== 'undefined' && Router.go('globe'));
   });
   $('#ur-camera-reset')?.addEventListener('click', () => {
     focusRegion('GLOBAL');
@@ -183,6 +183,16 @@
   language?.addEventListener('change', () => {
     const pill = $('#ur-language-pill'); if (pill) pill.textContent = '🌐 ' + language.value;
   });
+  const controlLink = $('#ur-control-plane');
+  if (controlLink) {
+    fetch('/api/platform/status', { credentials: 'same-origin' })
+      .then(response => { if (!response.ok) throw new Error('API unavailable'); return response.json(); })
+      .then(data => {
+        controlLink.dataset.apiStatus = data.status === 'available' ? 'available' : 'unknown';
+        controlLink.title = 'Platform API status: ' + String(data.status || 'unknown') + '. Open authenticated Control Plane.';
+      })
+      .catch(() => { controlLink.dataset.apiStatus = 'offline'; controlLink.title = 'Platform API is not reachable. Open Control Plane to inspect.'; });
+  }
   root.querySelectorAll('[data-ur-social]').forEach(link => link.setAttribute('rel','noopener noreferrer'));
   initGlobe();
   if (language) { const pill = $('#ur-language-pill'); if (pill) pill.textContent = '🌐 ' + language.value; }
