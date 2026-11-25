@@ -114,3 +114,14 @@ The public community guide is available at [trampillera.com/community](https://t
 ## Verification
 
 Run `sh scripts/check.sh` for JavaScript syntax checks, AI provider adapter unit tests and source-preservation checks. After deployment, verify `/api/health`, `/`, `/control/`, `/city/`, `/city/campus/`, and `/city/multiverse/`. A healthy container alone does not prove every external integration is configured.
+
+
+## Architecture, research portfolio and release records
+
+The canonical technical documentation index is [docs/architecture/README.md](docs/architecture/README.md). It links the platform architecture, federated-module specification, source-based module inventory, JARVISER provider contract, language/voice audit, and Audience Intelligence & Growth design.
+
+The wider project portfolio and implementation boundaries are recorded in [TRAMPILLERA Ecosystem Portfolio — 2026-11-25](docs/architecture/TRAMPILLERA_ECOSYSTEM_PORTFOLIO_2026-11-25.md). Separate prototypes and research initiatives are not automatically modules of this deployed application.
+
+The current recovery point, source baseline, known capability limits, and operator-controlled Render release procedure are recorded in [Release Baseline & Recovery — 2026-11-25](docs/architecture/audit/TRAMPILLERA_RELEASE_BASELINE_AND_RECOVERY_2026-11-25.md).
+
+**Release rule:** a Git recovery branch is not a database backup; a passing source test is not a production smoke test; a visible module is not proof of execution. Render deployment remains manual and requires an explicit operator decision.
