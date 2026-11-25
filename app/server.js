@@ -860,9 +860,13 @@ app.post("/api/auth/vsc/enroll",pslFactorLimiter,pslVerifyCurrentAccount,asyncRo
 }));
 app.post("/api/auth/vsc/confirm",pslFactorLimiter,pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
   const account=pslAccountFromSession(req);
-  const pending=await pool.query("SELECT id,verifier,created_at FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND factor_type='VSC' AND status='PENDING' ORDER BY created_at DESC LIMIT 1",[account.type,account.id]);
+  const pending=await pool.query("SELECT id,verifier,created_at,failed_attempts,locked_until FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND factor_type='VSC' AND status='PENDING' ORDER BY created_at DESC LIMIT 1",[account.type,account.id]);
   if(!pending.rowCount || Date.now()-new Date(pending.rows[0].created_at).getTime()>10*60_000) return res.status(404).json({error:"No active visual security enrollment. Start again."});
-  if(!verifyVscSequence(req.body?.sequence,pending.rows[0].verifier)) return res.status(401).json({error:"Visual security confirmation did not match. Try again."});
+  if(pending.rows[0].locked_until && new Date(pending.rows[0].locked_until).getTime()>Date.now()) return res.status(429).json({error:"Visual security confirmation is temporarily locked."});
+  if(!verifyVscSequence(req.body?.sequence,pending.rows[0].verifier)){
+    await pool.query("UPDATE account_security_factors SET failed_attempts=failed_attempts+1,locked_until=CASE WHEN failed_attempts+1>=5 THEN NOW()+INTERVAL '15 minutes' ELSE locked_until END WHERE id=$1",[pending.rows[0].id]);
+    return res.status(401).json({error:"Visual security confirmation did not match. Try again."});
+  }
   const client=await pool.connect();
   try{
     await client.query("BEGIN");
@@ -878,9 +882,13 @@ app.post("/api/auth/vsc/confirm",pslFactorLimiter,pslVerifyCurrentAccount,asyncR
 app.post("/api/auth/vsc/disable",pslFactorLimiter,pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
   const account=pslAccountFromSession(req);
   if(!await pslCurrentPasswordMatches(account,req.body?.password)) return res.status(401).json({error:"Current password is incorrect."});
-  const active=await pool.query("SELECT id,verifier FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND factor_type='VSC' AND status='ACTIVE'",[account.type,account.id]);
+  const active=await pool.query("SELECT id,verifier,failed_attempts,locked_until FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND factor_type='VSC' AND status='ACTIVE'",[account.type,account.id]);
   if(!active.rowCount) return res.status(404).json({error:"No active visual security code is configured."});
-  if(!verifyVscSequence(req.body?.sequence,active.rows[0].verifier)) return res.status(401).json({error:"Visual security sequence is incorrect."});
+  if(active.rows[0].locked_until && new Date(active.rows[0].locked_until).getTime()>Date.now()) return res.status(429).json({error:"Visual security removal is temporarily locked."});
+  if(!verifyVscSequence(req.body?.sequence,active.rows[0].verifier)){
+    await pool.query("UPDATE account_security_factors SET failed_attempts=failed_attempts+1,locked_until=CASE WHEN failed_attempts+1>=5 THEN NOW()+INTERVAL '15 minutes' ELSE locked_until END WHERE id=$1",[active.rows[0].id]);
+    return res.status(401).json({error:"Visual security sequence is incorrect."});
+  }
   const client=await pool.connect();
   try{
     await client.query("BEGIN");
