@@ -10,6 +10,7 @@ test -n "\${PSL_ENCRYPTION_KEY:-}"
 ADMIN_COOKIE="/tmp/psl-admin-cookie.txt"
 EMPLOYEE_COOKIE="/tmp/psl-employee-cookie.txt"
 TOTP_JSON="/tmp/psl-totp-enrollment.json"
+RECOVERY_JSON="/tmp/psl-recovery-codes.json"
 EMPLOYEE_EMAIL="ci-vsc-$RANDOM-$(date +%s)@example.test"
 EMPLOYEE_PASSWORD="$(openssl rand -hex 24)"
 VSC_SEQUENCE='["ember","sun","leaf","aqua","sky","indigo"]'
@@ -18,7 +19,7 @@ curl() { command curl -H 'Origin: http://127.0.0.1:3000' "$@"; }
 totp_code() {
   node --input-type=module -e 'import { totpCode } from "./app/security/totp.js"; console.log(totpCode(process.argv[1]));' "$1"
 }
-cleanup() { rm -f "$ADMIN_COOKIE" "$EMPLOYEE_COOKIE" "$TOTP_JSON"; }
+cleanup() { rm -f "$ADMIN_COOKIE" "$EMPLOYEE_COOKIE" "$TOTP_JSON" "$RECOVERY_JSON"; }
 trap cleanup EXIT
 
 echo "PSL integration: administrator VSC + TOTP combined sign-in"
@@ -56,14 +57,28 @@ curl --fail --silent -b "$ADMIN_COOKIE" -c "$ADMIN_COOKIE" -H 'Content-Type: app
   -d "{\"code\":\"$ADMIN_TOTP_CODE\"}" http://127.0.0.1:3000/api/auth/totp/verify-login | jq -e '.authenticated == true and .role == "admin"' >/dev/null
 
 ADMIN_TOTP_CODE="$(totp_code "$ADMIN_TOTP_SECRET")"
-echo "PSL stage: PSL TOTP disable"
+echo "PSL stage: administrator recovery code issue"
 curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
-  -d "{\"password\":\"$ADMIN_PASSWORD\",\"code\":\"$ADMIN_TOTP_CODE\"}" \
-  http://127.0.0.1:3000/api/auth/totp/disable | jq -e '.enabled == false' >/dev/null
-echo "PSL stage: PSL VSC disable"
-curl --fail --silent -b "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
-  -d "{\"password\":\"$ADMIN_PASSWORD\",\"sequence\":$VSC_SEQUENCE}" \
-  http://127.0.0.1:3000/api/auth/vsc/disable | jq -e '.enabled == false' >/dev/null
+  -d "{\"password\":\"$ADMIN_PASSWORD\",\"sequence\":$VSC_SEQUENCE,\"code\":\"$ADMIN_TOTP_CODE\"}" \
+  http://127.0.0.1:3000/api/auth/recovery-codes > "$RECOVERY_JSON"
+jq -e '.count == 10 and .displayOnce == true and (.codes | length == 10)' "$RECOVERY_JSON" >/dev/null
+ADMIN_RECOVERY_CODE="$(jq -r '.codes[0]' "$RECOVERY_JSON")"
+BAD_RECOVERY_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Content-Type: application/json' \
+  -d "{\"accountType\":\"admin\",\"password\":\"wrong-password\",\"recoveryCode\":\"$ADMIN_RECOVERY_CODE\"}" \
+  http://127.0.0.1:3000/api/auth/recovery/reset)"
+test "$BAD_RECOVERY_STATUS" = "401"
+echo "PSL stage: administrator recovery and session invalidation"
+curl --fail --silent -b "$ADMIN_COOKIE" -c "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"accountType\":\"admin\",\"password\":\"$ADMIN_PASSWORD\",\"recoveryCode\":\"$ADMIN_RECOVERY_CODE\"}" \
+  http://127.0.0.1:3000/api/auth/recovery/reset | jq -e '.recovered == true and .requiresSignIn == true and .factorsReset == true' >/dev/null
+ADMIN_OLD_SESSION_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' -b "$ADMIN_COOKIE" http://127.0.0.1:3000/api/control/overview)"
+test "$ADMIN_OLD_SESSION_STATUS" = "401"
+REPLAY_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Content-Type: application/json' \
+  -d "{\"accountType\":\"admin\",\"password\":\"$ADMIN_PASSWORD\",\"recoveryCode\":\"$ADMIN_RECOVERY_CODE\"}" \
+  http://127.0.0.1:3000/api/auth/recovery/reset)"
+test "$REPLAY_STATUS" = "401"
+curl --fail --silent -c "$ADMIN_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"password\":\"$ADMIN_PASSWORD\"}" http://127.0.0.1:3000/api/auth/login | jq -e '.authenticated == true' >/dev/null
 
 echo "PSL integration: employee VSC enrollment and sign-in"
 echo "PSL stage: PSL employee creation"
@@ -92,8 +107,24 @@ EMPLOYEE_LOGIN="$(curl --fail --silent -c "$EMPLOYEE_COOKIE" -H 'Content-Type: a
 printf '%s' "$EMPLOYEE_LOGIN" | jq -e '.requiresVsc == true and .authenticated == false' >/dev/null
 curl --fail --silent -b "$EMPLOYEE_COOKIE" -c "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"sequence\":$VSC_SEQUENCE}" http://127.0.0.1:3000/api/auth/vsc/verify-login | jq -e '.authenticated == true and .role == "employee"' >/dev/null
+echo "PSL stage: employee recovery code issue"
 curl --fail --silent -b "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
   -d "{\"password\":\"$EMPLOYEE_PASSWORD\",\"sequence\":$VSC_SEQUENCE}" \
-  http://127.0.0.1:3000/api/auth/vsc/disable | jq -e '.enabled == false' >/dev/null
+  http://127.0.0.1:3000/api/auth/recovery-codes > "$RECOVERY_JSON"
+jq -e '.count == 10 and .displayOnce == true' "$RECOVERY_JSON" >/dev/null
+EMPLOYEE_RECOVERY_CODE="$(jq -r '.codes[0]' "$RECOVERY_JSON")"
+echo "PSL stage: employee recovery and session invalidation"
+curl --fail --silent -b "$EMPLOYEE_COOKIE" -c "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"accountType\":\"employee\",\"email\":\"$EMPLOYEE_EMAIL\",\"password\":\"$EMPLOYEE_PASSWORD\",\"recoveryCode\":\"$EMPLOYEE_RECOVERY_CODE\"}" \
+  http://127.0.0.1:3000/api/auth/recovery/reset | jq -e '.recovered == true and .factorsReset == true' >/dev/null
+EMPLOYEE_OLD_SESSION_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' -b "$EMPLOYEE_COOKIE" http://127.0.0.1:3000/api/team/dashboard)"
+test "$EMPLOYEE_OLD_SESSION_STATUS" = "401"
+EMPLOYEE_REPLAY_STATUS="$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Content-Type: application/json' \
+  -d "{\"accountType\":\"employee\",\"email\":\"$EMPLOYEE_EMAIL\",\"password\":\"$EMPLOYEE_PASSWORD\",\"recoveryCode\":\"$EMPLOYEE_RECOVERY_CODE\"}" \
+  http://127.0.0.1:3000/api/auth/recovery/reset)"
+test "$EMPLOYEE_REPLAY_STATUS" = "401"
+curl --fail --silent -c "$EMPLOYEE_COOKIE" -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$EMPLOYEE_EMAIL\",\"password\":\"$EMPLOYEE_PASSWORD\"}" \
+  http://127.0.0.1:3000/api/auth/employee-login | jq -e '.authenticated == true and .role == "employee"' >/dev/null
 
-echo "PSL integration: administrator combined VSC+TOTP and employee VSC flows passed."
+echo "PSL integration: administrator and employee recovery, replay denial, and session invalidation passed."
