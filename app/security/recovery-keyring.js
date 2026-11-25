@@ -79,7 +79,7 @@ export function decryptTotpWithKeyring(envelope, keyring, legacyMasterKey) {
   const parts = value.split(".");
   if (parts.length !== 5 || parts[0] !== "v2") throw new Error("Unsupported TOTP secret envelope.");
   const [, keyId, ivPart, tagPart, ciphertextPart] = parts;
-  const keys = decodeKeyring(keyring, keyring?.activeKeyId || keyId);
+  const keys = decodeKeyring(keyring, keyId);
   const key = keys.get(keyId);
   if (!key) throw new Error("The TOTP envelope references a key that is not present in the keyring.");
   const iv = Buffer.from(ivPart, "base64url");
@@ -93,6 +93,6 @@ export function decryptTotpWithKeyring(envelope, keyring, legacyMasterKey) {
 }
 
 export function rotateTotpEnvelope(envelope, keyring, activeKeyId, legacyMasterKey) {
-  const plaintext = decryptTotpWithKeyring(envelope, { ...keyring, activeKeyId }, legacyMasterKey);
+  const plaintext = decryptTotpWithKeyring(envelope, keyring, legacyMasterKey);
   return encryptTotpWithKeyring(plaintext, keyring, activeKeyId);
 }
