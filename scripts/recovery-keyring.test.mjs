@@ -9,7 +9,7 @@ test("recovery codes are high-entropy, unique, salted and verifiable", () => {
   assert.equal(generated.codes.length, 10);
   assert.equal(new Set(generated.codes).size, 10);
   assert.equal(generated.verifiers.length, 10);
-  assert.ok(generated.codes.every((code) => /^[A-Z0-9_-]{32}$/.test(code)));
+  assert.ok(generated.codes.every((code) => /^[A-F0-9]{48}$/.test(code)));
   assert.ok(generated.codes.every((code, index) => verifyRecoveryCode(code, generated.verifiers[index])));
   assert.ok(generated.codes.every((code, index) => !verifyRecoveryCode(generated.codes[(index + 1) % 10], generated.verifiers[index])));
   assert.notEqual(hashRecoveryCode(generated.codes[0]), hashRecoveryCode(generated.codes[0]));
