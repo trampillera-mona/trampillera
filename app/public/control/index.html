@@ -733,5 +733,6 @@ $('view-mode').addEventListener('change',function(e){if(e.target.value==='spatia
 fetch('/api/auth/me',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(d){if(d.authenticated)enter();else showAuth()}).catch(showAuth);
 })();
 </script>
+<script src="/security/recovery.js"></script>
 <script src="/shared/trampillera-global-controls.js"></script>
 </body></html>
