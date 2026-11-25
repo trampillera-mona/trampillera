@@ -302,3 +302,23 @@ A VSC sequence has 10^6 possible combinations (approximately 19.9 bits) and is a
 6. Add browser/UI, concurrency, replay, failure, migration, and restore tests; complete independent security review before production rollout.
 
 **Release status:** Foundation code and CI tests are being added to the draft PR. Recovery is not yet available to users; key rotation has not been performed; production remains unchanged.
+
+
+## 18. Recovery API — transactional implementation status (2026-11-25)
+
+### Implemented in the draft branch
+
+- Recovery codes use a public, non-secret 64-bit selector and a separate 192-bit random secret. The selector locates one row; only the secret's per-code salted scrypt verifier is stored.
+- `POST /api/auth/recovery-codes` requires an authenticated account, current password, and every currently active factor (VSC sequence and/or TOTP code). It replaces the entire unused code set in a transaction and returns the new codes once.
+- Regeneration revokes all prior unused codes before inserting the new set. The response explicitly warns that plaintext is not retrievable later.
+- `POST /api/auth/recovery/reset` supports administrator and employee account recovery using password plus selector/secret code.
+- Redemption locks the account row and selected recovery-code row, verifies the code, consumes it atomically, revokes all remaining recovery codes, revokes active and pending VSC/TOTP factors, increments the account authentication version, and writes an audit event without secret material.
+- Authentication-version increment invalidates existing administrator or employee sessions. Recovery response requires a fresh password sign-in; factors must then be re-enrolled as appropriate.
+- API rate limiting applies to both recovery endpoints. Recovery responses inherit `Cache-Control: no-store`.
+
+### Release limitations
+
+- Recovery API is implemented and covered by CI integration tests, but there is not yet a browser UI for displaying, printing, or downloading recovery codes. A user-facing screen must make the one-time display and safe-storage warning explicit.
+- No independent security review has been completed. Recovery must not be enabled in production until the UI, concurrency/replay review, rate-limit policy, and operational incident runbook are reviewed.
+- Strict-profile enforcement and mandatory post-recovery factor enrollment are not yet enforced by the authentication policy. Current recovery revokes factors and forces a new sign-in, but the platform does not yet prevent use of password-only authentication afterward.
+- Keyring primitives remain library-only. The live TOTP path still uses the legacy `PSL_ENCRYPTION_KEY` v1 envelope; no keyring environment format, batch re-encryption job, key custody, backup, or rotation has been deployed or executed.
