@@ -86,8 +86,10 @@
       const width = Math.max(1, root.clientWidth);
       const height = Math.max(1, root.clientHeight);
       const radius = 2.48;
-      const earthX = width < 640 ? 1.28 : width < 980 ? 1.72 : 2.05;
-      const viewTarget = new THREE.Vector3(0, 0, 0);
+      // Keep the Earth at the scene origin. The orbit target is deliberately
+      // offset, matching the reference banner's wide orbital composition.
+      let orbitTargetX = Math.min(2.6, Math.max(.72, width * .0022));
+      const viewTarget = new THREE.Vector3(orbitTargetX, 0, 0);
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(43, width / height, .1, 120);
       camera.position.set(0, 0, 8.6);
@@ -108,7 +110,7 @@
         specular: new THREE.Color(0x29445a)
       });
       earth = new THREE.Mesh(new THREE.SphereGeometry(radius, 72, 72), material);
-      earth.position.set(earthX, 0, 0);
+      earth.position.set(0, 0, 0);
       earth.rotation.z = 23.5 * Math.PI / 180;
       scene.add(earth);
 
@@ -179,7 +181,16 @@
 
       const interactive = root.querySelectorAll('button, a, select, input');
       interactive.forEach(element => element.addEventListener('pointerdown', event => event.stopPropagation()));
-      root.style.touchAction = 'pan-y';
+      // OrbitControls is bound to the complete banner, not the canvas or globe.
+      // This lets a drag begin anywhere in the empty banner space.
+      root.style.touchAction = 'none';
+      root.style.cursor = 'grab';
+      root.addEventListener('pointerdown', event => {
+        if (!event.target.closest('button, a, select, input')) root.style.cursor = 'grabbing';
+      });
+      const releaseOrbitPointer = () => { root.style.cursor = 'grab'; };
+      window.addEventListener('pointerup', releaseOrbitPointer, { passive: true });
+      window.addEventListener('pointercancel', releaseOrbitPointer, { passive: true });
 
       webglReady = true;
       setStatus('3D globe ready · drag to rotate · wheel to zoom', 'ready');
@@ -206,11 +217,10 @@
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
         renderer.setSize(w, h, false);
-        if (earth && clouds && atmosphere) {
-          const x = w < 640 ? 1.28 : w < 980 ? 1.72 : 2.05;
-          earth.position.x = x;
-          clouds.position.x = x;
-          atmosphere.position.x = x;
+        orbitTargetX = Math.min(2.6, Math.max(.72, w * .0022));
+        if (currentRegionKey === 'GLOBAL' && controls) {
+          controls.target.set(orbitTargetX, 0, 0);
+          controls.update();
         }
       };
       if (window.ResizeObserver) {
@@ -263,6 +273,15 @@
     if (region && region.value !== currentRegionKey) region.value = currentRegionKey;
     if (controls) controls.autoRotate = false;
     if (camera && earth && THREE) {
+      if (currentRegionKey === 'GLOBAL') {
+        targetCameraPosition = null;
+        if (controls) controls.target.set(orbitTargetX, 0, 0);
+        camera.position.set(0, 0, 8.6);
+        if (controls) controls.update();
+        updateSolarLighting();
+        safeCall(() => typeof playTactileSound === 'function' && playTactileSound('snap'));
+        return;
+      }
       const distance = Math.max(controls ? controls.minDistance + .35 : 6.4, Math.min(controls ? controls.maxDistance - .5 : 13, camera.position.distanceTo(earth.position)));
       const phi = (90 - item.lat) * Math.PI / 180;
       const theta = (item.lon + 180) * Math.PI / 180;
@@ -307,7 +326,7 @@
     if (badge) badge.textContent = '· GLOBAL';
     if (camera && controls && earth) {
       controls.autoRotate = !reducedMotion;
-      controls.target.set(0, 0, 0);
+      controls.target.set(orbitTargetX, 0, 0);
       camera.position.set(0, 0, 8.6);
       controls.update();
     }
