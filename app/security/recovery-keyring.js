@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { decryptTotpSecret } from "./totp.js";
 
 const RECOVERY_CODE_BYTES = 24;
+const RECOVERY_SELECTOR_BYTES = 8;
 const RECOVERY_CODE_COUNT = 10;
 const SCRYPT = Object.freeze({ N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
 
@@ -9,40 +10,48 @@ function derive(value, salt) {
   return crypto.scryptSync(value, salt, 32, SCRYPT);
 }
 
-function normalizeRecoveryCode(value) {
+export function parseRecoveryCode(value) {
   if (typeof value !== "string") return null;
   const normalized = value.replace(/[\s-]/g, "").toUpperCase();
-  return /^[A-F0-9]{48}$/.test(normalized) ? normalized : null;
+  if (!/^[A-F0-9]{64}$/.test(normalized)) return null;
+  return { selector: normalized.slice(0, 16), secret: normalized.slice(16) };
 }
 
 export function generateRecoveryCodes(count = RECOVERY_CODE_COUNT) {
   if (!Number.isInteger(count) || count < 1 || count > 20) {
     throw new RangeError("Recovery code count must be between 1 and 20.");
   }
-  const codes = Array.from({ length: count }, () => crypto.randomBytes(RECOVERY_CODE_BYTES).toString("hex").toUpperCase());
-  return {
-    codes,
-    verifiers: codes.map((code) => hashRecoveryCode(code))
-  };
+  const records = Array.from({ length: count }, () => {
+    const selector = crypto.randomBytes(RECOVERY_SELECTOR_BYTES).toString("hex").toUpperCase();
+    const secret = crypto.randomBytes(RECOVERY_CODE_BYTES).toString("hex").toUpperCase();
+    return { selector, secret, code: selector + secret, verifier: hashRecoverySecret(secret) };
+  });
+  return { codes: records.map((record) => record.code), records: records.map(({ selector, verifier }) => ({ selector, verifier })) };
 }
 
-export function hashRecoveryCode(code) {
-  const normalized = normalizeRecoveryCode(code);
-  if (!normalized) throw new TypeError("Invalid recovery code format.");
+function normalizeRecoverySecret(value) {
+  if (typeof value !== "string") return null;
+  const normalized = value.replace(/[\s-]/g, "").toUpperCase();
+  return /^[A-F0-9]{48}$/.test(normalized) ? normalized : null;
+}
+
+function hashRecoverySecret(secret) {
+  const normalized = normalizeRecoverySecret(secret);
+  if (!normalized) throw new TypeError("Invalid recovery secret format.");
   const salt = crypto.randomBytes(16);
   const digest = derive(normalized, salt);
   return "scrypt-recovery-v1$" + salt.toString("base64url") + "$" + digest.toString("base64url");
 }
 
 export function verifyRecoveryCode(code, verifier) {
-  const normalized = normalizeRecoveryCode(code);
-  if (!normalized || typeof verifier !== "string") return false;
+  const parsed = parseRecoveryCode(code);
+  if (!parsed || typeof verifier !== "string") return false;
   const parts = verifier.split("$");
   if (parts.length !== 3 || parts[0] !== "scrypt-recovery-v1") return false;
   const salt = Buffer.from(parts[1], "base64url");
   const expected = Buffer.from(parts[2], "base64url");
   if (salt.length !== 16 || expected.length !== 32) return false;
-  const actual = derive(normalized, salt);
+  const actual = derive(parsed.secret, salt);
   return crypto.timingSafeEqual(actual, expected);
 }
 
