@@ -275,7 +275,10 @@
     if (camera && earth && THREE) {
       if (currentRegionKey === 'GLOBAL') {
         targetCameraPosition = null;
-        if (controls) controls.target.set(orbitTargetX, 0, 0);
+        if (controls) {
+          controls.target.set(orbitTargetX, 0, 0);
+          controls.autoRotate = !reducedMotion;
+        }
         camera.position.set(0, 0, 8.6);
         if (controls) controls.update();
         updateSolarLighting();
