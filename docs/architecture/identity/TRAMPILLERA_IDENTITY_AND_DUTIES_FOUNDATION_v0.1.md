@@ -400,4 +400,12 @@ Identity & Duties Foundation may be marked REAL only when:
 - GitHub verification passes and post-deploy runtime checks confirm the intended behavior.
 
 Until then, the full Identity & Duties Foundation status is **PARTIAL / architecture in progress**. The existing employee account and Team Game subset remains REAL within its documented boundaries.
-\n\n## 17. Implementation delta — organization schema migration 0002 (2026-11-25)\n\nThe review branch `feat/organization-normalization-migration` adds `0002_normalized_organization.sql` after the merged migration baseline. It creates `org_units`, `positions` and `employee_org_assignments` with foreign keys, stable keys, type/status/date constraints, a serialized hierarchy cycle guard and a serialized overlap guard for active primary placements.\n\nNo legacy `department` or `job_title` text is transformed. No organization rows, position rows or employee placements are seeded. Existing `employees` columns, IDs, credentials, auth versions, Team Game tables and foreign keys are not altered. The migration adds schema capability only; organization APIs, UI, authorization and reviewed mapping are future work.\n\nThe PR's CI must prove clean PostgreSQL startup, migration ledger idempotency, schema presence, zero inferred assignments and continued employee/Team Game compatibility. Until those checks pass and the PR is merged/deployed, this remains source under review, not production capability.\n
+
+
+## 17. Implementation delta — organization schema migration 0002 (2026-11-25)
+
+The review branch `feat/organization-normalization-migration` adds `0002_normalized_organization.sql` after the merged migration baseline. It creates `org_units`, `positions` and `employee_org_assignments` with foreign keys, stable keys, type/status/date constraints, a serialized hierarchy cycle guard and a serialized overlap guard for active primary placements.
+
+No legacy `department` or `job_title` text is transformed. No organization rows, position rows or employee placements are seeded. Existing `employees` columns, IDs, credentials, auth versions, Team Game tables and foreign keys are not altered. The migration adds schema capability only; organization APIs, UI, authorization and reviewed mapping are future work.
+
+The PR's CI must prove clean PostgreSQL startup, migration ledger idempotency, schema presence, zero inferred assignments and continued employee/Team Game compatibility. Until those checks pass and the PR is merged/deployed, this remains source under review, not production capability.
