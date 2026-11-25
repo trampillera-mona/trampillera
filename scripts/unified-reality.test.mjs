@@ -14,7 +14,7 @@ test('Unified Reality banner is mounted once and loads its shared assets', () =>
   assert.match(css, /max-width:1440px/);
   assert.match(css, /height:388px/);
   assert.match(css, /min-height:388px/);
-  assert.match(css, /#unified-reality-banner \\.ur-main[^}]*min-height:220px/);
+  assert.match(css, /#unified-reality-banner \.ur-main[^}]*min-height:220px/);
 });
 
 test('banner preserves unique application IDs and required navigation controls', () => {
