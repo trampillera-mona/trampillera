@@ -1,4 +1,4 @@
-# TRAMPILLERA Partner & Team Workspace — Architecture Specification v0.2
+# TRAMPILLERA Partner & Team Workspace — Architecture Specification v0.3
 
 **Status:** DESIGN / NOT IMPLEMENTED / NOT AUTHORIZED FOR PRODUCTION USE  
 **Initial collaborator:** One partner currently based in Kalmar, Sweden. Location is contextual only; it is not an authorization attribute.
@@ -141,6 +141,48 @@ Proposed routes (subject to implementation review):
 
 Every route must enforce identity, affiliation, role, project membership, record-level scope, and visibility classification. Never trust a client-supplied identity or membership ID.
 
+
+
+## 10.1 Existing TRAMPILLERA integration baseline — inspected 2026-11-25
+
+The following existing components were inspected in the repository. This section records current implementation boundaries; it does not claim that the proposed gateway is implemented.
+
+| Existing surface | Current behavior | Integration decision |
+|---|---|---|
+| `/city/` | ITY CITY shell with iframe navigation to Workspace, Campus, Multiverse, and Team | Keep this as the single user-facing entry point; preserve module routes |
+| `/city/workspace/` | Browser-local personalization and demo profile; page labels the profile as a demo and layout as browser-local | Replace demo identity with `/api/auth/me`-backed identity; keep local layout preferences non-authoritative |
+| `/city/campus/` and `/city/multiverse/` | Separate module surfaces | Keep independently addressable; gate protected data/actions by server-side grants |
+| `/city/team/` | Employee-only sign-in and mission workflow backed by `employees`, `team_missions`, and `mission_assignments` | Extend the identity model without creating a second account for a second affiliation |
+| `/control/` | Separate administrator session, guarded by `requireAdmin` and `admin_auth_state` | Keep privileged administration separate; invitation issuance must remain administrator-only |
+| `/api/auth/me` | Returns either employee or administrator identity; no unified affiliation list | Extend response with stable identity and explicit affiliations while preserving existing clients during migration |
+| `/api/auth/employee-login` | Authenticates against the `employees` table | Keep existing employee login compatibility; do not use a shared or administrator credential |
+| `/api/control/team/employees` | Creates an employee with a temporary password returned once to the administrator | Do not use this as partner onboarding; introduce email-bound single-use invitation redemption |
+
+### Identity migration constraint
+
+The current schema has a distinct `employees` identity table and a separate administrator authentication state. No shared human-identity table or partner affiliation model was found in the inspected server implementation. The initial implementation must therefore introduce an additive, backward-compatible identity/affiliation layer and an explicit mapping for existing employee accounts. It must not silently merge the administrator identity with an employee row or assume the demo profile is an authenticated account.
+
+### Required integration sequence
+
+1. Additive migration: identity records, affiliation grants, invitation records, project memberships, and audit-safe indexes/constraints. Preserve existing employee IDs and rows.
+2. Backfill/link existing employee accounts to a human identity deterministically by normalized email; detect collisions and stop rather than guess.
+3. Add an invitation lifecycle: create, revoke, expire, redeem exactly once. Store only a keyed/hash digest of the bearer token; never log or return it after issuance.
+4. Email ownership proof: invitation sent to the bound address is the proof mechanism; redemption consumes the one-time token and creates/links the identity in one transaction. No password or token may be sent to a different address.
+5. Authentication compatibility: session identifies the human identity and session version; effective affiliations and project scopes are loaded server-side. Legacy employee routes remain protected until migrated and regression-tested.
+6. Workspace integration: replace the demo profile with authenticated data and expose only permitted projects/tasks; preserve the Campus and Multiverse module navigation.
+7. Admin UI: add invitation lifecycle and affiliation review to the existing Control Plane, not to the contributor workspace.
+8. Verification: migration tests, legacy employee regression, invitation replay/expiry/revocation tests, email mismatch, IDOR and cross-scope denial, session invalidation, and browser tests.
+
+### Initial collaborator record supplied by the project owner
+
+- Display name: Egor Zhuravlev (Егор Журавлёв).
+- Intended sign-in email: `egorzuravlev913@gmail.com`.
+- GitHub handle supplied by the owner: `egorzuravlev913-a11y`.
+- GitHub repository permissions, competencies, and preferred contribution track are not verified by these supplied identifiers. Do not infer accessibility expertise from the handle.
+- Intended affiliations: `PARTNER` + `TEAM_MEMBER`; operational role: `TEAM_CONTRIBUTOR`.
+- First proposed onboarding task: inspect TRAMPILLERA and submit five concrete improvement proposals with rationale and expected impact. This remains proposed, not assigned.
+- No invitation, account, repository grant, or production permission has been created by recording these details.
+
 ## 11. Release gates
 
 Before production:
@@ -156,11 +198,11 @@ Before production:
 
 ## 12. Explicit unknowns
 
-- Collaborator's full name and intended sign-in email are not yet supplied.
+- The project owner supplied the collaborator's display name and intended sign-in email; the collaborator must still verify ownership of that email during invitation redemption.
 - Exact first project, repository areas, and initial task are not yet assigned.
 - Skill areas above are based on an initial informal description and must be confirmed by the collaborator.
 - Email delivery and email-address verification are not yet configured/verified by this specification.
-- No invitation has been generated; no account or access credential exists as a result of this document.
+- No invitation has been generated; no account or access credential exists as a result of this document. Email delivery provider connection and end-to-end delivery verification remain pending.
 
 ## 13. Acceptance rule
 
