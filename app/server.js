@@ -8,6 +8,7 @@ import { runMigrations } from "./migrations.js";
 import crypto from "node:crypto";
 import { generateTotpSecret, encryptTotpSecret, decryptTotpSecret, buildOtpAuthUri, verifyTotp } from "./security/totp.js";
 import { createVscVerifier, verifyVscSequence } from "./security/vsc.js";
+import { generateRecoveryCodes, parseRecoveryCode, verifyRecoveryCode } from "./security/recovery-keyring.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -445,6 +446,93 @@ async function pslCurrentPasswordMatches(account,password){
   const r=await pool.query("SELECT password_hash FROM employees WHERE id=$1",[account.id]);
   return !!r.rowCount&&passwordMatches(password,r.rows[0].password_hash);
 }
+async function pslVerifyActiveFactors(account, body) {
+  const factors=await pool.query("SELECT id,factor_type,verifier,secret_ciphertext,failed_attempts,locked_until FROM account_security_factors WHERE account_type=$1 AND account_id=$2 AND status='ACTIVE' AND factor_type IN ('TOTP','VSC') ORDER BY factor_type",[account.type,account.id]);
+  for(const factor of factors.rows){
+    if(factor.locked_until && new Date(factor.locked_until).getTime()>Date.now()) return false;
+    let valid=false;
+    if(factor.factor_type==="VSC") valid=verifyVscSequence(body?.sequence,factor.verifier);
+    if(factor.factor_type==="TOTP"){
+      const masterKey=process.env.PSL_ENCRYPTION_KEY;
+      if(!masterKey || Buffer.byteLength(masterKey,"utf8")<32) throw new Error("TOTP verification is not configured.");
+      try{valid=verifyTotp(decryptTotpSecret(factor.secret_ciphertext,masterKey),typeof body?.code==="string"?body.code.trim():"");}catch{valid=false;}
+    }
+    if(!valid){
+      await pool.query("UPDATE account_security_factors SET failed_attempts=failed_attempts+1,locked_until=CASE WHEN failed_attempts+1>=5 THEN NOW()+INTERVAL '15 minutes' ELSE locked_until END WHERE id=$1",[factor.id]);
+      return false;
+    }
+    await pool.query("UPDATE account_security_factors SET failed_attempts=0,locked_until=NULL,last_used_at=NOW() WHERE id=$1",[factor.id]);
+  }
+  return true;
+}
+const pslRecoveryLimiter=rateLimit({windowMs:15*60_000,limit:6,standardHeaders:"draft-8",legacyHeaders:false});
+app.post("/api/auth/recovery-codes",pslRecoveryLimiter,pslVerifyCurrentAccount,asyncRoute(async(req,res)=>{
+  const account=pslAccountFromSession(req);
+  if(!await pslCurrentPasswordMatches(account,req.body?.password)) return res.status(401).json({error:"Current password is incorrect."});
+  let factorsVerified=false;
+  try{factorsVerified=await pslVerifyActiveFactors(account,req.body);}catch{return res.status(503).json({error:"Security factor verification is unavailable."});}
+  if(!factorsVerified) return res.status(401).json({error:"Re-enter every active security factor to generate recovery codes."});
+  const generated=generateRecoveryCodes();
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    if(account.type==="admin"){
+      await client.query("SELECT auth_version FROM admin_auth_state WHERE singleton_id=1 FOR UPDATE");
+    }else{
+      const locked=await client.query("SELECT id FROM employees WHERE id=$1 AND active=TRUE FOR UPDATE",[account.id]);
+      if(!locked.rowCount) throw new Error("Account is no longer active.");
+    }
+    await client.query("UPDATE account_recovery_codes SET revoked_at=NOW() WHERE account_type=$1 AND account_id=$2 AND consumed_at IS NULL AND revoked_at IS NULL",[account.type,account.id]);
+    for(const record of generated.records){
+      await client.query("INSERT INTO account_recovery_codes(account_type,account_id,selector,verifier) VALUES($1,$2,$3,$4)",[account.type,account.id,record.selector,record.verifier]);
+    }
+    await auditWithClient(client,"PSL_RECOVERY_CODES_REPLACED","security",account.type+":"+account.id,"Recovery code set replaced; previous unused codes revoked",account.type==="admin"?"admin":account.id);
+    await client.query("COMMIT");
+  }catch(err){await client.query("ROLLBACK");throw err;}finally{client.release();}
+  res.json({codes:generated.codes,count:generated.codes.length,displayOnce:true,warning:"Save these codes securely now. They will not be shown again; generating a new set revokes every unused code from the previous set."});
+}));
+app.post("/api/auth/recovery/reset",pslRecoveryLimiter,asyncRoute(async(req,res)=>{
+  const accountType=String(req.body?.accountType||"").toLowerCase();
+  if(!["admin","employee"].includes(accountType)) return res.status(400).json({error:"Recovery request is invalid."});
+  const password=typeof req.body?.password==="string"?req.body.password:"";
+  const parsed=parseRecoveryCode(req.body?.recoveryCode);
+  let account;
+  if(accountType==="admin"){
+    const expected=Buffer.from(ADMIN_PASSWORD),supplied=Buffer.from(password);
+    if(expected.length!==supplied.length||!crypto.timingSafeEqual(expected,supplied)||!parsed) return res.status(401).json({error:"Account credentials or recovery code are invalid."});
+    account={type:"admin",id:"1"};
+  }else{
+    const email=clean(req.body?.email,254).toLowerCase();
+    const found=await pool.query("SELECT id,password_hash FROM employees WHERE lower(email)=$1 AND active=TRUE",[email]);
+    if(!found.rowCount||!passwordMatches(password,found.rows[0].password_hash)||!parsed) return res.status(401).json({error:"Account credentials or recovery code are invalid."});
+    account={type:"employee",id:String(found.rows[0].id)};
+  }
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    if(account.type==="admin"){
+      await client.query("SELECT auth_version FROM admin_auth_state WHERE singleton_id=1 FOR UPDATE");
+    }else{
+      const locked=await client.query("SELECT id FROM employees WHERE id=$1 AND active=TRUE FOR UPDATE",[account.id]);
+      if(!locked.rowCount){await client.query("ROLLBACK");return res.status(401).json({error:"Account credentials or recovery code are invalid."});}
+    }
+    const selected=await client.query("SELECT id,verifier FROM account_recovery_codes WHERE account_type=$1 AND account_id=$2 AND selector=$3 AND consumed_at IS NULL AND revoked_at IS NULL FOR UPDATE",[account.type,account.id,parsed.selector]);
+    if(!selected.rowCount||!verifyRecoveryCode(req.body.recoveryCode,selected.rows[0].verifier)){
+      await client.query("ROLLBACK");
+      return res.status(401).json({error:"Account credentials or recovery code are invalid."});
+    }
+    await client.query("UPDATE account_recovery_codes SET consumed_at=NOW() WHERE id=$1",[selected.rows[0].id]);
+    await client.query("UPDATE account_recovery_codes SET revoked_at=NOW() WHERE account_type=$1 AND account_id=$2 AND id<>$3 AND consumed_at IS NULL AND revoked_at IS NULL",[account.type,account.id,selected.rows[0].id]);
+    await client.query("UPDATE account_security_factors SET status='REVOKED',revoked_at=NOW() WHERE account_type=$1 AND account_id=$2 AND status IN ('ACTIVE','PENDING')",[account.type,account.id]);
+    if(account.type==="admin") await client.query("UPDATE admin_auth_state SET auth_version=auth_version+1,updated_at=NOW() WHERE singleton_id=1");
+    else await client.query("UPDATE employees SET auth_version=auth_version+1,updated_at=NOW() WHERE id=$1",[account.id]);
+    await auditWithClient(client,"PSL_ACCOUNT_RECOVERY_COMPLETED","security",account.type+":"+account.id,"Recovery code consumed; factors revoked and existing sessions invalidated","system");
+    await client.query("COMMIT");
+  }catch(err){await client.query("ROLLBACK");throw err;}finally{client.release();}
+  req.session=null;
+  res.json({recovered:true,requiresSignIn:true,factorsReset:true,message:"Recovery accepted. Sign in with your password and enroll new security factors."});
+}));
+
 async function pslCompletePreAuth(req,res,pending){
   let session;
   if(pending.accountType==="admin"){
