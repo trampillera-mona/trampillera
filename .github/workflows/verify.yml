@@ -36,6 +36,12 @@ jobs:
           node --check app/public/shared/trampillera-analytics.js
           node --test scripts/analytics-growth.test.mjs
 
+      - name: Browser-level recovery UI checks
+        run: |
+          npm --prefix app install --no-save --package-lock=false playwright@1.56.1
+          ./app/node_modules/.bin/playwright install --with-deps chromium
+          node scripts/recovery.browser.mjs
+
       - name: Validate Compose configuration
         run: |
           printf '%s\n' 'POSTGRES_PASSWORD=ci-temporary-db-password' 'ADMIN_PASSWORD=ci-temporary-admin-password-123' 'SESSION_SECRET=ci-temporary-session-secret-which-is-long-enough-123456' > .env
