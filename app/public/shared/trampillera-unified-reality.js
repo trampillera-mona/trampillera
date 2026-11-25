@@ -254,7 +254,7 @@
 
   function focusRegion(key) {
     const aliases = { EUROPE:'EUROPE', europe:'EUROPE', ASIA:'ASIA', asia:'ASIA', japan:'ASIA', tokyo:'ASIA', AMERICAS:'AMERICAS', america:'AMERICAS', usa:'AMERICAS', newyork:'AMERICAS', AFRICA_ME:'AFRICA_ME', middleeast:'AFRICA_ME', dubai:'AFRICA_ME', africa:'AFRICA_ME', GLOBAL:'GLOBAL', global:'GLOBAL' };
-    const normalizedKey = String(key || 'GLOBAL').toLowerCase().replace(/\\s+/g, '');
+    const normalizedKey = String(key || 'GLOBAL').toLowerCase().replace(/\s+/g, '');
     currentRegionKey = aliases[normalizedKey] || 'GLOBAL';
     const item = regions[currentRegionKey];
     root.dataset.region = currentRegionKey;
