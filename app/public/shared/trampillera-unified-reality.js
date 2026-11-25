@@ -279,7 +279,7 @@
           controls.target.set(orbitTargetX, 0, 0);
           controls.autoRotate = !reducedMotion;
         }
-        camera.position.set(0, 0, 8.6);
+        camera.position.set(0, 0, 10);
         if (controls) controls.update();
         updateSolarLighting();
         safeCall(() => typeof playTactileSound === 'function' && playTactileSound('snap'));
@@ -330,7 +330,7 @@
     if (camera && controls && earth) {
       controls.autoRotate = !reducedMotion;
       controls.target.set(orbitTargetX, 0, 0);
-      camera.position.set(0, 0, 8.6);
+      camera.position.set(0, 0, 10);
       controls.update();
     }
     updateSolarLighting();
