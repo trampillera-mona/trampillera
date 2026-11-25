@@ -154,6 +154,7 @@
     }
   </script>
 
+  <link rel="stylesheet" href="/shared/trampillera-unified-reality.css">
   <style>
     :root {
       color-scheme: dark;
@@ -867,79 +868,73 @@
 </head>
 <body>
 
-  <!-- ============================================================
-       UNIFIED TOP BAR: SYNCHRONIZED CLOCK, LOCALE, REALMS & HUD
-       ============================================================ -->
-  <div class="unified-topbar">
-    <div class="utility">
-      <div>
-        <span id="u-date" class="mono">—</span>
-        <span style="opacity:.4">·</span>
-        <span id="u-time" class="mono" style="color:var(--cy);font-weight:700">—</span>
-        <span style="opacity:.4">·</span>
-        <span id="u-utc" class="mono muted">UTC —</span>
-        <span style="opacity:.4">·</span>
-        <span id="system-status" class="status"><i></i> <span data-i18n="connecting">trampillera.com UNIFIED OS</span></span>
-        <span class="mono" title="Anonymous first-party audience measurement; raw IP addresses are not stored" style="font-size:9px;color:var(--cy);margin-left:10px;white-space:nowrap">VISITORS <b id="visitor-counter-value" style="color:var(--tx)">—</b></span>
+  <!-- Unified Reality banner: shared portal shell, wired to existing app modules. -->
+  <header id="unified-reality-banner" aria-label="TRAMPILLERA MEDIA Unified Reality navigation">
+    <div class="ur-globe-layer" aria-hidden="true"><canvas id="ur-earth-canvas"></canvas></div>
+    <div class="ur-vignette" aria-hidden="true"></div>
+    <div class="ur-telemetry">
+      <div class="ur-telemetry-left">
+        <span id="u-date" class="ur-muted">—</span><span class="ur-muted">·</span>
+        <strong id="u-time" class="ur-cyan">—</strong><span class="ur-muted">·</span>
+        <span id="u-utc" class="ur-muted">UTC —</span><span class="ur-muted">·</span>
+        <span id="system-status" class="ur-live"><span data-i18n="connecting">trampillera.com UNIFIED OS</span></span>
+        <span class="ur-muted">VISITORS <b id="visitor-counter-value" style="color:#e2e8f0">—</b></span>
       </div>
-      <div>
-        <label for="global-lang" class="sr-only" style="position:absolute;left:-9999px">Language</label>
-        <select id="global-lang" style="width:auto;padding:2px 6px;font-size:10px" aria-label="Language Selector">
-          <option value="EN">EN · English</option>
-          <option value="RU">RU · Русский</option>
-          <option value="SR">SR · Srpski</option>
-          <option value="DE">DE · Deutsch</option>
-          <option value="FR">FR · Français</option>
-          <option value="ES">ES · Español</option>
-          <option value="IT">IT · Italiano</option>
-          <option value="PT">PT · Português</option>
-          <option value="ZH">ZH · 中文</option>
-          <option value="JA">JA · 日本語</option>
-          <option value="KO">KO · 한국어</option>
-          <option value="AR">AR · العربية</option>
+      <div class="ur-telemetry-right">
+        <label for="global-lang" class="sr-only">Language</label>
+        <select id="global-lang" class="ur-select" aria-label="Language selector">
+          <option value="EN">EN · English</option><option value="RU">RU · Русский</option>
+          <option value="SR">SR · Srpski</option><option value="DE">DE · Deutsch</option>
+          <option value="FR">FR · Français</option><option value="ES">ES · Español</option>
+          <option value="IT">IT · Italiano</option><option value="PT">PT · Português</option>
+          <option value="ZH">ZH · 中文</option><option value="JA">JA · 日本語</option>
+          <option value="KO">KO · 한국어</option><option value="AR">AR · العربية</option>
         </select>
-        <button id="theme-toggle-btn" class="mono" style="font-size:9px;letter-spacing:0.1em">LIGHT / DARK</button>
-        <button id="sfx-toggle-btn" class="mono" style="font-size:9px;letter-spacing:0.1em">🔊 SFX: ON</button>
-        <button id="radio-quick-btn" class="mono" style="font-size:9px;letter-spacing:0.1em;color:var(--cy)">📻 SYNTH: OFF</button>
-
-        <div class="social-row" aria-label="Social links">
-          <a class="social-icon x" href="https://x.com/trampillera" target="_blank" rel="noopener noreferrer" title="X / Twitter">𝕏</a>
-          <a class="social-icon tg" href="https://t.me/trampillera" target="_blank" rel="noopener noreferrer" title="Telegram">✈</a>
-          <a class="social-icon yt" href="https://youtube.com/@trampillera" target="_blank" rel="noopener noreferrer" title="YouTube">▶</a>
-          <a class="social-icon ds" href="https://discord.gg/trampillera" target="_blank" rel="noopener noreferrer" title="Discord">◈</a>
-          <a class="social-icon gh" href="https://github.com/trampillera" target="_blank" rel="noopener noreferrer" title="GitHub">⌘</a>
-          <a class="social-icon li" href="https://linkedin.com/company/trampillera" target="_blank" rel="noopener noreferrer" title="LinkedIn">in</a>
-          <a class="social-icon ig" href="https://instagram.com/trampillera" target="_blank" rel="noopener noreferrer" title="Instagram">◎</a>
-        </div>
+        <button id="theme-toggle-btn" class="ur-plain" type="button">LIGHT / DARK</button>
+        <button id="sfx-toggle-btn" class="ur-plain" type="button">🔊 SFX: ON</button>
+        <button id="radio-quick-btn" class="ur-plain ur-cyan" type="button">📻 SYNTH: OFF</button>
       </div>
     </div>
-
-    <div class="mode-switcher-bar">
-      <a href="#" class="brand" onclick="event.preventDefault(); RealmRouter.switchRealm('intro');
-  try { if (typeof FUIWorkspace !== 'undefined') FUIWorkspace.load(true); } catch(e){}
-">
-        <span class="brand-mark">T<span>³</span></span>
-        <span><b>TRAMPILLERA MEDIA</b><small>trampillera.com · UNIFIED REALITY</small></span>
+    <div class="ur-main">
+      <a class="ur-brand" href="/" aria-label="TRAMPILLERA MEDIA home">
+        <span class="ur-emblem" aria-hidden="true">T<sup>3</sup></span>
+        <span><h1>TRAMPILLERA MEDIA</h1><p>trampillera.com · UNIFIED REALITY <span id="ur-region-badge" class="ur-cyan">· GLOBAL</span></p></span>
       </a>
-
-      <div class="realm-pills" role="tablist" aria-label="Portal Realms">
-        <button id="tab-intro" class="realm-btn active" onclick="RealmRouter.switchRealm('intro')">🎬 Intro Gate</button>
-        <button id="tab-fui" class="realm-btn" onclick="RealmRouter.switchRealm('fui')">🛸 Game · 3D FUI</button>
-        <button id="tab-classic" class="realm-btn cyan-mode" onclick="RealmRouter.switchRealm('classic')">📰 Classic Portal</button>
-        <button class="realm-btn" style="border-color:var(--gd);color:var(--gd)" onclick="JarvisOrchestrator.open()">⚙ JARVISER Orchestrator</button>
+      <nav class="ur-nav" role="tablist" aria-label="Portal experiences">
+        <button id="tab-intro" class="ur-pill" type="button" data-ur-realm="intro" aria-pressed="true">🎬 INTRO GATE</button>
+        <button id="tab-fui" class="ur-pill" type="button" data-ur-realm="fui" aria-pressed="false">🛸 GAME · 3D FUI</button>
+        <button id="tab-classic" class="ur-pill" type="button" data-ur-realm="classic" aria-pressed="false">▤ CLASSIC PORTAL</button>
+        <button id="ur-jarviser" class="ur-pill ur-gold" type="button">⚙ JARVISER</button>
+      </nav>
+    </div>
+    <div class="ur-bottom">
+      <div class="ur-tools">
+        <span class="ur-chip" id="ur-language-pill">🌐 EN</span>
+        <span class="ur-chip" id="pill-xp">✦ Lv.1</span>
+        <span class="ur-chip" id="pill-trp">120 TRP</span>
+        <select id="ur-region" class="ur-select" aria-label="Focus globe region">
+          <option value="GLOBAL">🌍 GLOBAL · AUTO</option><option value="EUROPE">🇪🇺 EUROPE</option>
+          <option value="AMERICAS">🌎 AMERICAS</option><option value="ASIA">🌏 ASIA</option>
+          <option value="AFRICA_ME">🌍 MENA</option>
+        </select>
+        <button id="ur-cycle-region" class="ur-pill" type="button" title="Cycle globe region">PASSPORT</button>
+        <button id="ur-time-travel" class="ur-pill" type="button">⏳ TIME-TRAVEL</button>
+        <button id="ur-fui-save" class="ur-pill" type="button" title="Save current 3D FUI workspace">💾 SAVE FUI</button>
+        <button id="ur-assistant" class="ur-pill" type="button">🤖 ASSISTANT</button>
+        <button id="ur-globe-open" class="ur-pill" type="button">🌐 GLOBE DESK</button>
+        <button id="ur-passport" class="ur-pill" type="button">🪪 PROFILE</button>
       </div>
-
-      <div class="actions">
-        <span class="pill lang-pill" id="pill-lang">🌐 EN</span>
-        <span class="pill xp" id="pill-xp">✦ Lv.1</span>
-        <span class="pill trp" id="pill-trp">120 TRP</span>
-        <button class="btn" style="padding:5px 10px;font-size:9.5px" onclick="MV.openPassport()">Passport</button>
-        <button class="btn" style="padding:5px 10px;font-size:9.5px" onclick="document.getElementById('time-travel-dock').classList.toggle('visible'); if(typeof SnapshotStore!=='undefined') SnapshotStore.updateSliderUI()">⏳ Time-Travel</button>
-        <button class="btn" style="padding:5px 10px;font-size:9.5px" onclick="FUIWorkspace.save()" title="Save 3D FUI layout">💾 FUI</button>
-        <button class="btn cyan" style="padding:5px 10px;font-size:9.5px" onclick="MischiefNavigator.toggle()">🤖 Assistant</button>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+        <span id="ur-globe-status" class="ur-status" role="status" aria-live="polite">Initializing 3D globe…</span>
+        <div class="ur-dock" aria-label="Globe camera controls">
+          <button id="ur-zoom-in" type="button" title="Zoom in" aria-label="Zoom in">＋</button>
+          <button id="ur-zoom-out" type="button" title="Zoom out" aria-label="Zoom out">－</button>
+          <button id="ur-camera-reset" type="button" title="Reset globe view" aria-label="Reset globe view">↺</button>
+        </div>
+        <a id="ur-control-plane" class="ur-control-link" href="/control/" title="Open authenticated Control Plane">⚙ CONTROL PLANE ↗</a>
       </div>
     </div>
-  </div>
+  </header>
 
   <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation">
     <a href="#" data-route="home" class="active">Home</a>
@@ -4725,5 +4720,6 @@ const MediaIntel = (() => {
 <button id="visitor-privacy-settings" type="button" class="mono" style="position:fixed;left:12px;bottom:12px;z-index:17000;padding:5px 8px;background:var(--panel);border:1px solid var(--bd);border-radius:4px;color:var(--tx2);font-size:8px;letter-spacing:.08em">PRIVACY</button>
 <script src="/shared/trampillera-analytics.js"></script>
 <script src="/shared/trampillera-global-controls.js"></script>
+  <script src="/shared/trampillera-unified-reality.js"></script>
 </body>
 </html>
