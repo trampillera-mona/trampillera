@@ -359,7 +359,7 @@ app.use("/api", asyncRoute(async (req,res,next) => {
     [account.type,account.id]
   );
   if (gate.rows[0]?.recovery_reenroll_required !== true) return next();
-  if (recoverySetupRoutes.has(req.method + " " + req.path)) return next();
+  if (recoverySetupRoutes.has(req.method + " " + req.baseUrl + req.path)) return next();
   return res.status(423).json({
     error:"Complete authenticator re-enrollment before using the workspace.",
     code:"SECURITY_REENROLLMENT_REQUIRED"
