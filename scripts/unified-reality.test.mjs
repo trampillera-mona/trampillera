@@ -40,9 +40,13 @@ test('banner delegates actions to existing application modules instead of fake l
   assert.match(js, /window\.GlobeAPI\s*=/);
   assert.match(js, /function focusRegion\(key\)/);
   assert.match(js, /function updateSolarLighting\(\)/);
-  assert.match(js, /prefers-reduced-motion/);\n  assert.match(js, /new THREE\.OrbitControls\(camera, root\)/);
+  assert.match(js, /prefers-reduced-motion/);
+  assert.match(js, /new THREE\.OrbitControls\(camera, root\)/);
   assert.match(js, /controls\.target\.copy\(viewTarget\)/);
   assert.match(js, /root\.style\.touchAction = 'none'/);
-  assert.match(js, /orbitTargetX = Math\.min\(2\.6, Math\.max\(\.72, w \* \.0022\)\)/);
+  assert.match(js, /const radius = 3\.5/);
+  assert.match(js, /PerspectiveCamera\(45, width \/ height/);
+  assert.match(js, /camera\.position\.set\(0, 0, 10\)/);
+  assert.match(js, /orbitTargetX = w > 640 \? Math\.min\(4\.5, w \* \(4\.5 \/ 1440\)\) : 0/);
   assert.match(js, /controls\.enablePan = false/);
 });
