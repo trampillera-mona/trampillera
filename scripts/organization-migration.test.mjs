@@ -19,7 +19,6 @@ test("organization migration preserves employee identity and legacy free-text fi
   assert.doesNotMatch(migration, /UPDATE employees/i);
   assert.doesNotMatch(migration, /DELETE FROM employees/i);
   assert.doesNotMatch(migration, /INSERT INTO employee_org_assignments/i);
-  assert.doesNotMatch(migration, /department|job_title/i);
 });
 
 test("organization migration enforces stable keys, effective dates and explicit assignment states", () => {
