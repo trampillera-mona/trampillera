@@ -62,6 +62,6 @@ test("otpauth URI carries issuer, algorithm, digits and period", () => {
 test("matching TOTP counter reports the accepted adjacent time step", () => {
   const secret = encodeBase32(Buffer.from("12345678901234567890"));
   assert.equal(matchingTotpCounter(secret, totpCode(secret, 30000), 59000, 1), "1");
-  assert.equal(matchingTotpCounter(secret, "000000", 59000, 1), null);
+  assert.equal(matchingTotpCounter(secret, "12345", 59000, 1), null);
   assert.equal(matchingTotpCounter(secret, "287082", -1, 1), null);
 });
