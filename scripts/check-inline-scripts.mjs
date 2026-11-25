@@ -19,11 +19,11 @@ try {
       if (/\bsrc\s*=/.test(attrs) || /application\/(ld\+json|json)/i.test(attrs)) continue;
       const source = match[2] || "";
       if (!source.trim()) continue;
-      const target = path.join(temp, \`inline-\${checked}.js\`);
+      const target = path.join(temp, "inline-" + checked + ".js");
       fs.writeFileSync(target, source, "utf8");
       const result = spawnSync(process.execPath, ["--check", target], { encoding: "utf8" });
       if (result.status !== 0) {
-        process.stderr.write(\`Inline script syntax error in \${file} (script \${index + 1}):\n\${result.stderr || result.stdout}\`);
+        process.stderr.write("Inline script syntax error in " + file + " (script " + (index + 1) + "):\n" + (result.stderr || result.stdout));
         process.exitCode = 1;
         break;
       }
@@ -32,7 +32,7 @@ try {
     }
     if (process.exitCode) break;
   }
-  if (!process.exitCode) console.log(\`Inline script syntax verified: \${checked} blocks across \${targets.length} pages.\`);
+  if (!process.exitCode) console.log("Inline script syntax verified: " + checked + " blocks across " + targets.length + " pages.");
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });
 }
