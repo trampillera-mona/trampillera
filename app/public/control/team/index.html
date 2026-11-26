@@ -38,4 +38,5 @@ $("#missionForm").addEventListener("submit",async e=>{e.preventDefault();$("#mis
 async function init(){const auth=await api("/api/auth/me");if(!auth.authenticated||auth.role!=="admin"){$("#authError").classList.remove("hidden");return}$("#adminApp").classList.remove("hidden");await refresh();await loadSubmissions()}
 init().catch(err=>{$("#authError").textContent=err.message;$("#authError").classList.remove("hidden")});
 })();
-</script></body></html>
+</script><script src="/shared/trampillera-image-protection.js" defer></script>
+</body></html>
