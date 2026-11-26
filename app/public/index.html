@@ -395,7 +395,7 @@
        REALM 1: 3D FUI SPATIAL CONSTRUCTOR (PLANET + SAUCERS + WINDOWS)
        ============================================================ */
     #realm-fui {
-      position: relative; width: 100%; height: calc(100vh - 82px); min-height: 620px;
+      position: relative; width: 100%; height: max(360px, calc(100vh - 340px)); min-height: min(620px, calc(100vh - 340px));
       overflow: hidden; display: none;
       background: radial-gradient(ellipse at 55% 42%, #121723 0%, #07090e 75%);
     }
@@ -410,10 +410,11 @@
     #three-canvas-wrap:active { cursor: grabbing; }
     #node-wires-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 12; }
     #spatial-windows-layer { position: absolute; inset: 0; pointer-events: none; z-index: 18; }
-    #fui-control-rail { position:absolute; z-index:24; right:12px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:7px; max-width:calc(100% - 24px); }
-    #fui-control-rail button { border:1px solid rgba(0,200,215,.55); border-radius:6px; background:rgba(5,15,25,.92); color:#a9edf2; padding:9px 11px; font:700 9px/1.2 var(--mono); letter-spacing:.06em; box-shadow:0 5px 18px #0008; backdrop-filter:blur(10px); white-space:nowrap; }
-    #fui-control-rail button:hover,#fui-control-rail button[aria-pressed="true"] { background:rgba(0,200,215,.2); border-color:#61edf5; color:#fff; }
-    @media(max-width:767px) { #fui-control-rail { top:auto; bottom:12px; right:10px; transform:none; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; } #fui-control-rail button { padding:8px 9px; font-size:8px; } }
+    #fui-control-rail { position:fixed; z-index:300; left:50%; bottom:14px; top:auto; transform:translateX(-50%); display:flex; flex-direction:row; flex-wrap:wrap; justify-content:center; align-items:center; gap:8px; width:max-content; max-width:calc(100vw - 24px); padding:8px; border:1px solid rgba(0,200,215,.38); border-radius:12px; background:rgba(3,10,18,.94); box-shadow:0 10px 34px #000b; backdrop-filter:blur(14px); }
+    #fui-control-rail button { border:1px solid rgba(0,200,215,.65); border-radius:7px; background:rgba(5,25,35,.98); color:#baf8fb; padding:11px 15px; min-height:40px; font:800 10px/1.2 var(--mono); letter-spacing:.06em; box-shadow:0 5px 18px #0008; white-space:nowrap; cursor:pointer; }
+    #fui-control-rail button:first-child { background:rgba(0,200,215,.22); border-color:#64f2fa; color:#fff; }
+    #fui-control-rail button:hover,#fui-control-rail button[aria-pressed="true"] { background:rgba(0,200,215,.32); border-color:#61edf5; color:#fff; }
+    @media(max-width:767px) { #fui-control-rail { bottom:8px; gap:5px; padding:6px; width:calc(100vw - 16px); } #fui-control-rail button { flex:1 1 auto; padding:9px 7px; font-size:8px; min-width:0; } }
 
     .spatial-window {
       position: absolute; pointer-events: auto;
@@ -1024,8 +1025,9 @@
     <svg id="node-wires-svg"></svg>
     <main id="spatial-windows-layer"></main>
     <nav id="fui-control-rail" aria-label="Game controls">
-      <button type="button" id="fui-open-polarny" onclick="openPolarnySettlement('rail')">❄ ПОЛЯРНЫЙ</button>
-      <button type="button" id="fui-open-dock" onclick="toggleWindowById('win-planet-dock')">☷ ПАНЕЛЬ</button>
+      <button type="button" id="fui-open-polarny" onclick="openPolarnySettlement('rail')">❄ ОТКРЫТЬ ПОЛЯРНЫЙ</button>
+      <button type="button" id="fui-focus-polarny" onclick="focusPolarnySector()">⌖ НАЙТИ СЕКТОР</button>
+      <button type="button" id="fui-open-dock" onclick="toggleWindowById('win-planet-dock')">☷ ПАНЕЛЬ ПЛАНЕТЫ</button>
       <button type="button" id="fui-daynight-toggle" onclick="toggleFUIDayNight()" aria-pressed="false">☀ ДЕНЬ</button>
     </nav>
 
