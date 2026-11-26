@@ -1251,6 +1251,30 @@ app.use((req,res,next)=>{
   }
   next();
 });
+// SDT5D Studio is an internal workspace: serve it only to individually authenticated accounts.
+app.get("/sdt-5d-engine-v20.html", (req,res) => {
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+  res.vary("Cookie");
+  if (req.session?.authenticated !== true) {
+    return res.status(401).type("html").send(`<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SDT5D Studio · Access Required</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 30%,#142031,#04070d 72%);color:#d7e5ec;font:14px system-ui,sans-serif}
+main{width:min(620px,100%);padding:clamp(22px,5vw,42px);border:1px solid #486174;border-radius:12px;background:rgba(5,11,20,.94);box-shadow:0 24px 80px #0009}
+small{color:#8bd5e5;letter-spacing:.18em;font:10px monospace}h1{margin:14px 0;color:#b9a5ff;font:700 clamp(22px,4vw,30px) system-ui}p{line-height:1.7;color:#aebdca}
+button{margin-top:14px;padding:11px 16px;border:1px solid #7fc9dd;border-radius:5px;background:#102331;color:#c8edf5;font:700 11px monospace;letter-spacing:.08em;cursor:pointer}
+</style></head>
+<body><main><small>TRAMPILLERA MEDIA · INTERNAL WORKSPACE</small><h1>SDT5D MULTIVERSE STUDIO</h1>
+<p>Individual access is required. Studio credentials are issued by request for approved testing and familiarization.</p>
+<p>Sign in with the personal account issued to you, then reopen the Studio from Polar Settlement. Public portal and news access remain available.</p>
+<button type="button" onclick="window.parent.postMessage({type:'sdt-exit'},location.origin)">← BACK TO POLAR SETTLEMENT</button>
+</main><script>if(window.parent!==window)window.parent.postMessage({type:'sdt-access-denied'},location.origin);</script></body></html>`);
+  }
+  return res.sendFile(path.join(PUBLIC_DIR, "sdt-5d-engine-v20.html"));
+});
+
 app.use(express.static(path.join(__dirname,"public"),{index:"index.html",etag:true,maxAge:NODE_ENV==="production"?"1h":0}));
 app.get("/control",(_req,res)=>res.redirect(301,"/control/"));
 app.get("/control/",(_req,res)=>res.sendFile(path.join(__dirname,"public/control/index.html")));
