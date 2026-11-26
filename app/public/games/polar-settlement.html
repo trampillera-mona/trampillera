@@ -1885,6 +1885,11 @@ window.addEventListener('message', (ev) => {
     exitSDTStudio();
   } else if (data.type === 'sdt-toast') {
     showToast(data.message || 'SDT event');
+  } else if (data.type === 'sdt-access-denied') {
+    sdtEngineReady = false;
+    pendingSDTCommands.length = 0;
+    setJarviserMessage('SDT5D Studio access is restricted. Individual credentials are issued by request.');
+    showToast('SDT5D Studio requires an individually issued account.');
   } else if (data.type === 'sdt-error') {
     showToast('SDT 5D engine error: ' + String(data.message || 'initialization failed').slice(0, 120));
   }
