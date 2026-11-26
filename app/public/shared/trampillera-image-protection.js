@@ -80,8 +80,8 @@
       width: Math.max(0, Math.min(rect.right, window.innerWidth) - Math.max(0, rect.left)) + 'px',
       height: Math.max(0, Math.min(rect.bottom, window.innerHeight) - Math.max(0, rect.top)) + 'px'
     });
-    media.dataset.tpProtected = 'true';
-    media.dataset.tpRightsNotice = 'TRAMPILLERA.COM · Reuse requires permission from the respective rights holder.';
+    media.setAttribute('data-tp-protected', 'true');
+    media.setAttribute('data-tp-rights-notice', 'TRAMPILLERA.COM · Reuse requires permission from the respective rights holder.');
   }
 
   function schedule() {
