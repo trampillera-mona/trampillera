@@ -395,9 +395,12 @@
        REALM 1: 3D FUI SPATIAL CONSTRUCTOR (PLANET + SAUCERS + WINDOWS)
        ============================================================ */
     #realm-fui {
-      position: relative; width: 100%; height: max(360px, calc(100vh - 340px)); min-height: min(620px, calc(100vh - 340px));
-      overflow: hidden; display: none;
+      position: relative; width: 100%;
+      height: max(560px, min(920px, calc(100vh - 300px)));
+      height: max(560px, min(920px, calc(100svh - 300px)));
+      min-height: 560px; overflow: hidden; display: none;
       background: radial-gradient(ellipse at 55% 42%, #121723 0%, #07090e 75%);
+      isolation: isolate;
     }
     #realm-fui.active { display: block; animation: fadeView 0.25s ease; }
     .fui-grid-bg {
@@ -410,11 +413,29 @@
     #three-canvas-wrap:active { cursor: grabbing; }
     #node-wires-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 12; }
     #spatial-windows-layer { position: absolute; inset: 0; pointer-events: none; z-index: 18; }
-    #fui-control-rail { position:fixed; z-index:300; left:50%; bottom:14px; top:auto; transform:translateX(-50%); display:flex; flex-direction:row; flex-wrap:wrap; justify-content:center; align-items:center; gap:8px; width:max-content; max-width:calc(100vw - 24px); padding:8px; border:1px solid rgba(0,200,215,.38); border-radius:12px; background:rgba(3,10,18,.94); box-shadow:0 10px 34px #000b; backdrop-filter:blur(14px); }
+    #fui-control-rail { position:absolute; z-index:300; left:50%; bottom:max(12px, env(safe-area-inset-bottom)); top:auto; transform:translateX(-50%); display:flex; flex-direction:row; flex-wrap:wrap; justify-content:center; align-items:center; gap:8px; width:calc(100% - 24px); max-width:1100px; padding:8px; border:1px solid rgba(0,200,215,.38); border-radius:12px; background:rgba(3,10,18,.96); box-shadow:0 10px 34px #000b; backdrop-filter:blur(14px); }
     #fui-control-rail button { border:1px solid rgba(0,200,215,.65); border-radius:7px; background:rgba(5,25,35,.98); color:#baf8fb; padding:11px 15px; min-height:40px; font:800 10px/1.2 var(--mono); letter-spacing:.06em; box-shadow:0 5px 18px #0008; white-space:nowrap; cursor:pointer; }
     #fui-control-rail button:first-child { background:rgba(0,200,215,.22); border-color:#64f2fa; color:#fff; }
     #fui-control-rail button:hover,#fui-control-rail button[aria-pressed="true"] { background:rgba(0,200,215,.32); border-color:#61edf5; color:#fff; }
-    @media(max-width:767px) { #fui-control-rail { bottom:8px; gap:5px; padding:6px; width:calc(100vw - 16px); } #fui-control-rail button { flex:1 1 auto; padding:9px 7px; font-size:8px; min-width:0; } }
+    @media(max-width:767px) { #fui-control-rail { bottom:max(8px, env(safe-area-inset-bottom)); gap:5px; padding:6px; width:calc(100% - 16px); } #fui-control-rail button { flex:1 1 42%; padding:9px 7px; font-size:8px; min-width:0; white-space:normal; } }
+    @media(max-height:640px) and (min-width:768px) { #realm-fui { height:560px; } }
+    .win-header { min-height:38px; flex-wrap:wrap; align-content:center; }
+    .win-header > span { flex:1 1 90px; min-width:0; }
+    .win-header > div { flex:0 1 auto; flex-wrap:wrap; }
+    .win-header select { max-width:76px; min-height:28px; }
+    .win-header button { min-width:28px; min-height:28px; }
+    .spatial-window [id$="-body"] { min-height:0; overscroll-behavior:contain; scrollbar-gutter:stable; }
+    #spatial-windows-layer { padding-bottom:92px; }
+    @media(max-width:420px) {
+      .win-header { gap:3px; padding:5px 6px; }
+      .win-header > span { flex-basis:100%; font-size:9px; }
+      .win-header > div { width:100%; justify-content:flex-end; }
+      .win-header select { max-width:68px; }
+    }
+    @media(prefers-reduced-motion:reduce) {
+      .ticker-animate, .eq-bar, .animate-pulse, .animate-ping { animation:none !important; }
+      *, *::before, *::after { scroll-behavior:auto !important; transition-duration:0.01ms !important; }
+    }
 
     .spatial-window {
       position: absolute; pointer-events: auto;
@@ -2265,6 +2286,7 @@ function initThreeScene() {
   buildAllSaucers();
 
   window.addEventListener('resize', onFUIResize);
+  observeFUIContainer();
   renderer.domElement.addEventListener('pointermove', onFUIPointerMove);
   renderer.domElement.addEventListener('pointerup', onFUIPointerUp);
 }
@@ -2643,20 +2665,55 @@ function handleNeocubeSaucerClick(sId) {
   }
 }
 
+function getFUIBounds() {
+  const realm = document.getElementById('realm-fui');
+  const layer = document.getElementById('spatial-windows-layer');
+  const rail = document.getElementById('fui-control-rail');
+  if (!realm || !layer) return { width: window.innerWidth, height: Math.max(240, window.innerHeight - 180) };
+  const width = layer.clientWidth || realm.clientWidth || window.innerWidth;
+  const railHeight = rail && getComputedStyle(rail).display !== 'none' ? rail.getBoundingClientRect().height : 0;
+  const height = Math.max(180, layer.clientHeight - railHeight - 24);
+  return { width, height };
+}
+
+function clampFUIWindow(win, bounds = getFUIBounds()) {
+  const maxWidth = Math.max(1, bounds.width - 12);
+  const maxHeight = Math.max(1, bounds.height - 12);
+  const minWidth = Math.min(175, maxWidth);
+  const minHeight = Math.min(76, maxHeight);
+  win.width = Math.min(maxWidth, Math.max(minWidth, Number(win.width) || minWidth));
+  win.height = Math.min(maxHeight, Math.max(minHeight, Number(win.height) || minHeight));
+  win.x = Math.max(6, Math.min(Number(win.x) || 6, bounds.width - win.width - 6));
+  win.y = Math.max(6, Math.min(Number(win.y) || 6, bounds.height - win.height - 6));
+  return win;
+}
+
+let fuiResizeObserver = null;
+function observeFUIContainer() {
+  const realm = document.getElementById('realm-fui');
+  if (!realm || !window.ResizeObserver || fuiResizeObserver) return;
+  fuiResizeObserver = new ResizeObserver(() => onFUIResize());
+  fuiResizeObserver.observe(realm);
+}
+
 function onFUIResize() {
   const wrap = document.getElementById('three-canvas-wrap');
   if (!wrap || !camera || !renderer) return;
   const w = wrap.clientWidth || window.innerWidth;
-  const h = wrap.clientHeight || Math.max(540, window.innerHeight - 82);
-  camera.aspect = w / h; camera.updateProjectionMatrix();
+  const h = wrap.clientHeight || 560;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
   renderer.setSize(w, h);
+  const bounds = getFUIBounds();
   UNIFIED_STATE.windows.filter(win => win.visible).forEach(win => {
-    win.width = Math.min(win.width, Math.max(175, w - 12));
-    win.height = Math.min(win.height, Math.max(76, h - 12));
-    win.x = Math.max(6, Math.min(win.x, w - win.width - 6));
-    win.y = Math.max(6, Math.min(win.y, h - win.height - 6));
+    clampFUIWindow(win, bounds);
     const el = document.getElementById(win.id);
-    if (el) { el.style.left = win.x + 'px'; el.style.top = win.y + 'px'; el.style.width = win.width + 'px'; el.style.height = win.minimized ? '36px' : win.height + 'px'; }
+    if (el) {
+      el.style.left = win.x + 'px';
+      el.style.top = win.y + 'px';
+      el.style.width = win.width + 'px';
+      el.style.height = win.minimized ? '36px' : win.height + 'px';
+    }
   });
   renderNodeWires();
 }
@@ -2729,22 +2786,27 @@ window.addEventListener('pointermove', e => {
   const win = UNIFIED_STATE.windows.find(w => w.id === dragInfo.winId);
   if (!win) return;
   const dx = e.clientX - dragInfo.startX, dy = e.clientY - dragInfo.startY;
+  const bounds = getFUIBounds();
   if (dragInfo.mode === 'move') {
-    win.x = Math.max(6, Math.min(window.innerWidth - 150, dragInfo.origX + dx));
-    win.y = Math.max(6, Math.min(window.innerHeight - 60, dragInfo.origY + dy));
-    const el = document.getElementById(win.id);
-    if (el) { el.style.left = `${win.x}px`; el.style.top = `${win.y}px`; }
-    renderNodeWires();
+    win.x = dragInfo.origX + dx;
+    win.y = dragInfo.origY + dy;
   } else if (dragInfo.mode === 'resize') {
-    win.width = Math.max(175, Math.min(window.innerWidth - win.x - 10, dragInfo.origW + dx));
-    win.height = Math.max(76, Math.min(window.innerHeight - win.y - 10, dragInfo.origH + dy));
-    const el = document.getElementById(win.id);
-    if (el) { el.style.width = `${win.width}px`; el.style.height = `${win.height}px`; }
-    renderNodeWires();
+    win.width = dragInfo.origW + dx;
+    win.height = dragInfo.origH + dy;
   }
+  clampFUIWindow(win, bounds);
+  const el = document.getElementById(win.id);
+  if (el) {
+    el.style.left = `${win.x}px`;
+    el.style.top = `${win.y}px`;
+    el.style.width = `${win.width}px`;
+    el.style.height = win.minimized ? '36px' : `${win.height}px`;
+  }
+  renderNodeWires();
 });
 
 window.addEventListener('pointerup', () => { dragInfo = null; });
+window.addEventListener('pointercancel', () => { dragInfo = null; });
 
 function startWireLinkingMode() {
   UNIFIED_STATE.wireMode = true; UNIFIED_STATE.wireSourceWinId = null;
