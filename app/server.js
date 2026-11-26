@@ -990,7 +990,7 @@ app.get("/go/:slug", asyncRoute(async (req,res) => {
   res.redirect(302,destination.toString());
 }));
 
-app.use(express.static(path.join(__dirname,"public"),{index:"index.html",etag:true,maxAge:NODE_ENV==="production"?"1h":0,setHeaders:(res,filePath)=>{if(filePath.endsWith(path.sep+"index.html")){res.setHeader("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate");res.setHeader("Pragma","no-cache");res.setHeader("Expires","0");}}}));
+app.use(express.static(path.join(__dirname,"public"),{index:"index.html",etag:true,maxAge:NODE_ENV==="production"?"1h":0}));
 app.get("/control",(_req,res)=>res.redirect(301,"/control/"));
 app.get("/control/",(_req,res)=>res.sendFile(path.join(__dirname,"public/control/index.html")));
 app.get("/control/index.html",(_req,res)=>res.sendFile(path.join(__dirname,"public/control/index.html")));
