@@ -1712,9 +1712,7 @@ function bootstrapTrampillera(){
       clockEl.textContent=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
     }
   },1000);
-  // Preload the SDT engine for faster entry.
-  const frame=document.getElementById('sdt-frame');
-  if(frame&&!frame.src)frame.src='/sdt-5d-engine-v20.html';
+  // SDT 5D engine is not bundled in this deployment; keep its frame unloaded.
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootstrapTrampillera);
 else bootstrapTrampillera();
