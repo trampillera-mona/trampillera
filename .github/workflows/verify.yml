@@ -45,6 +45,14 @@ jobs:
         run: |
           trap 'docker compose logs app db || true' ERR
           curl() { command curl -H 'Origin: http://127.0.0.1:3000' "$@"; }
+          assert_http_contains() {
+            local url="$1" expected="$2" body
+            body=$(curl --fail --silent --show-error "$url")
+            if [[ "$body" != *"$expected"* ]]; then
+              echo "HTTP smoke check failed: expected marker [$expected] at $url"
+              exit 1
+            fi
+          }
           docker compose up -d --build db app
           for attempt in $(seq 1 45); do
             if curl --fail --silent http://127.0.0.1:3000/api/health; then
@@ -75,21 +83,21 @@ jobs:
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '5'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM employee_org_assignments"' | tr -d '\r' | grep -qx '0'
           curl --fail --silent http://127.0.0.1:3000/
-          curl --fail --silent http://127.0.0.1:3000/shared/trampillera-global-controls.js | grep -q 'TrampilleraLocaleCore'
-          curl --fail --silent http://127.0.0.1:3000/shared/trampillera-analytics.js | grep -q 'trampillera.analytics.consent.v1'
-          curl --fail --silent http://127.0.0.1:3000/shared/trampillera-unified-reality.js | grep -q 'Unified Reality banner integration'
-          curl --fail --silent http://127.0.0.1:3000/shared/trampillera-unified-reality.css | grep -q '#unified-reality-banner'
-          curl --fail --silent http://127.0.0.1:3000/ | grep -q 'id="unified-reality-banner"'
-          curl --fail --silent http://127.0.0.1:3000/control/growth/ | grep -q 'Audience Intelligence Desk'
-          curl --fail --silent http://127.0.0.1:3000/business/ | grep -q 'Project inquiry'
-          curl --fail --silent http://127.0.0.1:3000/control/business/ | grep -q 'Commercial Operations Desk'
+          assert_http_contains http://127.0.0.1:3000/shared/trampillera-global-controls.js 'TrampilleraLocaleCore'
+          assert_http_contains http://127.0.0.1:3000/shared/trampillera-analytics.js 'trampillera.analytics.consent.v1'
+          assert_http_contains http://127.0.0.1:3000/shared/trampillera-unified-reality.js 'Unified Reality banner integration'
+          assert_http_contains http://127.0.0.1:3000/shared/trampillera-unified-reality.css '#unified-reality-banner'
+          assert_http_contains http://127.0.0.1:3000/ 'id="unified-reality-banner"'
+          assert_http_contains http://127.0.0.1:3000/control/growth/ 'Audience Intelligence Desk'
+          assert_http_contains http://127.0.0.1:3000/business/ 'Project inquiry'
+          assert_http_contains http://127.0.0.1:3000/control/business/ 'Commercial Operations Desk'
           INQUIRY_JSON=$(curl --fail --silent -H 'Content-Type: application/json' -d '{"contactName":"CI Prospect","organization":"CI Test Org","email":"prospect@example.test","requestType":"SERVICE","subject":"CI business inquiry","message":"Please evaluate a sample project request for the business pipeline.","consent":true}' http://127.0.0.1:3000/api/business/inquiries)
           INQUIRY_REF=$(printf '%s' "$INQUIRY_JSON" | jq -r '.reference')
           test -n "$INQUIRY_REF"
           PARTNER_JSON=$(curl --fail --silent -H 'Content-Type: application/json' -d '{"organization":"CI Partner Org","contactName":"CI Partner","email":"partner@example.test","capabilities":"Independent software engineering, data integration and technical delivery.","message":"CI partner application test.","consent":true}' http://127.0.0.1:3000/api/business/partner-applications)
           PARTNER_ID=$(printf '%s' "$PARTNER_JSON" | jq -r '.applicationId')
           test -n "$PARTNER_ID"
-          curl --fail --silent http://127.0.0.1:3000/city/ | grep -q 'allow="microphone;'
+          assert_http_contains http://127.0.0.1:3000/city/ 'allow="microphone;'
           curl --fail --silent --dump-header /tmp/trampillera-headers.txt --output /dev/null http://127.0.0.1:3000/api/health
           grep -qi '^Permissions-Policy: microphone=(self)' /tmp/trampillera-headers.txt
           curl --fail --silent http://127.0.0.1:3000/control/ > /dev/null
