@@ -2697,8 +2697,9 @@ function observeFUIContainer() {
 }
 
 function onFUIResize() {
+  const realm = document.getElementById('realm-fui');
   const wrap = document.getElementById('three-canvas-wrap');
-  if (!wrap || !camera || !renderer) return;
+  if (!realm || !realm.classList.contains('active') || !wrap || !camera || !renderer) return;
   const w = wrap.clientWidth || window.innerWidth;
   const h = wrap.clientHeight || 560;
   camera.aspect = w / h;
