@@ -1,6 +1,6 @@
 /* TRAMPILLERA MEDIA — Unified Reality banner
    Scoped styles only. Existing application modules keep their own UI and permissions. */
-#unified-reality-banner{position:relative;isolation:isolate;width:100vw;max-width:none;height:260px;min-height:260px;cursor:grab;touch-action:none;margin-left:calc(50% - 50vw);overflow:hidden;background:#050810;border-top:1px solid rgba(56,78,108,.35);border-bottom:1px solid rgba(56,78,108,.35);box-shadow:0 30px 90px rgba(0,0,0,.72);color:#e2e8f0;display:flex;flex-direction:column;justify-content:space-between}
+#unified-reality-banner{position:relative;isolation:isolate;width:100vw;max-width:none;height:auto;min-height:260px;cursor:grab;touch-action:none;margin-left:calc(50% - 50vw);overflow:hidden;background:#050810;border-top:1px solid rgba(56,78,108,.35);border-bottom:1px solid rgba(56,78,108,.35);box-shadow:0 30px 90px rgba(0,0,0,.72);color:#e2e8f0;display:flex;flex-direction:column;justify-content:space-between}
 #unified-reality-banner *{box-sizing:border-box}
 #unified-reality-banner .ur-globe-layer{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}#unified-reality-banner:active{cursor:grabbing}#unified-reality-banner .ur-main,#unified-reality-banner .ur-bottom,#unified-reality-banner .ur-telemetry{user-select:none;-webkit-user-select:none}
 #unified-reality-banner #ur-earth-canvas{display:block;width:100%;height:100%;min-height:260px}
@@ -43,3 +43,11 @@
 @media(max-width:760px){#unified-reality-banner{height:auto;min-height:340px}#unified-reality-banner .ur-main{align-items:flex-start;flex-direction:column;min-height:170px;padding-top:14px}#unified-reality-banner .ur-nav{justify-content:flex-start}#unified-reality-banner .ur-vignette{background:linear-gradient(90deg,rgba(4,8,15,.92),rgba(4,8,15,.72) 58%,rgba(4,8,15,.4)),linear-gradient(0deg,rgba(4,8,15,.8),transparent 45%)}}
 @media(max-width:640px){#unified-reality-banner{width:100vw;margin-left:calc(50% - 50vw);min-height:360px}#unified-reality-banner #ur-earth-canvas{min-height:360px}#unified-reality-banner .ur-telemetry{align-items:flex-start;flex-direction:column;padding:7px 10px;gap:6px}#unified-reality-banner .ur-telemetry-right{width:100%;justify-content:space-between}#unified-reality-banner .ur-main{padding:14px 13px 10px;gap:12px}#unified-reality-banner .ur-brand{min-width:0;gap:11px}#unified-reality-banner .ur-emblem{width:45px;height:45px;flex-basis:45px;font-size:25px}#unified-reality-banner .ur-brand h1{font-size:20px}#unified-reality-banner .ur-brand p{font-size:8px;letter-spacing:.09em}#unified-reality-banner .ur-nav{gap:6px}#unified-reality-banner .ur-pill{min-height:34px;padding:7px 10px;font-size:9px}#unified-reality-banner .ur-bottom{align-items:flex-start;flex-direction:column;padding:0 13px 12px}#unified-reality-banner .ur-tools{gap:5px}#unified-reality-banner .ur-select{max-width:160px}}
 @media(prefers-reduced-motion:reduce){#unified-reality-banner .ur-pill{transition:none}#unified-reality-banner .ur-pill:hover{transform:none}}
+
+/* Responsive repair: allow every navigation row to wrap instead of clipping */
+#unified-reality-banner .ur-main{flex-wrap:wrap;align-items:flex-start;min-height:0;gap:12px;padding-top:14px;padding-bottom:12px}
+#unified-reality-banner .ur-brand{flex:0 1 340px;min-width:min(260px,100%)}
+#unified-reality-banner .ur-nav{flex:1 1 500px;justify-content:flex-start;max-width:100%;min-width:0}
+#unified-reality-banner .ur-bottom{align-items:flex-start;flex-wrap:wrap;min-height:0;padding-top:4px;padding-bottom:12px}
+#unified-reality-banner .ur-tools{max-width:100%;min-width:0}
+@media(max-width:900px){#unified-reality-banner .ur-main{flex-direction:column}#unified-reality-banner .ur-nav{flex:1 1 auto;width:100%}}
