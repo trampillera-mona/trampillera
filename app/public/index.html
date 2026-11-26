@@ -2730,8 +2730,10 @@ function renderAllFUIWindows() {
   if (!layer) return;
   layer.innerHTML = '';
 
+  const workspaceBounds = getFUIBounds();
   UNIFIED_STATE.windows.forEach(win => {
     if (!win.visible) return;
+    clampFUIWindow(win, workspaceBounds);
     const winEl = document.createElement('div');
     winEl.id = win.id;
     const accentCls = win.accent === 'cyan' ? 'win-accent-cyan' : 'win-accent-orange';
