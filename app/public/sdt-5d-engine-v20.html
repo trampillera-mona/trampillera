@@ -299,6 +299,11 @@ body.immersive-active .floating.fp-pinned{opacity:1 !important;pointer-events:au
   #commandBar{width:calc(100vw - 24px);left:12px;transform:none;bottom:150px}
   #studioConsole,#directorPanel{display:none}
 }
+#sdtPolarBridge{position:fixed;top:12px;left:12px;z-index:100005;display:flex;align-items:center;gap:8px;max-width:calc(100vw - 24px);pointer-events:auto}
+#sdtReturnToPolar{padding:8px 12px;border:1px solid rgba(127,201,221,.55);border-radius:5px;background:rgba(4,9,17,.94);color:#c8eaf2;font:700 9px 'JetBrains Mono',monospace;letter-spacing:.08em;cursor:pointer;box-shadow:0 8px 26px rgba(0,0,0,.4);backdrop-filter:blur(12px)}
+#sdtReturnToPolar:hover{border-color:#ff8000;color:#fff;background:rgba(255,128,0,.14)}
+#sdtProjectStatus{padding:7px 9px;border:1px solid rgba(167,139,250,.28);border-radius:4px;background:rgba(4,9,17,.88);color:#aeb5c7;font:8px 'JetBrains Mono',monospace;letter-spacing:.04em;white-space:normal}
+@media(max-width:640px){#sdtPolarBridge{right:10px;left:10px;top:8px;align-items:flex-start;flex-wrap:wrap}#sdtProjectStatus{font-size:7px}}
 </style>
 </head>
 <body>
@@ -1092,6 +1097,10 @@ body.immersive-active .floating.fp-pinned{opacity:1 !important;pointer-events:au
   </div>
 </div>
 
+<div id="sdtPolarBridge" aria-label="Polar Settlement integration controls">
+  <button id="sdtReturnToPolar" type="button">← POLAR SETTLEMENT</button>
+  <span id="sdtProjectStatus">POLAR WORKSPACE · SYNTHETIC SCENARIO · GEO ANCHOR PENDING</span>
+</div>
 <button id="xrButton" style="position:fixed;right:14px;bottom:14px;z-index:26;padding:8px 14px;background:rgba(127,201,221,.15);backdrop-filter:blur(16px);border:1px solid rgba(127,201,221,.5);color:#7fc9dd;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1px;font-weight:600;border-radius:4px;cursor:pointer;display:none">[AR] ENTER AR MODE</button>
 <button id="vrButton" style="position:fixed;right:14px;bottom:56px;z-index:26;padding:8px 14px;background:rgba(120,180,200,.12);backdrop-filter:blur(16px);border:1px solid rgba(120,180,200,.4);color:#8fa4b0;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1px;font-weight:600;border-radius:4px;cursor:pointer;display:none">[VR] ENTER VR MODE</button>
 
@@ -6608,6 +6617,55 @@ window.SDT = {
   Director,
   RadialMenu,
 };
+// TRAMPILLERA / POLAR SETTLEMENT host integration.
+const sdtLocaleLabels = {
+  EN: '← POLAR SETTLEMENT', RU: '← ПОЛЯРНЫЙ ПОСЁЛОК', SR: '← POLARNO NASELJE',
+  DE: '← POLARSIEDLUNG', FR: '← COLONIE POLAIRE', ES: '← ASENTAMIENTO POLAR',
+  IT: '← INSEDIAMENTO POLARE', PT: '← ASSENTAMENTO POLAR', ZH: '← 极地聚落',
+  JA: '← 極地集落', KO: '← 극지 정착지', AR: '← المستوطنة القطبية'
+};
+const sdtSupportedLocales = Object.keys(sdtLocaleLabels);
+function applyHostLocale(value) {
+  const code = String(value || 'EN').toUpperCase();
+  if (!sdtSupportedLocales.includes(code)) return;
+  document.documentElement.lang = code.toLowerCase();
+  document.documentElement.dir = code === 'AR' ? 'rtl' : 'ltr';
+  const returnButton = document.getElementById('sdtReturnToPolar');
+  if (returnButton) returnButton.textContent = sdtLocaleLabels[code];
+  window.SDT.locale = code;
+}
+document.getElementById('sdtReturnToPolar')?.addEventListener('click', () => {
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage({ type: 'sdt-exit' }, window.location.origin);
+  } else {
+    window.location.href = '/games/polar-settlement.html';
+  }
+});
+window.addEventListener('message', (event) => {
+  if (event.origin !== window.location.origin || event.source !== window.parent) return;
+  const data = event.data || {};
+  if (data.type === 'trampillera:locale-change') {
+    applyHostLocale(data.locale);
+  } else if (data.type === 'trampillera:command') {
+    const command = String(data.command || '').trim();
+    if (command && window.SDT?.Input?.CommandBar?.run) {
+      window.SDT.Input.CommandBar.run(command, 'jarviser').catch(error => {
+        window.SDT.Input.CommandBar.showStatus('JARVISER: ' + error.message, 'critical');
+      });
+    }
+  }
+});
+const sdtProject = new URLSearchParams(window.location.search).get('project');
+window.SDT.Integration = {
+  host: 'TRAMPILLERA MEDIA',
+  project: sdtProject === 'polar-settlement' ? 'POLAR_SETTLEMENT' : 'STANDALONE',
+  scenarioData: 'DEMO_AND_SYNTHETIC',
+  polarGeospatialAnchor: 'PENDING_CANONICAL_REFERENCE'
+};
+applyHostLocale(new URLSearchParams(window.location.search).get('locale') || 'EN');
+if (window.parent && window.parent !== window) {
+  window.parent.postMessage({ type: 'sdt-ready', version: '20.0.0', project: window.SDT.Integration.project }, window.location.origin);
+}
 console.log('[SDT v20] Ready. Try: SDT.runSelfTests()');
 </script>
 <script src="/shared/trampillera-image-protection.js" defer></script>
