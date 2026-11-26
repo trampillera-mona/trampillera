@@ -14,6 +14,9 @@
 
 ## Restored / connected in this pass
 
+- Added a Polar Settlement project adapter inside SDT5D v20: procedural geodesic bio-domes, wind turbines, solar arrays, landing pad, orbital ring/shuttles, aurora effect, and a dedicated scene layer. The scenario is explicitly marked synthetic and does not claim real geospatial anchoring.
+- Added JARVISER commands for Polar scenario status, day/night, synthetic storm/clear presets, scenario branching, and planner workspace.
+
 - The real SDT 5D Engine v20 is loaded from the existing public asset path; it is not a placeholder.
 - Added an explicit return control from SDT5D to Polar Settlement.
 - Added a same-origin, source-validated message bridge between the game and SDT5D.
