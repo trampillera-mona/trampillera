@@ -1613,7 +1613,7 @@ function executeJarviserCommand(rawCommand) {
     return 'Opening SDT 5D Multiverse Studio.';
   }
 
-  const studioCommands = /^(branch|snapshot|merge|probability|superpose|quantum|workspace|multiverse\s+3d|mv3d|search|layer|operator\s+cam|opcam|broadcast|overlay|radial|shot|mode|time|day|night|rain|fog|cloud|zone|road|bim|gltf)(?:\s|$)/i;
+  const studioCommands = /^(branch|snapshot|merge|probability|superpose|quantum|workspace|multiverse\s+3d|mv3d|search|layer|operator\s+cam|opcam|broadcast|overlay|radial|shot|mode|time|day|night|rain|fog|cloud|zone|road|bim|gltf|polar)(?:\s|$)/i;
   if (document.getElementById('sdt-frame')?.classList.contains('visible') && studioCommands.test(original)) {
     postSDTCommand(original);
     return sdtEngineReady ? 'SDT 5D command sent: ' + original : 'SDT 5D is loading; command queued.';
