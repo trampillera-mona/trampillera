@@ -1269,7 +1269,7 @@ button{margin-top:14px;padding:11px 16px;border:1px solid #7fc9dd;border-radius:
 <body><main><small>TRAMPILLERA MEDIA · INTERNAL WORKSPACE</small><h1>SDT5D MULTIVERSE STUDIO</h1>
 <p>Individual access is required. Studio credentials are issued by request for approved testing and familiarization.</p>
 <p>Sign in with the personal account issued to you, then reopen the Studio from Polar Settlement. Public portal and news access remain available.</p>
-<button type="button" onclick="window.parent.postMessage({type:'sdt-exit'},location.origin)">← BACK TO POLAR SETTLEMENT</button>
+<button type="button" onclick="if(window.parent!==window){window.parent.postMessage({type:'sdt-exit'},location.origin)}else{window.location.href='/games/polar-settlement.html'}">← BACK TO POLAR SETTLEMENT</button>
 </main><script>if(window.parent!==window)window.parent.postMessage({type:'sdt-access-denied'},location.origin);</script></body></html>`);
   }
   return res.sendFile(path.join(PUBLIC_DIR, "sdt-5d-engine-v20.html"));
