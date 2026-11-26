@@ -166,7 +166,7 @@
 </div>
 
 <!-- SDT IFRAME (реальный движок) -->
-<iframe id="sdt-frame" src="/sdt-5d-engine-v20.html" title="SDT 5D Engine" allow="camera; microphone; xr-spatial-tracking; fullscreen"></iframe>
+<iframe id="sdt-frame" title="SDT 5D Engine" allow="camera; microphone; xr-spatial-tracking; fullscreen"></iframe>
 
 <!-- MAIN APP -->
 <div id="app-trampillera">
@@ -1642,18 +1642,23 @@ function exitToPortal(){
 // --- SDT bridge (iframe) ---
 function enterSDTStudio(){
   const frame=document.getElementById('sdt-frame');
+  const placeholder=document.getElementById('sdt-placeholder');
   const app=document.getElementById('app-trampillera');
   const umka=document.getElementById('umka-screen');
   if(umka)umka.classList.remove('visible');
-  if(frame){frame.classList.add('visible');frame.src='/sdt-5d-engine-v20.html';}
+  // The v20 engine file is not part of this deployment yet. Do not request a missing route.
+  if(frame){frame.classList.remove('visible');frame.removeAttribute('src');}
+  if(placeholder)placeholder.classList.add('visible');
   if(app)app.classList.add('hidden-by-sdt');
   playTactileSound('chime');
-  showToast('🌌 Entering SDT 5D Studio (iframe module)');
+  showToast('🌌 SDT 5D Studio information opened');
 }
 function exitSDTStudio(){
   const frame=document.getElementById('sdt-frame');
+  const placeholder=document.getElementById('sdt-placeholder');
   const app=document.getElementById('app-trampillera');
-  if(frame){frame.classList.remove('visible');}
+  if(frame){frame.classList.remove('visible');frame.removeAttribute('src');}
+  if(placeholder)placeholder.classList.remove('visible');
   if(app)app.classList.remove('hidden-by-sdt');
   playTactileSound('tick');
   showToast('← Returned to Planet FUI');
@@ -1707,9 +1712,7 @@ function bootstrapTrampillera(){
       clockEl.textContent=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
     }
   },1000);
-  // Preload the SDT engine for faster entry.
-  const frame=document.getElementById('sdt-frame');
-  if(frame&&!frame.src)frame.src='/sdt-5d-engine-v20.html';
+  // SDT 5D engine is not bundled in this deployment; keep its frame unloaded.
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootstrapTrampillera);
 else bootstrapTrampillera();
