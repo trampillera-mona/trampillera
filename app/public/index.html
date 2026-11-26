@@ -1528,7 +1528,6 @@
         <button class="jv-chip" id="btnClear">↻ CLEAR</button>
         <button class="jv-chip" id="btnReset">⇄ RESET CARDS</button>
         <span style="flex:1"></span>
-        <button class="jv-chip" id="btnTheme">LIGHT / DARK</button>
         <button class="jv-chip" id="btnLock">🔓</button>
         <button class="jv-chip red" id="jv-close">✕ CLOSE</button>
       </div>
@@ -4477,13 +4476,6 @@ const JarvisOrchestrator = (() => {
       speak('Cauldron cleared.');
     });
     document.getElementById('btnReset')?.addEventListener('click', () => { state.positions = {}; renderCards(); });
-    document.getElementById('btnTheme')?.addEventListener('click', () => {
-      if (typeof Theme !== 'undefined' && Theme.toggle) Theme.toggle();
-      else {
-        const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-        document.documentElement.dataset.theme = t;
-      }
-    });
     document.getElementById('btnLock')?.addEventListener('click', () => {
       state.locked = !state.locked;
       renderStatus();
