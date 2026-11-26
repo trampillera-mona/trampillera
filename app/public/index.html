@@ -2549,6 +2549,8 @@ function onFUIPointerUp(e) {
     const data = hHits[0].object.userData;
     if (data.isPolarnySector) {
       playTactileSound('snap');
+      const worldDir = data.worldNormal.clone().applyQuaternion(planetGroup.quaternion).normalize();
+      targetCameraPos = worldDir.clone().multiplyScalar(3.55);
       openPolarnySettlement('sector');
       return;
     }
