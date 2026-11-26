@@ -1022,7 +1022,7 @@
       data-src="/games/polar-settlement.html"
       title="TRAMPILLERA Polar Settlement Game"
       loading="lazy"
-      allow="autoplay; fullscreen; xr-spatial-tracking"
+      allow="autoplay; camera; microphone; fullscreen; xr-spatial-tracking"
       allowfullscreen
     ></iframe>
   </section>
@@ -1963,15 +1963,34 @@ function cycleGlobalLanguage() {
  // ============================================================================
 const PolarGameBridge = (() => {
   const getFrame = () => document.getElementById('polar-settlement-game-frame');
+  const pendingCommands = [];
+  let bridgeReady = false;
+
   function send(message) {
     const frame = getFrame();
     if (frame && frame.contentWindow && frame.getAttribute('src')) {
       frame.contentWindow.postMessage(message, window.location.origin);
+      return true;
+    }
+    return false;
+  }
+
+  function flushCommands() {
+    if (!bridgeReady) return;
+    while (pendingCommands.length) {
+      const command = pendingCommands.shift();
+      send({ type: 'trampillera:command', command });
     }
   }
+
   function syncLocale() {
+    const frame = getFrame();
+    if (!frame || !frame.contentWindow || !frame.getAttribute('src')) return;
+    bridgeReady = true;
     send({ type: 'trampillera:parent-open', locale: UNIFIED_STATE.lang || 'EN' });
+    flushCommands();
   }
+
   function open() {
     const frame = getFrame();
     if (!frame) return;
@@ -1979,23 +1998,37 @@ const PolarGameBridge = (() => {
       frame.addEventListener('load', syncLocale);
       frame.dataset.bridgeBound = 'true';
     }
-    if (!frame.getAttribute('src')) frame.src = frame.dataset.src || '/games/polar-settlement.html';
+    if (!frame.getAttribute('src')) {
+      bridgeReady = false;
+      frame.src = frame.dataset.src || '/games/polar-settlement.html';
+    }
     if (frame.contentDocument && frame.contentDocument.readyState === 'complete') syncLocale();
     else window.setTimeout(syncLocale, 250);
   }
+
   function setLocale(code) {
     send({ type: 'trampillera:locale-change', locale: code });
   }
+
   function command(command) {
-    send({ type: 'trampillera:command', command });
+    const value = String(command || '').trim();
+    if (!value) return;
+    if (!bridgeReady) {
+      pendingCommands.push(value);
+      return;
+    }
+    send({ type: 'trampillera:command', command: value });
   }
+
   window.addEventListener('message', event => {
     const frame = getFrame();
     if (!frame || event.origin !== window.location.origin || event.source !== frame.contentWindow) return;
     const data = event.data || {};
-    if (data.type === 'trampillera:game-exit') RealmRouter.switchRealm('intro');
+    if (data.type === 'trampillera:game-ready') syncLocale();
+    else if (data.type === 'trampillera:game-exit') RealmRouter.switchRealm('intro');
     else if (data.type === 'trampillera:game-toast') showToast(String(data.message || 'Game event'));
   });
+
   return { open, setLocale, command };
 })();
 
