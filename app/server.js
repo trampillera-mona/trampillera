@@ -1,5 +1,6 @@
 import express from "express";
 import { resolveAIProviderConfig, getAIProviderStatus, buildAIRequestBody, extractAIReply, extractAIUsage } from "./ai-provider.js";
+import { createBusinessRouter } from "./business.js";
 import helmet from "helmet";
 import cookieSession from "cookie-session";
 import rateLimit from "express-rate-limit";
@@ -341,6 +342,8 @@ function validateBody(fields) {
     next();
   };
 }
+
+app.use(createBusinessRouter({pool,requireAdmin,audit}));
 
 app.get("/api/health", asyncRoute(async (_req,res) => {
   await pool.query("SELECT 1");
