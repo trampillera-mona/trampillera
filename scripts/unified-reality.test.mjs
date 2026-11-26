@@ -44,6 +44,25 @@ test('banner delegates actions to existing application modules instead of fake l
   assert.match(js, /prefers-reduced-motion/);
 });
 
+test('FUI viewport grows on short screens and keeps controls inside the game realm', () => {
+  assert.match(html, /height: max\(560px, min\(920px, calc\(100svh - 300px\)\)\)/);
+  assert.match(html, /#fui-control-rail \{ position:absolute/);
+  assert.match(html, /env\(safe-area-inset-bottom\)/);
+  assert.match(html, /#spatial-windows-layer \{ padding-bottom:92px/);
+  assert.match(html, /\.spatial-window \[id\$="-body"\] \{ min-height:0/);
+  assert.match(html, /@media\(prefers-reduced-motion:reduce\)/);
+});
+
+test('FUI window geometry is measured, clamped, and observed at the container boundary', () => {
+  assert.match(html, /function getFUIBounds\(\)/);
+  assert.match(html, /function clampFUIWindow\(win, bounds = getFUIBounds\(\)\)/);
+  assert.match(html, /function observeFUIContainer\(\)/);
+  assert.match(html, /new ResizeObserver\(\(\) => onFUIResize\(\)\)/);
+  assert.match(html, /const bounds = getFUIBounds\(\);[\s\S]*?clampFUIWindow\(win, bounds\)/);
+  assert.match(html, /pointercancel/);
+  assert.match(html, /workspaceBounds = fuiRealm && fuiRealm\.classList\.contains\('active'\)/);
+});
+
 test('3D FUI keeps one Polarny entry, clickable polar sector, responsive controls and day/night', () => {
   assert.equal((html.match(/id="fui-open-polarny"/g) || []).length, 1);
   assert.match(html, /filter\(w => !w\.visible && w\.id !== 'win-polarny'\)/);
