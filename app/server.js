@@ -480,6 +480,22 @@ async function inspectPublicAsset(publicPath) {
   });
   return { mimeType, sha256: hash.digest("hex"), bytes: info.size };
 }
+app.get("/api/control/taps/status", asyncRoute(async (_req,res) => {
+  const required = ["TAPS_S3_ENDPOINT","TAPS_S3_BUCKET","TAPS_S3_REGION","TAPS_S3_ACCESS_KEY_ID","TAPS_S3_SECRET_ACCESS_KEY"];
+  const missing = required.filter((key) => !process.env[key]);
+  const counts = await pool.query(
+    "SELECT pipeline_state,COUNT(*)::int AS count FROM media_assets GROUP BY pipeline_state ORDER BY pipeline_state"
+  );
+  res.set("Cache-Control","no-store");
+  res.json({
+    service:"TRAMPILLERA Asset Protection Service",
+    version:"0.1.0",
+    storage:{provider:"S3_COMPATIBLE",configured:missing.length===0,missingConfiguration:missing},
+    pipeline:{implemented:false,state:"SCHEMA_READY",supportedStates:["LEGACY_PUBLIC","RECEIVED","SCANNED","PROCESSING","VERIFIED","FAILED"]},
+    assets:counts.rows,
+    note:"Original files are not yet moved or protected by this schema migration. Do not mark an asset VERIFIED until the storage, watermark, hash, and retrieval checks have actually passed."
+  });
+}));
 app.get("/api/control/assets", asyncRoute(async (req,res) => {
   const state = clean(req.query.state,20).toUpperCase();
   if (state && !["ACTIVE","RESTRICTED","RETIRED"].includes(state)) return res.status(400).json({ error:"Invalid asset protection state." });
