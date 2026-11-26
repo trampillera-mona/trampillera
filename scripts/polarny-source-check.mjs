@@ -20,6 +20,7 @@ assert.equal((intro[1].match(/<button\b/g) || []).length, 3, "Welcome panel must
 assert.ok(!intro[1].includes("/polarny/"), "The welcome panel must not link to a separate settlement page.");
 assert.ok(!html.includes('href="/polarny/"'), "No navigation may send the user to a standalone Polarny page.");
 await assert.rejects(access(path.join(root, "app/public/polarny/index.html")), "Standalone Polarny game must be removed.");
+assert.ok(html.includes('id="polarny-game-entry"'), "The in-game Polarny entry button must be present.");
 assert.ok(html.includes("onclick=\"toggleWindowById('win-polarny')\""), "Settlement must open from inside the 3D FUI game.");
 const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)]
   .filter(m => !/\bsrc\s*=/.test(m[1]) && !/application\/(?:ld\+)?json/i.test(m[1]))
