@@ -1456,9 +1456,13 @@ function applyWorkspacePreset(presetName){
   showToast(`🎨 Workspace preset applied: ${presetName}`);
 }
 function selectLanguage(code){
-  STATE.lang=code;playTactileSound('tick');
+  STATE.lang = LANGUAGES.some(item => item.code === code) ? code : 'EN';
+  playTactileSound('tick');
   renderWindowContent('win-lang');
-  showToast(`🌐 Language set: ${code} (${LANGUAGES.find(l=>l.code===code)?.name||code})`);
+  showToast(`🌐 Language set: ${STATE.lang} (${LANGUAGES.find(l=>l.code===STATE.lang)?.name||STATE.lang})`);
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage({ type: 'trampillera:locale-change', locale: STATE.lang }, window.location.origin);
+  }
 }
 function cycleLanguage(){
   const idx=LANGUAGES.findIndex(l=>l.code===STATE.lang);
