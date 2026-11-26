@@ -39,7 +39,19 @@ test("pipeline transitions and partner decisions are bounded and auditable", () 
   assert.match(controlNav, /href="\/control\/business\/"/);
 });
 
-test("public intake does not claim to send email, charge money or auto-approve partners", () => {
+test("email relay is optional, secret-protected and cannot block durable intake", () => {
+  assert.match(business, /GOOGLE_APPS_SCRIPT_WEBHOOK_URL/);
+  assert.match(business, /GOOGLE_APPS_SCRIPT_WEBHOOK_SECRET/);
+  assert.match(business, /AbortSignal\.timeout\(5000\)/);
+  assert.match(business, /Email failure must never discard the submission/);
+  assert.match(business, /business_email_notification_failed/);
+  assert.match(business, /await notifyBusinessSubmission/);
+  assert.match(business, /GmailApp/);
+  assert.match(business, /TRAMPILLERA_WEBHOOK_SECRET/);
+  assert.match(business, /TRAMPILLERA_NOTIFY_TO/);
+});
+
+test("public intake does not claim to charge money or auto-approve partners", () => {
   assert.match(publicPage, /does not create a contract/i);
   assert.match(controlPage, /does not send email, contact prospects, create contracts, publish offers, or collect payments/i);
   assert.doesNotMatch(business, /nodemailer|sendMail|stripe|paypal/i);
