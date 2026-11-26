@@ -7,9 +7,12 @@ import pg from "pg";
 import { runMigrations } from "./migrations.js";
 import crypto from "node:crypto";
 import path from "node:path";
+import { createReadStream } from "node:fs";
+import { realpath, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PUBLIC_DIR = path.join(__dirname, "public");
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const NODE_ENV = process.env.NODE_ENV || "development";
@@ -446,6 +449,80 @@ app.get("/api/analytics/counter", asyncRoute(async (_req,res) => {
 }));
 
 app.use("/api/control", requireAuth, requireAdmin);
+
+const allowedAssetMimeByExtension = new Map([
+  [".avif","image/avif"],[".gif","image/gif"],[".jpg","image/jpeg"],
+  [".jpeg","image/jpeg"],[".png","image/png"],[".webp","image/webp"]
+]);
+async function inspectPublicAsset(publicPath) {
+  if (typeof publicPath !== "string" || !publicPath.startsWith("/") ||
+      publicPath.startsWith("//") || /[\\\\?#\\u0000-\\u001f]/.test(publicPath)) {
+    throw Object.assign(new Error("Asset path must be a same-origin public path."), { status: 400 });
+  }
+  const resolved = path.resolve(PUBLIC_DIR, publicPath.slice(1));
+  if (resolved !== PUBLIC_DIR && !resolved.startsWith(PUBLIC_DIR + path.sep)) {
+    throw Object.assign(new Error("Asset path is outside the public directory."), { status: 400 });
+  }
+  const [publicRoot, realFile] = await Promise.all([realpath(PUBLIC_DIR), realpath(resolved)]);
+  if (realFile !== publicRoot && !realFile.startsWith(publicRoot + path.sep)) {
+    throw Object.assign(new Error("Asset resolves outside the public directory."), { status: 400 });
+  }
+  const info = await stat(realFile);
+  if (!info.isFile()) throw Object.assign(new Error("Asset path is not a file."), { status: 400 });
+  const mimeType = allowedAssetMimeByExtension.get(path.extname(realFile).toLowerCase());
+  if (!mimeType) throw Object.assign(new Error("Only raster image assets (AVIF, GIF, JPEG, PNG, WebP) can be registered."), { status: 415 });
+  const hash = crypto.createHash("sha256");
+  await new Promise((resolve, reject) => {
+    const stream = createReadStream(realFile);
+    stream.on("data", chunk => hash.update(chunk));
+    stream.on("error", reject);
+    stream.on("end", resolve);
+  });
+  return { mimeType, sha256: hash.digest("hex"), bytes: info.size };
+}
+app.get("/api/control/assets", asyncRoute(async (req,res) => {
+  const state = clean(req.query.state,20).toUpperCase();
+  if (state && !["ACTIVE","RESTRICTED","RETIRED"].includes(state)) return res.status(400).json({ error:"Invalid asset protection state." });
+  const values = state ? [state] : [];
+  const result = await pool.query(
+    "SELECT asset_id,title,public_path,mime_type,sha256,rights_holder,source_credit,license_label,watermark_state,protection_state,metadata,created_at,updated_at FROM media_assets " +
+    (state ? "WHERE protection_state=$1 " : "") + "ORDER BY created_at DESC LIMIT 500", values
+  );
+  res.set("Cache-Control","no-store");
+  res.json({ items:result.rows, count:result.rowCount });
+}));
+app.post("/api/control/assets", asyncRoute(async (req,res) => {
+  const title = clean(req.body?.title,160);
+  const publicPath = clean(req.body?.publicPath,2048);
+  const rightsHolder = clean(req.body?.rightsHolder,160) || "TRAMPILLERA MEDIA";
+  const sourceCredit = clean(req.body?.sourceCredit,500);
+  const licenseLabel = clean(req.body?.licenseLabel,160) || "Permission required";
+  if (title.length < 2 || !publicPath) return res.status(400).json({ error:"Asset title and public path are required." });
+  let inspected;
+  try { inspected = await inspectPublicAsset(publicPath); }
+  catch (error) { return res.status(error.status || 400).json({ error:error.message }); }
+  const assetId = "TPA-" + crypto.randomUUID().toUpperCase();
+  const result = await pool.query(
+    "INSERT INTO media_assets(asset_id,title,public_path,mime_type,sha256,rights_holder,source_credit,license_label,watermark_state,protection_state,metadata) " +
+    "VALUES($1,$2,$3,$4,$5,$6,$7,$8,'OVERLAY_ONLY','ACTIVE',$9::jsonb) " +
+    "RETURNING asset_id,title,public_path,mime_type,sha256,rights_holder,source_credit,license_label,watermark_state,protection_state,metadata,created_at",
+    [assetId,title,publicPath,inspected.mimeType,inspected.sha256,rightsHolder,sourceCredit,licenseLabel,
+      JSON.stringify({ bytes:inspected.bytes, hashAlgorithm:"SHA-256", hashComputedBy:"server", storage:"application-public-directory" })]
+  );
+  await audit("MEDIA_ASSET_REGISTERED","media_asset",assetId,"sha256=" + inspected.sha256 + "; path=" + publicPath);
+  res.status(201).json({ item:result.rows[0], message:"Asset registered and server-side SHA-256 fingerprint computed. Watermark state remains OVERLAY_ONLY until an embedded-watermark export is produced." });
+}));
+app.patch("/api/control/assets/:assetId", asyncRoute(async (req,res) => {
+  const state = clean(req.body?.protectionState,20).toUpperCase();
+  if (!["ACTIVE","RESTRICTED","RETIRED"].includes(state)) return res.status(400).json({ error:"Protection state must be ACTIVE, RESTRICTED or RETIRED." });
+  const result = await pool.query(
+    "UPDATE media_assets SET protection_state=$2,updated_at=NOW() WHERE asset_id=$1 RETURNING asset_id,title,public_path,protection_state,updated_at",
+    [clean(req.params.assetId,64),state]
+  );
+  if (!result.rowCount) return res.status(404).json({ error:"Asset record not found." });
+  await audit("MEDIA_ASSET_STATE_CHANGED","media_asset",result.rows[0].asset_id,"state=" + state);
+  res.json({ item:result.rows[0] });
+}));
 
 app.get("/api/control/analytics/summary", asyncRoute(async (req,res) => {
   const parsed=Number(req.query.days||30);
