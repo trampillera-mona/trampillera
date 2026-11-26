@@ -91,12 +91,14 @@ jobs:
           assert_http_contains http://127.0.0.1:3000/control/growth/ 'Audience Intelligence Desk'
           assert_http_contains http://127.0.0.1:3000/business/ 'Project inquiry'
           assert_http_contains http://127.0.0.1:3000/control/business/ 'Commercial Operations Desk'
-          INQUIRY_JSON=$(curl --fail --silent -H 'Content-Type: application/json' -d '{"contactName":"CI Prospect","organization":"CI Test Org","email":"prospect@example.test","requestType":"SERVICE","subject":"CI business inquiry","message":"Please evaluate a sample project request for the business pipeline.","consent":true}' http://127.0.0.1:3000/api/business/inquiries)
+          INQUIRY_JSON=$(curl --fail --silent --show-error -H 'Content-Type: application/json' -d '{"contactName":"CI Prospect","organization":"CI Test Org","email":"prospect@example.test","requestType":"SERVICE","subject":"CI business inquiry","message":"Please evaluate a sample project request for the business pipeline.","consent":true}' http://127.0.0.1:3000/api/business/inquiries)
           INQUIRY_REF=$(printf '%s' "$INQUIRY_JSON" | jq -r '.reference')
           test -n "$INQUIRY_REF"
-          PARTNER_JSON=$(curl --fail --silent -H 'Content-Type: application/json' -d '{"organization":"CI Partner Org","contactName":"CI Partner","email":"partner@example.test","capabilities":"Independent software engineering, data integration and technical delivery.","message":"CI partner application test.","consent":true}' http://127.0.0.1:3000/api/business/partner-applications)
+          echo "CI accepted business inquiry $INQUIRY_REF"
+          PARTNER_JSON=$(curl --fail --silent --show-error -H 'Content-Type: application/json' -d '{"organization":"CI Partner Org","contactName":"CI Partner","email":"partner@example.test","capabilities":"Independent software engineering, data integration and technical delivery.","message":"CI partner application test.","consent":true}' http://127.0.0.1:3000/api/business/partner-applications)
           PARTNER_ID=$(printf '%s' "$PARTNER_JSON" | jq -r '.applicationId')
           test -n "$PARTNER_ID"
+          echo "CI accepted partner application $PARTNER_ID"
           assert_http_contains http://127.0.0.1:3000/city/ 'allow="microphone;'
           curl --fail --silent --dump-header /tmp/trampillera-headers.txt --output /dev/null http://127.0.0.1:3000/api/health
           grep -qi '^Permissions-Policy: microphone=(self)' /tmp/trampillera-headers.txt
