@@ -101,7 +101,7 @@ jobs:
           echo "CI accepted partner application $PARTNER_ID"
           assert_http_contains http://127.0.0.1:3000/city/ 'allow="microphone;'
           curl --fail --silent --dump-header /tmp/trampillera-headers.txt --output /dev/null http://127.0.0.1:3000/api/health
-          grep -qi '^Permissions-Policy: microphone=(self)' /tmp/trampillera-headers.txt
+          grep -qi '^Permissions-Policy: .*microphone=(self)' /tmp/trampillera-headers.txt
           curl --fail --silent http://127.0.0.1:3000/control/ > /dev/null
           curl --fail --silent -H 'Content-Type: application/json' -d '{"visitorId":"11111111-1111-4111-8111-111111111111","path":"/","source":"ci","medium":"test","campaign":""}' http://127.0.0.1:3000/api/analytics/visit | jq -e '.visitors == 1 and .today == 1 and .pageviews == 1'
           curl --fail --silent http://127.0.0.1:3000/api/analytics/counter | jq -e '.visitors == 1 and .today == 1 and .pageviews == 1'
