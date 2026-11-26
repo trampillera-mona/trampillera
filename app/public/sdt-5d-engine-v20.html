@@ -437,6 +437,9 @@ body.immersive-active .floating.fp-pinned{opacity:1 !important;pointer-events:au
       <label class="layer" style="display:flex;align-items:center;gap:7px;padding:3px 2px;cursor:pointer;font-size:9px;color:#8fa4b0"><input type="checkbox" data-layer="underwater" checked style="accent-color:#7fc9dd">Underwater</label>
       <label class="layer" style="display:flex;align-items:center;gap:7px;padding:3px 2px;cursor:pointer;font-size:9px;color:#8fa4b0"><input type="checkbox" data-layer="underground" checked style="accent-color:#7fc9dd">Underground</label>
       <div style="height:1px;background:rgba(120,180,200,.08);margin:6px 0"></div>
+      <div class="section">Polar Settlement Scenario</div>
+      <label class="layer" style="display:flex;align-items:center;gap:7px;padding:3px 2px;cursor:pointer;font-size:9px;color:#8fa4b0"><input type="checkbox" data-layer="polar-settlement" checked style="accent-color:#7fc9dd">Polar Settlement Infrastructure</label>
+      <div style="height:1px;background:rgba(120,180,200,.08);margin:6px 0"></div>
       <div class="section">Semantic & Artist</div>
       <label class="layer" style="display:flex;align-items:center;gap:7px;padding:3px 2px;cursor:pointer;font-size:9px;color:#8fa4b0"><input type="checkbox" data-layer="decorations" checked style="accent-color:#7fc9dd">Decorations</label>
       <label class="layer" style="display:flex;align-items:center;gap:7px;padding:3px 2px;cursor:pointer;font-size:9px;color:#8fa4b0"><input type="checkbox" data-layer="annotations" checked style="accent-color:#7fc9dd">Annotations</label>
@@ -6655,7 +6658,247 @@ window.addEventListener('message', (event) => {
     }
   }
 });
+function createPolarSettlementProject() {
+  const root = new THREE.Group();
+  root.name = 'POLAR_SETTLEMENT_SYNTHETIC_SCENARIO';
+  root.userData = { project: 'POLAR_SETTLEMENT', dataStatus: 'DEMO_AND_SYNTHETIC', geoAnchor: 'PENDING' };
+
+  const materials = {
+    shell: new THREE.MeshPhysicalMaterial({ color: 0x9bd8e8, roughness: 0.18, metalness: 0.12, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }),
+    frame: new THREE.LineBasicMaterial({ color: 0x8dd9e8, transparent: true, opacity: 0.72 }),
+    base: new THREE.MeshStandardMaterial({ color: 0x526c7d, roughness: 0.78, metalness: 0.28 }),
+    amber: new THREE.MeshStandardMaterial({ color: 0xffa64d, emissive: 0x5b2600, emissiveIntensity: 0.55, roughness: 0.42, metalness: 0.2 }),
+    ice: new THREE.MeshStandardMaterial({ color: 0xb9d6e5, roughness: 0.32, metalness: 0.12 }),
+    green: new THREE.MeshStandardMaterial({ color: 0x5e9b70, roughness: 0.8 }),
+    solar: new THREE.MeshStandardMaterial({ color: 0x244e73, roughness: 0.3, metalness: 0.45, emissive: 0x071a2c })
+  };
+
+  const settlement = new THREE.Group();
+  const energy = new THREE.Group();
+  const orbital = new THREE.Group();
+  const landing = new THREE.Group();
+  root.add(settlement, energy, orbital, landing);
+
+  function addDome(x, z, radius, label) {
+    const dome = new THREE.Group();
+    const geometry = new THREE.SphereGeometry(radius, 28, 18, 0, Math.PI * 2, 0, Math.PI / 2);
+    const shell = new THREE.Mesh(geometry, materials.shell);
+    shell.position.y = 0.35;
+    dome.add(shell);
+    const cage = new THREE.LineSegments(new THREE.WireframeGeometry(geometry), materials.frame);
+    cage.position.y = 0.35;
+    dome.add(cage);
+    const baseRing = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.24, 8, 56), materials.base);
+    baseRing.rotation.x = Math.PI / 2;
+    baseRing.position.y = 0.28;
+    dome.add(baseRing);
+    for (let row = -1; row <= 1; row++) {
+      for (let col = -2; col <= 2; col++) {
+        const bed = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.18, 0.62), materials.green);
+        bed.position.set(col * 1.55, 0.55, row * 2.1);
+        dome.add(bed);
+        for (let n = 0; n < 3; n++) {
+          const plant = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.75, 5), materials.green);
+          plant.position.set(col * 1.55 + (n - 1) * 0.28, 0.98, row * 2.1);
+          dome.add(plant);
+        }
+      }
+    }
+    const marker = new THREE.PointLight(0x8bdcf0, 0.7, radius * 2.5);
+    marker.position.set(0, radius * 0.65, 0);
+    dome.add(marker);
+    dome.position.set(x, 0, z);
+    settlement.add(dome);
+    const caption = document.createElement('div');
+    caption.className = 'css2d-label';
+    caption.innerHTML = '<span class="label-text" style="color:#8bdcf0;border-color:#8bdcf066">' + escapeHTML(label) + '</span>';
+    const label3d = new CSS2DObject(caption);
+    label3d.position.set(x, radius + 2, z);
+    settlement.add(label3d);
+  }
+
+  function addWindTurbine(x, z, height = 14) {
+    const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.55, height, 8), materials.ice);
+    tower.position.set(x, height / 2, z);
+    tower.castShadow = true;
+    energy.add(tower);
+    const rotor = new THREE.Group();
+    rotor.position.set(x, height, z);
+    const hub = new THREE.Mesh(new THREE.SphereGeometry(0.72, 12, 10), materials.amber);
+    rotor.add(hub);
+    for (let i = 0; i < 3; i++) {
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.34, 7.2, 0.22), materials.ice);
+      blade.position.y = 3.9;
+      blade.rotation.z = i * Math.PI * 2 / 3;
+      rotor.add(blade);
+    }
+    energy.add(rotor);
+  }
+
+  function addSolarArray(x, z) {
+    const support = new THREE.Mesh(new THREE.BoxGeometry(0.35, 2.4, 0.35), materials.base);
+    support.position.set(x, 1.2, z);
+    energy.add(support);
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(11, 0.18, 4.2), materials.solar);
+    panel.position.set(x, 2.5, z);
+    panel.rotation.x = -0.16;
+    energy.add(panel);
+    for (let i = -4; i <= 4; i++) {
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.2, 4.2), materials.ice);
+      seam.position.set(x + i * 1.18, 2.61, z);
+      seam.rotation.x = -0.16;
+      energy.add(seam);
+    }
+  }
+
+  addDome(-25, -12, 13, 'BIO-DOME 01');
+  addDome(24, 15, 11, 'BIO-DOME 02');
+  addDome(0, 34, 8, 'RESEARCH DOME');
+  addWindTurbine(-58, -32, 15);
+  addWindTurbine(58, 35, 17);
+  addWindTurbine(-48, 55, 13);
+  addSolarArray(48, -48);
+  addSolarArray(62, -40);
+
+  const pad = new THREE.Mesh(new THREE.CircleGeometry(10, 56), new THREE.MeshStandardMaterial({ color: 0x172c3c, roughness: 0.8, metalness: 0.3 }));
+  pad.rotation.x = -Math.PI / 2;
+  pad.position.set(0, 0.08, -48);
+  landing.add(pad);
+  const padRing = new THREE.Mesh(new THREE.TorusGeometry(10, 0.28, 8, 56), materials.amber);
+  padRing.rotation.x = Math.PI / 2;
+  padRing.position.set(0, 0.16, -48);
+  landing.add(padRing);
+  const padCore = new THREE.Mesh(new THREE.CircleGeometry(2.4, 32), materials.ice);
+  padCore.rotation.x = -Math.PI / 2;
+  padCore.position.set(0, 0.12, -48);
+  landing.add(padCore);
+
+  const beacon = new THREE.Group();
+  const beaconBase = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.4, 8, 8), materials.base);
+  beaconBase.position.y = 4;
+  beacon.add(beaconBase);
+  const beaconLight = new THREE.PointLight(0xffa64d, 1.8, 36);
+  beaconLight.position.y = 9;
+  beacon.add(beaconLight);
+  const beaconCap = new THREE.Mesh(new THREE.SphereGeometry(0.85, 12, 10), materials.amber);
+  beaconCap.position.y = 9;
+  beacon.add(beaconCap);
+  beacon.position.set(0, 0, 4);
+  settlement.add(beacon);
+
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(30, 0.34, 10, 128), new THREE.MeshStandardMaterial({ color: 0x6ac9df, emissive: 0x123c50, emissiveIntensity: 0.6, metalness: 0.7, roughness: 0.28 }));
+  ring.rotation.x = Math.PI / 2;
+  ring.rotation.z = 0.18;
+  ring.position.y = 37;
+  orbital.add(ring);
+  for (let i = 0; i < 3; i++) {
+    const angle = i * Math.PI * 2 / 3 + 0.3;
+    const shuttle = new THREE.Group();
+    const hull = new THREE.Mesh(new THREE.ConeGeometry(1.25, 4.4, 8), materials.amber);
+    hull.rotation.z = -Math.PI / 2;
+    shuttle.add(hull);
+    const cabin = new THREE.Mesh(new THREE.SphereGeometry(0.72, 10, 8), materials.shell);
+    cabin.scale.set(1.5, 0.7, 0.9);
+    cabin.position.x = 0.35;
+    shuttle.add(cabin);
+    shuttle.position.set(Math.cos(angle) * 30, 37, Math.sin(angle) * 30);
+    orbital.add(shuttle);
+  }
+
+  const auroraMaterial = new THREE.MeshBasicMaterial({ color: 0x55e6c0, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide });
+  const auroraCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-105, 72, -42), new THREE.Vector3(-62, 84, -26),
+    new THREE.Vector3(-18, 78, -8), new THREE.Vector3(28, 88, 12),
+    new THREE.Vector3(72, 76, 26), new THREE.Vector3(108, 82, 40)
+  ]);
+  const aurora = new THREE.Mesh(new THREE.TubeGeometry(auroraCurve, 90, 1.2, 8, false), auroraMaterial);
+  orbital.add(aurora);
+
+  for (let i = 0; i < 24; i++) {
+    const drift = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshStandardMaterial({ color: 0xd9e9f1, roughness: 1 }));
+    drift.scale.set(2.4 + (i % 4), 0.45, 1.6 + (i % 3) * 0.35);
+    drift.position.set(Math.sin(i * 8.7) * 82, 0.18, Math.cos(i * 4.1) * 74);
+    settlement.add(drift);
+  }
+
+  function tintGroup(group, color, roughness) {
+    group?.traverse(node => {
+      if (!node.isMesh || !node.material) return;
+      const tint = material => {
+        const copy = material.clone();
+        if (copy.color) copy.color.setHex(color);
+        if (roughness !== undefined && 'roughness' in copy) copy.roughness = roughness;
+        return copy;
+      };
+      node.material = Array.isArray(node.material) ? node.material.map(tint) : tint(node.material);
+    });
+  }
+  tintGroup(terrainGroup, 0xaebfce, 0.96);
+  tintGroup(waterGroup, 0x64869b, 0.34);
+  tintGroup(roadsGroup, 0x2d3d4c, 0.9);
+
+  scene.add(root);
+  LayerManager.register('polar-settlement', root);
+  setTimeOfDay(18.6);
+  setCloudCover(0.42);
+  setFog(0.38);
+  setRain(0);
+
+  return {
+    group: root,
+    setTime: hour => setTimeOfDay(Number(hour)),
+    setWeather: ({ clouds = 0.42, fog = 0.38, rain = 0 } = {}) => {
+      setCloudCover(Number(clouds));
+      setFog(Number(fog));
+      setRain(Number(rain));
+    },
+    createBranch: () => MultiverseEngine.branch(0.55),
+    getStatus: () => ({
+      project: 'POLAR_SETTLEMENT',
+      scenarioData: 'DEMO_AND_SYNTHETIC',
+      geospatialAnchor: 'PENDING_CANONICAL_REFERENCE',
+      sceneObjects: objectManager.size(),
+      layers: LayerManager.layers.size,
+      activeTimeline: timelineManager.active?.id || 'UNKNOWN'
+    })
+  };
+}
+
 const sdtProject = new URLSearchParams(window.location.search).get('project');
+if (sdtProject === 'polar-settlement') {
+  window.SDT.PolarWorld = createPolarSettlementProject();
+  CommandRegistry.register('polar status', {
+    desc: 'Show Polar Settlement scenario status',
+    handler: () => {
+      const s = window.SDT.PolarWorld.getStatus();
+      return 'POLAR SETTLEMENT · ' + s.scenarioData + ' · GEO ANCHOR ' + s.geospatialAnchor + ' · OBJECTS ' + s.sceneObjects;
+    }
+  });
+  CommandRegistry.register('polar day', {
+    desc: 'Apply the synthetic polar day lighting preset',
+    handler: () => { window.SDT.PolarWorld.setTime(12); window.SDT.PolarWorld.setWeather({ clouds: 0.18, fog: 0.24, rain: 0 }); return 'Polar day lighting applied'; }
+  });
+  CommandRegistry.register('polar night', {
+    desc: 'Apply the synthetic polar night lighting preset',
+    handler: () => { window.SDT.PolarWorld.setTime(0.5); window.SDT.PolarWorld.setWeather({ clouds: 0.36, fog: 0.5, rain: 0 }); return 'Polar night lighting applied'; }
+  });
+  CommandRegistry.register('polar storm', {
+    desc: 'Apply a synthetic storm weather preset',
+    handler: () => { window.SDT.PolarWorld.setTime(17.5); window.SDT.PolarWorld.setWeather({ clouds: 0.96, fog: 0.72, rain: 0.28 }); return 'Synthetic storm preset applied'; }
+  });
+  CommandRegistry.register('polar clear', {
+    desc: 'Clear synthetic weather and restore twilight',
+    handler: () => { window.SDT.PolarWorld.setTime(18.6); window.SDT.PolarWorld.setWeather({ clouds: 0.42, fog: 0.38, rain: 0 }); return 'Polar twilight preset restored'; }
+  });
+  CommandRegistry.register('polar branch', {
+    desc: 'Create a new Polar Settlement scenario branch',
+    handler: () => { const branch = window.SDT.PolarWorld.createBranch(); return branch ? 'Scenario branch created: ' + branch.id : 'Unable to create branch'; }
+  });
+  CommandRegistry.register('polar planner', {
+    desc: 'Switch to the SDT5D planning workspace',
+    handler: () => { WorkspaceManager.apply('planner'); return 'Planner workspace active'; }
+  });
+}
 window.SDT.Integration = {
   host: 'TRAMPILLERA MEDIA',
   project: sdtProject === 'polar-settlement' ? 'POLAR_SETTLEMENT' : 'STANDALONE',
