@@ -106,6 +106,21 @@
   #sdt-frame{position:fixed;inset:0;width:100%;height:100%;border:0;z-index:89000;display:none;background:#04070d}
   #sdt-frame.visible{display:block}
   #app-trampillera.hidden-by-sdt{display:none}
+
+  /* Camera and display controls */
+  #game-utility-dock{position:fixed;right:16px;bottom:16px;z-index:80000;display:flex;gap:8px;align-items:center}
+  .game-utility-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 13px;border:1px solid rgba(127,201,221,.5);border-radius:9px;background:rgba(4,9,17,.9);color:#c8eaf2;font:700 10px 'JetBrains Mono',monospace;letter-spacing:.08em;cursor:pointer;box-shadow:0 8px 26px rgba(0,0,0,.4);backdrop-filter:blur(12px);transition:all .18s ease}
+  .game-utility-btn:hover{border-color:var(--fui-orange);color:#fff;background:rgba(255,128,0,.16)}
+  .game-utility-btn[aria-pressed="true"]{border-color:#3FB950;color:#8ef0a0}
+  #commentator-camera-panel{position:fixed;right:16px;bottom:68px;z-index:80001;width:min(360px,calc(100vw - 32px));padding:12px;background:rgba(4,9,17,.96);border:1px solid rgba(127,201,221,.48);border-radius:12px;box-shadow:0 18px 48px rgba(0,0,0,.65);backdrop-filter:blur(16px);display:none;color:#e8eaed}
+  #commentator-camera-panel.visible{display:block}
+  #commentator-camera-panel video{display:block;width:100%;max-height:260px;aspect-ratio:16/9;object-fit:cover;background:#000;border-radius:7px;transform:scaleX(-1)}
+  #commentator-camera-panel .camera-meta{font-size:9px;line-height:1.5;color:#9fb2bf;letter-spacing:.06em}
+  #commentator-camera-status{font-size:9px;color:#7fc9dd;letter-spacing:.1em;text-transform:uppercase}
+  .camera-action{padding:7px 10px;border:1px solid rgba(255,255,255,.18);border-radius:6px;background:rgba(255,255,255,.07);color:#e8eaed;font:700 9px 'JetBrains Mono',monospace;cursor:pointer}
+  .camera-action:hover{border-color:var(--fui-cyan);background:rgba(0,200,215,.13)}
+  @media(max-width:520px){#game-utility-dock{right:10px;bottom:10px;left:10px;justify-content:center}.game-utility-btn{flex:1;padding:10px 7px;font-size:9px}#commentator-camera-panel{right:10px;bottom:62px;width:calc(100vw - 20px)}}
+  :fullscreen #app-trampillera{background:#04070d}
 </style>
 </head>
 <body>
@@ -170,6 +185,27 @@
 
 <!-- MAIN APP -->
 <div id="app-trampillera">
+  <div id="game-utility-dock" aria-label="Game display and commentator controls">
+    <button id="commentator-camera-toggle" class="game-utility-btn" type="button" aria-expanded="false" onclick="toggleCommentatorCamera()">📷 COMMENTATOR CAM</button>
+    <button id="game-fullscreen-toggle" class="game-utility-btn" type="button" aria-pressed="false" onclick="toggleGameFullscreen()">⛶ FULLSCREEN</button>
+  </div>
+  <section id="commentator-camera-panel" aria-label="Commentator camera controls">
+    <div class="flex items-center justify-between gap-3 mb-2">
+      <div>
+        <div class="text-[10px] font-bold tracking-[.14em] text-[var(--fui-cyan)]">COMMENTATOR CAMERA</div>
+        <div id="commentator-camera-status" class="mt-1">CAMERA OFF</div>
+      </div>
+      <button class="camera-action" type="button" onclick="closeCommentatorCamera()">CLOSE</button>
+    </div>
+    <video id="commentator-camera-video" autoplay playsinline muted></video>
+    <div class="camera-meta mt-2">Local preview only. Camera and microphone are not broadcast or recorded.</div>
+    <div class="flex flex-wrap gap-2 mt-3">
+      <button id="commentator-camera-start" class="camera-action" type="button" onclick="startCommentatorCamera()">START CAMERA</button>
+      <button id="commentator-mic-toggle" class="camera-action" type="button" onclick="toggleCommentatorMic()" disabled>MIC: OFF</button>
+      <button class="camera-action" type="button" onclick="stopCommentatorCamera()">STOP</button>
+    </div>
+  </section>
+
   <div class="fui-grid-bg"></div>
   <div id="three-canvas-wrap"></div>
   <svg id="node-wires-svg"></svg>
@@ -1634,6 +1670,101 @@ function exitUmkaTown(){
   if(umka)umka.classList.remove('visible');
   playTactileSound('tick');
 }
+
+let commentatorMediaStream = null;
+let commentatorMicEnabled = false;
+
+async function startCommentatorCamera(){
+  const status=document.getElementById('commentator-camera-status');
+  const video=document.getElementById('commentator-camera-video');
+  const micButton=document.getElementById('commentator-mic-toggle');
+  if(!navigator.mediaDevices?.getUserMedia){
+    if(status)status.textContent='CAMERA UNAVAILABLE · USE HTTPS';
+    showToast('Camera access requires HTTPS and browser support.');
+    return;
+  }
+  if(commentatorMediaStream){if(video)video.srcObject=commentatorMediaStream;return;}
+  if(status)status.textContent='REQUESTING PERMISSION…';
+  try{
+    commentatorMediaStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}},
+      audio:true
+    });
+    if(video){video.srcObject=commentatorMediaStream;await video.play().catch(()=>{});}
+    const audioTracks=commentatorMediaStream.getAudioTracks();
+    commentatorMicEnabled=audioTracks.length>0;
+    audioTracks.forEach(track=>track.enabled=commentatorMicEnabled);
+    if(micButton){micButton.disabled=audioTracks.length===0;micButton.textContent=commentatorMicEnabled?'MIC: ON':'MIC: UNAVAILABLE';}
+    if(status)status.textContent='CAMERA LIVE · LOCAL PREVIEW';
+    showToast('Commentator camera connected locally.');
+  }catch(error){
+    commentatorMediaStream=null;
+    const reason=error?.name==='NotAllowedError'?'PERMISSION DENIED':error?.name==='NotFoundError'?'NO CAMERA FOUND':error?.name==='NotReadableError'?'CAMERA IN USE':'CAMERA ERROR';
+    if(status)status.textContent=reason;
+    showToast('Camera unavailable: '+reason.toLowerCase()+'.');
+  }
+}
+function stopCommentatorCamera(){
+  if(commentatorMediaStream){commentatorMediaStream.getTracks().forEach(track=>track.stop());commentatorMediaStream=null;}
+  const video=document.getElementById('commentator-camera-video');
+  const status=document.getElementById('commentator-camera-status');
+  const micButton=document.getElementById('commentator-mic-toggle');
+  if(video)video.srcObject=null;
+  commentatorMicEnabled=false;
+  if(micButton){micButton.disabled=true;micButton.textContent='MIC: OFF';}
+  if(status)status.textContent='CAMERA OFF';
+}
+function toggleCommentatorMic(){
+  if(!commentatorMediaStream)return;
+  const tracks=commentatorMediaStream.getAudioTracks();
+  if(!tracks.length)return;
+  commentatorMicEnabled=!commentatorMicEnabled;
+  tracks.forEach(track=>track.enabled=commentatorMicEnabled);
+  const button=document.getElementById('commentator-mic-toggle');
+  if(button)button.textContent=commentatorMicEnabled?'MIC: ON':'MIC: OFF';
+  showToast(commentatorMicEnabled?'Commentator microphone enabled.':'Commentator microphone muted.');
+}
+async function toggleCommentatorCamera(){
+  const panel=document.getElementById('commentator-camera-panel');
+  const button=document.getElementById('commentator-camera-toggle');
+  if(!panel)return;
+  const opening=!panel.classList.contains('visible');
+  panel.classList.toggle('visible',opening);
+  if(button){button.setAttribute('aria-expanded',String(opening));button.setAttribute('aria-pressed',String(opening));}
+  if(opening&&!commentatorMediaStream)await startCommentatorCamera();
+  if(!opening)stopCommentatorCamera();
+}
+function closeCommentatorCamera(){
+  stopCommentatorCamera();
+  const panel=document.getElementById('commentator-camera-panel');
+  const button=document.getElementById('commentator-camera-toggle');
+  if(panel)panel.classList.remove('visible');
+  if(button){button.setAttribute('aria-expanded','false');button.setAttribute('aria-pressed','false');}
+}
+async function toggleGameFullscreen(){
+  const button=document.getElementById('game-fullscreen-toggle');
+  try{
+    if(!document.fullscreenElement){
+      const target=document.documentElement;
+      if(target.requestFullscreen)await target.requestFullscreen();
+      else throw new Error('Fullscreen API is unavailable');
+    }else{
+      await document.exitFullscreen();
+    }
+  }catch(error){
+    showToast('Fullscreen is blocked by the browser or embedding page.');
+    console.warn('Fullscreen request failed:',error);
+  }
+  syncGameFullscreenButton();
+}
+function syncGameFullscreenButton(){
+  const button=document.getElementById('game-fullscreen-toggle');
+  const active=Boolean(document.fullscreenElement);
+  if(button){button.setAttribute('aria-pressed',String(active));button.innerHTML=active?'⤢ EXIT FULLSCREEN':'⛶ FULLSCREEN';}
+}
+document.addEventListener('fullscreenchange',syncGameFullscreenButton);
+window.addEventListener('pagehide',stopCommentatorCamera);
+
 function exitToPortal(){
   if(window.parent && window.parent !== window){
     window.parent.postMessage({type:'trampillera:game-exit'}, window.location.origin);
@@ -1724,6 +1855,7 @@ else bootstrapTrampillera();
 // Expose handlers used by inline controls.
 Object.assign(window,{
   openUmkaTown,exitUmkaTown,exitToPortal,enterSDTStudio,exitSDTStudio,
+  startCommentatorCamera,stopCommentatorCamera,toggleCommentatorCamera,closeCommentatorCamera,toggleCommentatorMic,toggleGameFullscreen,
   togglePortalMode,toggleAmbientRadio,toggleAudioFX,renderClassicArticles,
   expandBasePanelsWithHints,setSculptMode,toggleTerraBiomeColors,onHexDensityChange,
   setCameraDistance,adjustZoom,spawnCustomPanel,openAddSaucerModal,removeSaucer,
