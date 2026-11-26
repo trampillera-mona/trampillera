@@ -33,6 +33,7 @@ jobs:
           node --check app/public/shared/trampillera-analytics.js
           node --check app/public/shared/trampillera-unified-reality.js
           node --test scripts/analytics-growth.test.mjs
+          node --test scripts/business-pipeline.test.mjs
           node --test scripts/unified-reality.test.mjs
 
       - name: Validate Compose configuration
@@ -57,7 +58,7 @@ jobs:
             sleep 2
           done
           echo "CI: verify PostgreSQL migrations and normalized organization schema"
-          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '2'
+          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '5'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '\''public'\'' AND table_name IN ('\''org_units'\'','\''positions'\'','\''employee_org_assignments'\'')"' | tr -d '\r' | grep -qx '3'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM employee_org_assignments"' | tr -d '\r' | grep -qx '0'
           docker compose restart app
@@ -71,7 +72,7 @@ jobs:
             fi
             sleep 2
           done
-          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '2'
+          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '5'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM employee_org_assignments"' | tr -d '\r' | grep -qx '0'
           curl --fail --silent http://127.0.0.1:3000/
           curl --fail --silent http://127.0.0.1:3000/shared/trampillera-global-controls.js | grep -q 'TrampilleraLocaleCore'
@@ -80,6 +81,14 @@ jobs:
           curl --fail --silent http://127.0.0.1:3000/shared/trampillera-unified-reality.css | grep -q '#unified-reality-banner'
           curl --fail --silent http://127.0.0.1:3000/ | grep -q 'id="unified-reality-banner"'
           curl --fail --silent http://127.0.0.1:3000/control/growth/ | grep -q 'Audience Intelligence Desk'
+          curl --fail --silent http://127.0.0.1:3000/business/ | grep -q 'Project inquiry'
+          curl --fail --silent http://127.0.0.1:3000/control/business/ | grep -q 'Commercial Operations Desk'
+          INQUIRY_JSON=$(curl --fail --silent -H 'Content-Type: application/json' -d '{"contactName":"CI Prospect","organization":"CI Test Org","email":"prospect@example.test","requestType":"SERVICE","subject":"CI business inquiry","message":"Please evaluate a sample project request for the business pipeline.","consent":true}' http://127.0.0.1:3000/api/business/inquiries)
+          INQUIRY_REF=$(printf '%s' "$INQUIRY_JSON" | jq -r '.reference')
+          test -n "$INQUIRY_REF"
+          PARTNER_JSON=$(curl --fail --silent -H 'Content-Type: application/json' -d '{"organization":"CI Partner Org","contactName":"CI Partner","email":"partner@example.test","capabilities":"Independent software engineering, data integration and technical delivery.","message":"CI partner application test.","consent":true}' http://127.0.0.1:3000/api/business/partner-applications)
+          PARTNER_ID=$(printf '%s' "$PARTNER_JSON" | jq -r '.applicationId')
+          test -n "$PARTNER_ID"
           curl --fail --silent http://127.0.0.1:3000/city/ | grep -q 'allow="microphone;'
           curl --fail --silent --dump-header /tmp/trampillera-headers.txt --output /dev/null http://127.0.0.1:3000/api/health
           grep -qi '^Permissions-Policy: microphone=(self)' /tmp/trampillera-headers.txt
@@ -93,6 +102,16 @@ jobs:
           test "$MISSING_ORIGIN_STATUS" = "403"
           curl --fail --silent -c /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"password":"ci-temporary-admin-password-123"}' http://127.0.0.1:3000/api/auth/login
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/overview
+          INQUIRY_ID=$(curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/business/inquiries | jq -r --arg ref "$INQUIRY_REF" '.items[] | select(.reference_code == $ref) | .id')
+          test -n "$INQUIRY_ID"
+          UNAUTH_BUSINESS_STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/api/control/business/overview)
+          test "$UNAUTH_BUSINESS_STATUS" = "401"
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -X PATCH -d '{"stage":"REVIEWING","estimatedValue":500,"currency":"EUR","internalNotes":"CI initial review"}' "http://127.0.0.1:3000/api/control/business/inquiries/$INQUIRY_ID" | jq -e '.item.stage == "REVIEWING"'
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -X PATCH -d '{"stage":"QUALIFIED","estimatedValue":500,"currency":"EUR","internalNotes":"CI qualified review"}' "http://127.0.0.1:3000/api/control/business/inquiries/$INQUIRY_ID" | jq -e '.item.stage == "QUALIFIED"'
+          INVALID_BUSINESS_STAGE=$(curl --silent --output /dev/null --write-out '%{http_code}' -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -X PATCH -d '{"stage":"WON"}' "http://127.0.0.1:3000/api/control/business/inquiries/$INQUIRY_ID")
+          test "$INVALID_BUSINESS_STAGE" = "409"
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -X PATCH -d '{"status":"REVIEWING","internalNotes":"CI partner review"}' "http://127.0.0.1:3000/api/control/business/partners/$PARTNER_ID" | jq -e '.item.status == "REVIEWING"'
+          curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -X PATCH -d '{"status":"APPROVED","internalNotes":"CI partner approved"}' "http://127.0.0.1:3000/api/control/business/partners/$PARTNER_ID" | jq -e '.item.status == "APPROVED"'
           curl --fail --silent -b /tmp/trampillera-cookies.txt http://127.0.0.1:3000/api/control/analytics/summary?days=7 | jq -e '.totals.visitors == 1 and (.daily | length == 7)'
           CAMPAIGN_JSON=$(curl --fail --silent -b /tmp/trampillera-cookies.txt -H 'Content-Type: application/json' -d '{"name":"CI Growth Campaign","channel":"SOCIAL","objective":"Verify campaign attribution","destinationUrl":"https://example.com/landing","budget":0}' http://127.0.0.1:3000/api/control/growth/campaigns)
           CAMPAIGN_ID=$(printf '%s' "$CAMPAIGN_JSON" | jq -r '.item.id')
