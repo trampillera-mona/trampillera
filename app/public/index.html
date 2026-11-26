@@ -2730,10 +2730,11 @@ function renderAllFUIWindows() {
   if (!layer) return;
   layer.innerHTML = '';
 
-  const workspaceBounds = getFUIBounds();
+  const fuiRealm = document.getElementById('realm-fui');
+  const workspaceBounds = fuiRealm && fuiRealm.classList.contains('active') ? getFUIBounds() : null;
   UNIFIED_STATE.windows.forEach(win => {
     if (!win.visible) return;
-    clampFUIWindow(win, workspaceBounds);
+    if (workspaceBounds) clampFUIWindow(win, workspaceBounds);
     const winEl = document.createElement('div');
     winEl.id = win.id;
     const accentCls = win.accent === 'cyan' ? 'win-accent-cyan' : 'win-accent-orange';
