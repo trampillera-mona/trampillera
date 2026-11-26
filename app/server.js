@@ -647,9 +647,6 @@ app.get("/api/control/assets/:assetId/preview", asyncRoute(async (req,res) => {
   res.set({"Content-Type":"image/webp","Content-Length":String(body.length),"Cache-Control":"private, no-store","Content-Disposition":"inline","X-Content-Type-Options":"nosniff"});
   res.send(body);
 }));
-ration. Do not mark an asset VERIFIED until the storage, watermark, hash, and retrieval checks have actually passed."
-  });
-}));
 app.get("/api/control/assets", asyncRoute(async (req,res) => {
   const state = clean(req.query.state,20).toUpperCase();
   if (state && !["ACTIVE","RESTRICTED","RETIRED"].includes(state)) return res.status(400).json({ error:"Invalid asset protection state." });
