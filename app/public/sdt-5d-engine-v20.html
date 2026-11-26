@@ -1098,23 +1098,23 @@ body.immersive-active .floating.fp-pinned{opacity:1 !important;pointer-events:au
 <script type="importmap">
 {
   "imports": {
-    "three": "https://esm.sh/three@0.170.0",
-    "three/webgpu": "https://esm.sh/three@0.170.0/webgpu",
-    "three/addons/": "https://esm.sh/three@0.170.0/examples/jsm/",
-    "proj4": "https://esm.sh/proj4@2.15.0",
-    "h3-js": "https://esm.sh/h3-js@4.1.0",
-    "@turf/area": "https://esm.sh/@turf/area@7.1.0",
-    "@turf/centroid": "https://esm.sh/@turf/centroid@7.1.0",
-    "@turf/helpers": "https://esm.sh/@turf/helpers@7.1.0",
-    "@turf/boolean-point-in-polygon": "https://esm.sh/@turf/boolean-point-in-polygon@7.1.0",
-    "yuka": "https://esm.sh/yuka@0.7.8",
-    "@dimforge/rapier3d-compat": "https://esm.sh/@dimforge/rapier3d-compat@0.14.0",
-    "dexie": "https://esm.sh/dexie@4.0.10",
-    "yjs": "https://esm.sh/yjs@13.6.20",
-    "y-indexeddb": "https://esm.sh/y-indexeddb@9.0.12",
-    "y-webrtc": "https://esm.sh/y-webrtc@10.3.0",
-    "zod": "https://esm.sh/zod@3.23.8",
-    "dompurify": "https://esm.sh/dompurify@3.2.0"
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js",
+    "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+    "proj4": "https://cdn.jsdelivr.net/npm/proj4@2.15.0/+esm",
+    "h3-js": "https://cdn.jsdelivr.net/npm/h3-js@4.1.0/+esm",
+    "@turf/area": "https://cdn.jsdelivr.net/npm/@turf/area@7.1.0/+esm",
+    "@turf/centroid": "https://cdn.jsdelivr.net/npm/@turf/centroid@7.1.0/+esm",
+    "@turf/helpers": "https://cdn.jsdelivr.net/npm/@turf/helpers@7.1.0/+esm",
+    "@turf/boolean-point-in-polygon": "https://cdn.jsdelivr.net/npm/@turf/boolean-point-in-polygon@7.1.0/+esm",
+    "yuka": "https://cdn.jsdelivr.net/npm/yuka@0.7.8/+esm",
+    "@dimforge/rapier3d-compat": "https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/+esm",
+    "dexie": "https://cdn.jsdelivr.net/npm/dexie@4.0.10/+esm",
+    "yjs": "https://cdn.jsdelivr.net/npm/yjs@13.6.20/+esm",
+    "y-indexeddb": "https://cdn.jsdelivr.net/npm/y-indexeddb@9.0.12/+esm",
+    "y-webrtc": "https://cdn.jsdelivr.net/npm/y-webrtc@10.3.0/+esm",
+    "zod": "https://cdn.jsdelivr.net/npm/zod@3.23.8/+esm",
+    "dompurify": "https://cdn.jsdelivr.net/npm/dompurify@3.2.0/+esm"
   }
 }
 </script>
@@ -1224,7 +1224,7 @@ try {
 
   bootMsg('All dependencies ready');
 } catch (err) {
-  fatal(err, 'Failed to load dependencies from esm.sh. Open the file via a local server (python3 -m http.server).');
+  fatal(err, 'Failed to load dependencies from the module CDN. Check network access to cdn.jsdelivr.net.');
   throw err;
 }
 
@@ -1619,7 +1619,7 @@ function addStaticBox(x, y, z, w, h, d) {
 /* ─── WORKER ─── */
 const WORKER_LINES = [
   "let h3 = null; let h3Ready = null;",
-  "function ensureH3() { if (h3Ready) return h3Ready; h3Ready = import('https://esm.sh/h3-js@4.1.0').then(function(mod){ h3 = mod; return mod; }).catch(function(err){ h3Ready = null; throw err; }); return h3Ready; }",
+  "function ensureH3() { if (h3Ready) return h3Ready; h3Ready = import('https://cdn.jsdelivr.net/npm/h3-js@4.1.0/+esm').then(function(mod){ h3 = mod; return mod; }).catch(function(err){ h3Ready = null; throw err; }); return h3Ready; }",
   "self.onmessage = async function(ev) {",
   "  var data = ev.data; var id = data.id, method = data.method, args = data.args;",
   "  try { var result;",
