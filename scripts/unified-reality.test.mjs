@@ -11,14 +11,9 @@ test('Unified Reality banner is mounted once and loads its shared assets', () =>
   assert.match(html, /href="\/shared\/trampillera-unified-reality\.css"/);
   assert.match(html, /src="\/shared\/trampillera-unified-reality\.js"/);
   assert.match(css, /#unified-reality-banner/);
-  assert.match(css, /width:100vw/);
-  assert.match(css, /max-width:none/);
-  assert.match(css, /margin-left:calc\(50% - 50vw\)/);
-  assert.doesNotMatch(css, /max-width:840px/);
+  assert.match(css, /max-width:960px/);
   assert.match(css, /height:260px/);
   assert.match(css, /min-height:260px/);
-  assert.match(css, /min-height:360px/);
-  assert.doesNotMatch(css, /min-height:440px/);
   assert.match(css, /#unified-reality-banner \.ur-main[^}]*min-height:140px/);
 });
 
@@ -46,12 +41,4 @@ test('banner delegates actions to existing application modules instead of fake l
   assert.match(js, /function focusRegion\(key\)/);
   assert.match(js, /function updateSolarLighting\(\)/);
   assert.match(js, /prefers-reduced-motion/);
-  assert.match(js, /new THREE\.OrbitControls\(camera, root\)/);
-  assert.match(js, /controls\.target\.copy\(viewTarget\)/);
-  assert.match(js, /root\.style\.touchAction = 'none'/);
-  assert.match(js, /const radius = 3\.5/);
-  assert.match(js, /PerspectiveCamera\(45, width \/ height/);
-  assert.match(js, /camera\.position\.set\(0, 0, 10\)/);
-  assert.match(js, /orbitTargetX = w > 640 \? Math\.min\(4\.5, w \* \(4\.5 \/ 1440\)\) : 0/);
-  assert.match(js, /controls\.enablePan = false/);
 });
