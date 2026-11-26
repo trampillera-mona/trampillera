@@ -1803,6 +1803,7 @@ function getDefaultFUIWindows() {
     { id: 'win-citizen', title: '👤 CITIZEN & TRP', nativeType: 'citizenHud', connectType: 'native', shape: 'shape-chamfer', accent: 'cyan', x: Math.max(16, w - 224), y: 14, width: 204, height: 110, visible: true, minimized: false },
     { id: 'win-ticker', title: '📡 LIVE SIGNAL TICKER', nativeType: 'tickerHud', connectType: 'native', shape: 'shape-pill', accent: 'orange', x: Math.max(245, Math.round(w * 0.22)), y: 110, width: Math.max(340, Math.round(w * 0.55)), height: 64, visible: true, minimized: false },
     { id: 'win-planet-dock', title: '🌐 PLANET · HEX GRID · DOCK', nativeType: 'planetDockHud', connectType: 'native', shape: 'shape-chamfer', accent: 'cyan', x: 16, y: Math.max(220, h - 255), width: Math.min(760, Math.max(360, w - 390)), height: 182, visible: !isMobile, minimized: false },
+    { id: 'win-polarny', title: '❄ ПОСЁЛОК ПОЛЯРНЫЙ · УМКА-ТАУН', nativeType: 'polarnySettlement', connectType: 'native', shape: 'shape-chamfer', accent: 'cyan', x: Math.max(16, Math.round(w / 2 - 190)), y: Math.max(150, Math.round(h / 2 - 160)), width: 380, height: 330, visible: false, minimized: false },
     { id: 'win-lang', title: '🌐 TRANSLATOR ORBIT (12)', nativeType: 'langOrbit', connectType: 'native', shape: 'shape-chamfer', accent: 'cyan', x: 16, y: 184, width: 246, height: 266, visible: !isMobile, minimized: false },
     { id: 'win-craft-editor', title: '🛸 SAUCER & HULL EDITOR', nativeType: 'craftEditor', connectType: 'native', shape: 'shape-chamfer', accent: 'orange', x: 274, y: 184, width: 312, height: 298, visible: false, minimized: false },
     { id: 'win-services', title: 'SERVICE NODES', nativeType: 'serviceNodes', connectType: 'native', shape: 'shape-chamfer', accent: 'orange', x: Math.max(16, w - 284), y: 184, width: 264, height: 274, visible: !isMobile, minimized: false },
@@ -2301,6 +2302,11 @@ function buildHexagonalPlanet() {
   const cOrange = new THREE.Color(UNIFIED_STATE.theme.orange);
   const cCyan = new THREE.Color(UNIFIED_STATE.theme.cyan);
 
+  const polarnySiteDirection = new THREE.Vector3(0, 1, 0);
+  let polarnySectorIndex = 0;
+  let polarnyBestDot = -Infinity;
+  uniqueVerts.forEach((v, i) => { const dot = v.dot(polarnySiteDirection); if (dot > polarnyBestDot) { polarnyBestDot = dot; polarnySectorIndex = i; } });
+
   uniqueVerts.forEach((centerDir, idx) => {
     const adjFaces = vertToFaces[idx];
     if (adjFaces.length < 5) return;
@@ -2349,8 +2355,10 @@ function buildHexagonalPlanet() {
       emissiveIntensity = isLand ? 0.44 : 0.22;
     }
 
+    const isPolarnySector = idx === polarnySectorIndex;
+    if (isPolarnySector) { emissiveColor = new THREE.Color(0x00c8d7); emissiveIntensity = 0.9; }
     const mesh = new THREE.Mesh(cellGeom, new THREE.MeshPhongMaterial({ color: baseColor, emissive: emissiveColor, emissiveIntensity, shininess: 85, flatShading: true }));
-    mesh.userData = { id: hexId, biome: biome.label, region: biome.region, worldNormal: centerDir.clone(), origEmissive: emissiveColor.clone(), origIntensity: emissiveIntensity };
+    mesh.userData = { id: hexId, biome: biome.label, region: isPolarnySector ? 'POLARNY · Northern Polar Settlement' : biome.region, isPolarnySector, worldNormal: centerDir.clone(), origEmissive: emissiveColor.clone(), origIntensity: emissiveIntensity };
     hexCellsGroup.add(mesh);
     hexCellMeshes.push(mesh);
   });
@@ -2494,7 +2502,7 @@ function onFUIPointerMove(e) {
     document.getElementById('tt-coord').textContent = cell.userData.id;
     document.getElementById('tt-biome').textContent = cell.userData.biome;
     document.getElementById('tt-region').textContent = cell.userData.region;
-    document.getElementById('tt-hint').textContent = 'Click: inspect sector & pin note';
+    document.getElementById('tt-hint').textContent = cell.userData.isPolarnySector ? 'Click: open POLARNY settlement' : 'Click: inspect sector & pin note';
     tt.style.display = 'block';
     tt.style.left = `${Math.min(e.clientX + 14, window.innerWidth - 230)}px`;
     tt.style.top = `${Math.min(e.clientY + 14, window.innerHeight - 90)}px`;
@@ -2530,6 +2538,11 @@ function onFUIPointerUp(e) {
   const hHits = raycaster.intersectObjects(hexCellMeshes, false);
   if (hHits.length > 0) {
     const data = hHits[0].object.userData;
+    if (data.isPolarnySector) {
+      playTactileSound('snap');
+      openPolarnySettlement('sector');
+      return;
+    }
     if (UNIFIED_STATE.sculptMode !== 'inspect') {
       applySculptorTool(data.id);
       return;
@@ -2539,6 +2552,22 @@ function onFUIPointerUp(e) {
     targetCameraPos = worldDir.clone().multiplyScalar(3.55);
     SharedModal.openHex(data);
   }
+}
+
+function openPolarnySettlement(source = 'dock') {
+  const win = UNIFIED_STATE.windows.find(w => w.id === 'win-polarny');
+  if (!win) return;
+  win.visible = true;
+  win.minimized = false;
+  renderAllFUIWindows();
+  showToast(source === 'sector' ? '❄ POLARNY · СЕКТОР ОТКРЫТ' : '❄ POLARNY · ПОСЁЛОК ОТКРЫТ');
+}
+function focusPolarnySector() {
+  const cell = hexCellMeshes.find(mesh => mesh.userData.isPolarnySector);
+  if (!cell || !planetGroup) return;
+  const worldDir = cell.userData.worldNormal.clone().applyQuaternion(planetGroup.quaternion).normalize();
+  targetCameraPos = worldDir.clone().multiplyScalar(3.55);
+  openPolarnySettlement('sector');
 }
 
 function applySculptorTool(hexId) {
@@ -2832,6 +2861,7 @@ function renderWindowContent(winId) {
             <button onclick="spawnCustomFUIWindow('article')" class="px-2 py-1 rounded bg-[var(--fui-cyan)]/15 border border-[var(--fui-cyan)]/40 text-[9px] font-bold text-[var(--fui-cyan)]">+ Panel</button>
             <button onclick="toggleWindowById('win-craft-editor')" class="px-2 py-1 rounded bg-[var(--fui-orange)]/15 border border-[var(--fui-orange)]/40 text-[9px] font-bold text-[var(--fui-orange)]">🛸 Saucers</button>
             <button onclick="toggleWindowById('win-studio')" class="px-2 py-1 rounded bg-purple-500/15 border border-purple-400/40 text-[9px] font-bold text-purple-300">🎨 Sculptor</button>
+            <button onclick="openPolarnySettlement('dock')" class="px-2 py-1 rounded bg-[var(--fui-cyan)]/15 border border-[var(--fui-cyan)]/50 text-[9px] font-bold text-[var(--fui-cyan)]">❄ Полярный · Умка-Товн</button>
             <button onclick="toggleNeocubeMode()" class="px-2 py-1 rounded bg-white/10 border border-white/20 text-[9px] font-bold">🧲 Neocube</button>
             <button onclick="startWireLinkingMode()" class="px-2 py-1 rounded bg-white/10 border border-white/20 text-[9px] font-bold text-[var(--fui-cyan)]">🔗 Link</button>
             <button onclick="FUIWorkspace.save()" class="px-2 py-1 rounded bg-white/10 border border-white/20 text-[9px] font-bold">💾 Save</button>
@@ -2844,6 +2874,30 @@ function renderWindowContent(winId) {
           <div class="flex flex-wrap gap-1 pt-1 border-t border-white/10">
             ${UNIFIED_STATE.windows.filter(w => !w.visible).map(w => `<button onclick="toggleWindowById('${w.id}')" class="px-1.5 py-0.5 rounded bg-white/10 text-[8.5px]">+ ${w.title}</button>`).join('')}
           </div>
+        </div>`;
+      return;
+    }
+    if (win.nativeType === 'polarnySettlement') {
+      body.innerHTML = `
+        <div class="space-y-2 text-[10px]">
+          <div class="flex items-center justify-between gap-2">
+            <b class="font-orbit text-[var(--fui-cyan)] tracking-wider">❄ ПОСЁЛОК ПОЛЯРНЫЙ</b>
+            <span class="text-[8px] text-fuiMuted">УМКА-ТАУН</span>
+          </div>
+          <div class="rounded border border-white/10 bg-white/5 p-2">
+            <div class="font-bold text-white">Полярный — на картах, Умка-Товн — в сердцах жителей.</div>
+            <p class="text-fuiMuted mt-1 leading-relaxed">Арктический посёлок основной игровой планеты: жилые модули, теплицы, энергетика, мастерские и связь с орбитальными станциями.</p>
+            <div class="flex items-center gap-2 mt-2 rounded bg-black/20 p-2">
+              <span class="text-2xl">🐻‍❄️</span>
+              <div><b class="text-[var(--fui-cyan)]">УМКА</b><div class="text-[9px] text-fuiMuted">Белый медвежонок с чёрным носом. Свободно живёт на безопасной территории.</div></div>
+            </div>
+          </div>
+          <div class="rounded border border-[var(--fui-cyan)]/30 bg-[var(--fui-cyan)]/5 p-2">
+            <b class="text-[var(--fui-cyan)]">POLARIS GUARD · ИГРОВАЯ СИМУЛЯЦИЯ</b>
+            <p class="text-fuiMuted mt-1">Периметр, инфраструктура, погодные условия и экология. Это внутриигровая модель — реальные датчики и службы не подключены.</p>
+          </div>
+          <div class="flex justify-between items-center text-[8px] text-fuiMuted"><span>СЕКТОР ПЛАНЕТЫ: СЕВЕРНАЯ ПОЛЯРНАЯ ОБЛАСТЬ</span><span>ACTIVE</span></div>
+          <button onclick="focusPolarnySector()" class="w-full rounded border border-[var(--fui-cyan)]/40 bg-[var(--fui-cyan)]/10 px-2 py-1.5 text-[9px] font-bold text-[var(--fui-cyan)]">⌖ НАЙТИ СЕКТОР НА ПЛАНЕТЕ</button>
         </div>`;
       return;
     }
