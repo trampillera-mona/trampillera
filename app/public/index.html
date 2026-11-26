@@ -2027,6 +2027,10 @@ const PolarGameBridge = (() => {
     if (data.type === 'trampillera:game-ready') syncLocale();
     else if (data.type === 'trampillera:game-exit') RealmRouter.switchRealm('intro');
     else if (data.type === 'trampillera:game-toast') showToast(String(data.message || 'Game event'));
+    else if (data.type === 'trampillera:locale-change') {
+      const code = String(data.locale || 'EN').toUpperCase();
+      if (LANGUAGES.some(item => item.code === code) && UNIFIED_STATE.lang !== code) selectGlobalLanguage(code);
+    }
   });
 
   return { open, setLocale, command };
