@@ -159,14 +159,14 @@
         • Event timeline, telemetry, radial menu<br>
         • All ~400 DOM event bindings + animation loop
       </p>
-      <p>To activate: paste the full <code>/sdt-5d-engine-v20.html</code> (Part 2 + Part 3 of the module script) into the placeholder slot. Until then, you can continue using the <strong>Trampillera Media FUI</strong> on the planet.</p>
+      <p>The SDT 5D Municipal Digital Twin is connected as an isolated workspace. Use <strong>BACK TO POLAR SETTLEMENT</strong> inside the engine to return to the game. Spatial telemetry and scenario values in this build include demo and synthetic data.</p>
     </div>
     <button class="ph-back" onclick="exitSDTStudio()">← RETURN TO PLANET</button>
   </div>
 </div>
 
 <!-- SDT IFRAME (реальный движок) -->
-<iframe id="sdt-frame" title="SDT 5D Engine" allow="camera; microphone; xr-spatial-tracking; fullscreen"></iframe>
+<iframe id="sdt-frame" title="SDT 5D Engine" allow="camera; microphone; xr-spatial-tracking; fullscreen" allowfullscreen></iframe>
 
 <!-- MAIN APP -->
 <div id="app-trampillera">
@@ -1646,12 +1646,14 @@ function enterSDTStudio(){
   const app=document.getElementById('app-trampillera');
   const umka=document.getElementById('umka-screen');
   if(umka)umka.classList.remove('visible');
-  // The v20 engine file is not part of this deployment yet. Do not request a missing route.
-  if(frame){frame.classList.remove('visible');frame.removeAttribute('src');}
-  if(placeholder)placeholder.classList.add('visible');
+  if(placeholder)placeholder.classList.remove('visible');
+  if(frame){
+    frame.classList.add('visible');
+    frame.src='/sdt-5d-engine-v20.html';
+  }
   if(app)app.classList.add('hidden-by-sdt');
   playTactileSound('chime');
-  showToast('🌌 SDT 5D Studio information opened');
+  showToast('🌌 SDT 5D Studio connected');
 }
 function exitSDTStudio(){
   const frame=document.getElementById('sdt-frame');
@@ -1678,6 +1680,8 @@ window.addEventListener('message',(ev)=>{
 
 // Receive messages from the embedded SDT engine.
 window.addEventListener('message',(ev)=>{
+  const frame=document.getElementById('sdt-frame');
+  if(ev.origin!==window.location.origin || !frame || ev.source!==frame.contentWindow) return;
   const data=ev.data||{};
   if(data.type==='sdt-exit')exitSDTStudio();
   else if(data.type==='sdt-toast')showToast(data.message||'SDT event');
@@ -1712,7 +1716,7 @@ function bootstrapTrampillera(){
       clockEl.textContent=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
     }
   },1000);
-  // SDT 5D engine is not bundled in this deployment; keep its frame unloaded.
+  // SDT 5D engine loads on demand through enterSDTStudio().
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootstrapTrampillera);
 else bootstrapTrampillera();
