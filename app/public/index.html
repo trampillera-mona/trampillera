@@ -1808,15 +1808,15 @@ function getDefaultFUIWindows() {
   const isMobile = w < 768;
   return [
     { id: 'win-timer', title: '⏱ SYNC CLOCK · LOCAL & UTC', nativeType: 'timerHud', connectType: 'native', shape: 'shape-chamfer', accent: 'orange', x: 16, y: 14, width: 220, height: 112, visible: true, minimized: false },
-    { id: 'win-brand', title: 'TRAMPILLERA MEDIA', nativeType: 'brandHud', connectType: 'native', shape: 'shape-chamfer', accent: 'orange', x: Math.max(20, Math.round(w / 2 - 170)), y: 14, width: 340, height: 88, visible: true, minimized: false },
-    { id: 'win-citizen', title: '👤 CITIZEN & TRP', nativeType: 'citizenHud', connectType: 'native', shape: 'shape-chamfer', accent: 'cyan', x: Math.max(16, w - 224), y: 14, width: 204, height: 110, visible: true, minimized: false },
-    { id: 'win-ticker', title: '📡 LIVE SIGNAL TICKER', nativeType: 'tickerHud', connectType: 'native', shape: 'shape-pill', accent: 'orange', x: Math.max(245, Math.round(w * 0.22)), y: 110, width: Math.max(340, Math.round(w * 0.55)), height: 64, visible: true, minimized: false },
+    { id: 'win-brand', title: 'TRAMPILLERA MEDIA', nativeType: 'brandHud', connectType: 'native', shape: 'shape-chamfer', accent: 'orange', x: isMobile ? 16 : Math.max(20, Math.round(w / 2 - 170)), y: isMobile ? 138 : 14, width: isMobile ? Math.max(175, w - 32) : 340, height: isMobile ? 78 : 88, visible: true, minimized: false },
+    { id: 'win-citizen', title: '👤 CITIZEN & TRP', nativeType: 'citizenHud', connectType: 'native', shape: 'shape-chamfer', accent: 'cyan', x: Math.max(16, w - 224), y: 14, width: 204, height: 110, visible: !isMobile, minimized: false },
+    { id: 'win-ticker', title: '📡 LIVE SIGNAL TICKER', nativeType: 'tickerHud', connectType: 'native', shape: 'shape-pill', accent: 'orange', x: Math.max(245, Math.round(w * 0.22)), y: 110, width: Math.max(340, Math.round(w * 0.55)), height: 64, visible: !isMobile, minimized: false },
     { id: 'win-planet-dock', title: '🌐 PLANET · HEX GRID · DOCK', nativeType: 'planetDockHud', connectType: 'native', shape: 'shape-chamfer', accent: 'cyan', x: 16, y: Math.max(220, h - 255), width: Math.min(760, Math.max(360, w - 390)), height: 182, visible: !isMobile, minimized: false },
     { id: 'win-polarny', title: '❄ ПОСЁЛОК ПОЛЯРНЫЙ · УМКА-ТАУН', nativeType: 'polarnySettlement', connectType: 'native', shape: 'shape-chamfer', accent: 'cyan', x: Math.max(16, Math.round(w / 2 - 190)), y: Math.max(150, Math.round(h / 2 - 160)), width: 380, height: 330, visible: false, minimized: false },
     { id: 'win-lang', title: '🌐 TRANSLATOR ORBIT (12)', nativeType: 'langOrbit', connectType: 'native', shape: 'shape-chamfer', accent: 'cyan', x: 16, y: 184, width: 246, height: 266, visible: !isMobile, minimized: false },
     { id: 'win-craft-editor', title: '🛸 SAUCER & HULL EDITOR', nativeType: 'craftEditor', connectType: 'native', shape: 'shape-chamfer', accent: 'orange', x: 274, y: 184, width: 312, height: 298, visible: false, minimized: false },
     { id: 'win-services', title: 'SERVICE NODES', nativeType: 'serviceNodes', connectType: 'native', shape: 'shape-chamfer', accent: 'orange', x: Math.max(16, w - 284), y: 184, width: 264, height: 274, visible: !isMobile, minimized: false },
-    { id: 'win-jarviser', title: 'JARVISER · v4.2 AI', nativeType: 'jarviser', connectType: 'native', shape: 'shape-rect', accent: 'orange', x: Math.max(16, w - 324), y: Math.max(230, h - 275), width: 304, height: 192, visible: true, minimized: false },
+    { id: 'win-jarviser', title: 'JARVISER · v4.2 AI', nativeType: 'jarviser', connectType: 'native', shape: 'shape-rect', accent: 'orange', x: Math.max(16, w - 324), y: Math.max(230, h - 275), width: 304, height: 192, visible: !isMobile, minimized: false },
     { id: 'win-studio', title: '🎨 SCULPTOR & DISPLAY STUDIO', nativeType: 'studio', connectType: 'native', shape: 'shape-rect', accent: 'cyan', x: Math.max(20, Math.round(w / 2 - 180)), y: 186, width: 360, height: 390, visible: false, minimized: false }
   ];
 }
@@ -2564,9 +2564,16 @@ function onFUIPointerUp(e) {
   }
 }
 
-function openPolarnySettlement(source = 'dock') {
+function openPolarnySettlement(source = 'rail') {
   const win = UNIFIED_STATE.windows.find(w => w.id === 'win-polarny');
   if (!win) return;
+  const area = document.getElementById('realm-fui');
+  const width = area?.clientWidth || window.innerWidth;
+  const height = area?.clientHeight || Math.max(420, window.innerHeight - 82);
+  win.width = Math.min(380, Math.max(280, width - 24));
+  win.height = Math.min(330, Math.max(250, height - 24));
+  win.x = Math.max(6, Math.round((width - win.width) / 2));
+  win.y = Math.max(6, Math.round((height - win.height) / 2));
   win.visible = true;
   win.minimized = false;
   renderAllFUIWindows();
