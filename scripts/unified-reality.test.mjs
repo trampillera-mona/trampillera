@@ -50,6 +50,8 @@ test('3D FUI keeps one Polarny entry, clickable polar sector, responsive control
   assert.match(html, /id="fui-open-dock"/);
   assert.match(html, /id="fui-daynight-toggle"/);
   assert.match(html, /function toggleFUIDayNight\(\)/);
+  assert.equal((html.match(/id="theme-toggle-btn"/g) || []).length, 1);
+  assert.doesNotMatch(html, /id="btnTheme"/);
   assert.match(html, /@media\(max-width:767px\)/);
   assert.match(html, /win\.width = Math\.min\(380, Math\.max\(280, width - 24\)\)/);
 });
