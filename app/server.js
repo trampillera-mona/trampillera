@@ -990,6 +990,15 @@ app.get("/go/:slug", asyncRoute(async (req,res) => {
   res.redirect(302,destination.toString());
 }));
 
+// Public image delivery: discourage hotlinking and image-search indexing. This is not DRM.
+app.use((req,res,next)=>{
+  if(/\\.(?:avif|gif|jpe?g|png|svg|webp)$/i.test(req.path)){
+    res.setHeader("X-Robots-Tag","noimageindex, noarchive");
+    res.setHeader("Cross-Origin-Resource-Policy","same-site");
+    res.setHeader("X-Content-Type-Options","nosniff");
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname,"public"),{index:"index.html",etag:true,maxAge:NODE_ENV==="production"?"1h":0}));
 app.get("/control",(_req,res)=>res.redirect(301,"/control/"));
 app.get("/control/",(_req,res)=>res.sendFile(path.join(__dirname,"public/control/index.html")));
