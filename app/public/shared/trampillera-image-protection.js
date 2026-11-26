@@ -22,12 +22,12 @@
   (document.head || document.documentElement).appendChild(style);
 
   function isMedia(node) {
-    return node && node.nodeType === 1 && /^(IMG|CANVAS|VIDEO)$/.test(node.tagName);
+    return node && node.nodeType === 1 && (/^(IMG|CANVAS|VIDEO|IMAGE)$/.test(node.tagName) || node.dataset?.tpProtectBackground === 'true');
   }
 
   function watermarkFor(media) {
-    const source = String(media.currentSrc || media.src || media.getAttribute('src') || '');
-    const hint = String(media.getAttribute('alt') || '') + ' ' + source;
+    const source = String(media.currentSrc || media.src || media.getAttribute('src') || media.getAttribute('href') || media.href?.baseVal || '');
+    const hint = String(media.getAttribute('alt') || '') + ' ' + source + ' ' + location.pathname + ' ' + document.title;
     return /sdt5d|multiverse-studio/i.test(hint) ? BRAND + ' · ' + SDT5D_SOURCE : BRAND;
   }
 
@@ -95,7 +95,7 @@
   function scan(root) {
     if (!root || root.nodeType !== 1 && root.nodeType !== 9) return;
     if (isMedia(root)) updateOne(root);
-    if (root.querySelectorAll) root.querySelectorAll('img,canvas,video').forEach(updateOne);
+    if (root.querySelectorAll) root.querySelectorAll('img,canvas,video,svg image,[style*="url("]').forEach(node => { if (/^(IMG|CANVAS|VIDEO|IMAGE)$/.test(node.tagName)) updateOne(node); else { const bg = getComputedStyle(node).backgroundImage; if (bg && bg !== 'none' && bg.includes('url(')) { node.dataset.tpProtectBackground = 'true'; updateOne(node); } } });
   }
 
   document.addEventListener('load', event => {
@@ -105,13 +105,13 @@
     if (isMedia(event.target)) updateOne(event.target);
   }, true);
   document.addEventListener('contextmenu', event => {
-    if (event.target && event.target.closest && event.target.closest('img,picture,canvas,video')) event.preventDefault();
+    if (event.target && event.target.closest && event.target.closest('img,picture,canvas,video,svg image')) event.preventDefault();
   }, true);
   document.addEventListener('dragstart', event => {
-    if (event.target && event.target.closest && event.target.closest('img,picture,canvas,video')) event.preventDefault();
+    if (event.target && event.target.closest && event.target.closest('img,picture,canvas,video,svg image')) event.preventDefault();
   }, true);
   document.addEventListener('selectstart', event => {
-    if (event.target && event.target.closest && event.target.closest('img,picture,canvas,video')) event.preventDefault();
+    if (event.target && event.target.closest && event.target.closest('img,picture,canvas,video,svg image')) event.preventDefault();
   }, true);
   window.addEventListener('scroll', schedule, { passive: true, capture: true });
   window.addEventListener('resize', schedule, { passive: true });
@@ -119,10 +119,14 @@
 
   const observer = new MutationObserver(records => {
     for (const record of records) {
-      if (record.type === 'childList') record.addedNodes.forEach(node => {
-        if (node.nodeType === 1 && !node.classList.contains('tp-image-protection-layer')) scan(node);
-      });
-      if (record.type === 'attributes' && isMedia(record.target)) updateOne(record.target);
+      if (record.type === 'childList') {
+        record.addedNodes.forEach(node => { if (node.nodeType === 1 && !node.classList.contains('tp-image-protection-layer')) scan(node); });
+        record.removedNodes.forEach(node => { if (isMedia(node)) updateOne(node); else if (node.nodeType === 1 && node.querySelectorAll) node.querySelectorAll('img,canvas,video,svg image').forEach(updateOne); });
+      }
+      if (record.type === 'attributes') {
+        if (isMedia(record.target)) updateOne(record.target);
+        else if (record.target.nodeType === 1) { const bg = getComputedStyle(record.target).backgroundImage; if (bg && bg !== 'none' && bg.includes('url(')) { record.target.dataset.tpProtectBackground = 'true'; updateOne(record.target); } }
+      }
     }
   });
   observer.observe(document.documentElement, {
