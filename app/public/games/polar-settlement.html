@@ -1573,34 +1573,80 @@ function openJsonConfigModal(){
 function setJarviserMessage(msg){const el=document.getElementById('jarviser-text');if(el)el.textContent=msg;}
 
 // --- JARVISER COMMAND BRIDGE ---
-function handleJarviserCommand(e){
-  e.preventDefault();
-  const input=document.getElementById('jarviser-cmd-input');
-  const cmd=(input.value||'').trim().toLowerCase();
-  input.value='';
-  if(!cmd)return;
-  let reply='';
-  if(cmd.includes('micro hex')||cmd==='hex'){
-    onHexDensityChange(6);reply='Micro-hex density increased.';
-  }else if(cmd.includes('terra')){
-    toggleTerraBiomeColors();reply='Terra biome palette toggled.';
-  }else if(cmd.includes('classic')){
-    togglePortalMode();reply='Switched to Classic editorial mode.';
-  }else if(cmd.includes('neocube')){
-    toggleNeocubeMode();reply='Neocube magnetic assembly mode toggled.';
-  }else if(cmd.startsWith('zoom')){
-    const n=parseFloat(cmd.split(/\s+/)[1]);
-    if(!isNaN(n)){setCameraDistance(n);reply=`Camera zoom set to ${n}.`;}else reply='Usage: zoom <number>';
-  }else if(cmd.includes('umka')){
-    openUmkaTown();reply='Opening Umka-Town...';
-  }else if(cmd.includes('sdt')){
-    enterSDTStudio();reply='Entering SDT 5D Studio...';
-  }else if(cmd.includes('clear')){
-    clearAllNodeWires();reply='All node wires cleared.';
-  }else{
-    reply=`Unknown command "${cmd}". Try: micro hex, terra, classic, neocube, zoom 5, umka, sdt, clear.`;
+let sdtEngineReady = false;
+let pendingSDTCommands = [];
+
+function postSDTCommand(command) {
+  const frame = document.getElementById('sdt-frame');
+  if (!frame || !frame.contentWindow || !frame.classList.contains('visible')) return false;
+  if (!sdtEngineReady) {
+    pendingSDTCommands.push(String(command));
+    return false;
   }
-  setJarviserMessage(reply);
+  frame.contentWindow.postMessage({ type: 'trampillera:command', command: String(command) }, window.location.origin);
+  return true;
+}
+
+function flushSDTCommands() {
+  if (!sdtEngineReady) return;
+  const queued = pendingSDTCommands.splice(0);
+  queued.forEach(command => postSDTCommand(command));
+}
+
+function executeJarviserCommand(rawCommand) {
+  const original = String(rawCommand || '').trim();
+  const cmd = original.toLowerCase();
+  if (!cmd) return '';
+
+  const studioPrefix = /^(sdt|studio)(?:\s+|$)/i;
+  if (studioPrefix.test(original)) {
+    const payload = original.replace(studioPrefix, '').trim();
+    enterSDTStudio();
+    if (payload) {
+      postSDTCommand(payload);
+      return sdtEngineReady ? 'SDT 5D command sent: ' + payload : 'SDT 5D is loading; command queued.';
+    }
+    return 'Opening SDT 5D Multiverse Studio.';
+  }
+
+  const studioCommands = /^(branch|snapshot|merge|probability|superpose|quantum|workspace|multiverse\s+3d|mv3d|search|layer|operator\s+cam|opcam|broadcast|overlay|radial|shot|mode|time|day|night|rain|fog|cloud|zone|road|bim|gltf)(?:\s|$)/i;
+  if (document.getElementById('sdt-frame')?.classList.contains('visible') && studioCommands.test(original)) {
+    postSDTCommand(original);
+    return sdtEngineReady ? 'SDT 5D command sent: ' + original : 'SDT 5D is loading; command queued.';
+  }
+
+  let reply = '';
+  if (cmd.includes('micro hex') || cmd === 'hex') {
+    onHexDensityChange(6); reply = 'Micro-hex density increased.';
+  } else if (cmd.includes('terra')) {
+    toggleTerraBiomeColors(); reply = 'Terra biome palette toggled.';
+  } else if (cmd.includes('classic')) {
+    togglePortalMode(); reply = 'Switched to Classic editorial mode.';
+  } else if (cmd.includes('neocube')) {
+    toggleNeocubeMode(); reply = 'Neocube magnetic assembly mode toggled.';
+  } else if (cmd.startsWith('zoom')) {
+    const n = parseFloat(cmd.split(/\s+/)[1]);
+    if (!isNaN(n)) { setCameraDistance(n); reply = 'Camera zoom set to ' + n + '.'; }
+    else reply = 'Usage: zoom <number>';
+  } else if (cmd.includes('umka')) {
+    openUmkaTown(); reply = 'Opening Umka-Town.';
+  } else if (cmd === 'sdt') {
+    enterSDTStudio(); reply = 'Opening SDT 5D Multiverse Studio.';
+  } else if (cmd.includes('clear')) {
+    clearAllNodeWires(); reply = 'All node wires cleared.';
+  } else {
+    reply = 'Unknown command "' + original + '". Try: micro hex, terra, classic, neocube, zoom 5, umka, sdt, sdt branch, clear.';
+  }
+  return reply;
+}
+
+function handleJarviserCommand(e) {
+  e.preventDefault();
+  const input = document.getElementById('jarviser-cmd-input');
+  const command = (input?.value || '').trim();
+  if (input) input.value = '';
+  const reply = executeJarviserCommand(command);
+  if (reply) setJarviserMessage(reply);
 }
 
 // ============================================================================
@@ -1772,50 +1818,72 @@ function exitToPortal(){
 }
 // --- SDT bridge (iframe) ---
 function enterSDTStudio(){
-  const frame=document.getElementById('sdt-frame');
-  const placeholder=document.getElementById('sdt-placeholder');
-  const app=document.getElementById('app-trampillera');
-  const umka=document.getElementById('umka-screen');
-  if(umka)umka.classList.remove('visible');
-  if(placeholder)placeholder.classList.remove('visible');
-  if(frame){
+  const frame = document.getElementById('sdt-frame');
+  const placeholder = document.getElementById('sdt-placeholder');
+  const app = document.getElementById('app-trampillera');
+  const umka = document.getElementById('umka-screen');
+  if (umka) umka.classList.remove('visible');
+  if (placeholder) placeholder.classList.remove('visible');
+  if (frame) {
     frame.classList.add('visible');
-    frame.src='/sdt-5d-engine-v20.html';
+    if (!frame.getAttribute('src')) {
+      sdtEngineReady = false;
+      frame.src = '/sdt-5d-engine-v20.html?project=polar-settlement&embed=1';
+    }
   }
-  if(app)app.classList.add('hidden-by-sdt');
+  if (app) app.classList.add('hidden-by-sdt');
   playTactileSound('chime');
-  showToast('🌌 SDT 5D Studio connected');
+  showToast('🌌 Opening SDT 5D Engine v20 · Multiverse Studio');
 }
 function exitSDTStudio(){
-  const frame=document.getElementById('sdt-frame');
-  const placeholder=document.getElementById('sdt-placeholder');
-  const app=document.getElementById('app-trampillera');
-  if(frame){frame.classList.remove('visible');frame.removeAttribute('src');}
-  if(placeholder)placeholder.classList.remove('visible');
-  if(app)app.classList.remove('hidden-by-sdt');
+  const frame = document.getElementById('sdt-frame');
+  const placeholder = document.getElementById('sdt-placeholder');
+  const app = document.getElementById('app-trampillera');
+  sdtEngineReady = false;
+  pendingSDTCommands.length = 0;
+  if (frame) { frame.classList.remove('visible'); frame.removeAttribute('src'); }
+  if (placeholder) placeholder.classList.remove('visible');
+  if (app) app.classList.remove('hidden-by-sdt');
   playTactileSound('tick');
-  showToast('← Returned to Planet FUI');
+  showToast('← Returned to Polar Settlement');
 }
 window.addEventListener('keydown',(ev)=>{if(ev.key==='Escape'&&document.getElementById('umka-screen')?.classList.contains('visible'))exitUmkaTown();});
-window.addEventListener('message',(ev)=>{
-  if(ev.origin !== window.location.origin || ev.source !== window.parent) return;
+window.addEventListener('message', (ev) => {
+  if (ev.origin !== window.location.origin || ev.source !== window.parent) return;
   const data = ev.data || {};
-  if(data.type === 'trampillera:parent-open' || data.type === 'trampillera:locale-change'){
+  if (data.type === 'trampillera:parent-open' || data.type === 'trampillera:locale-change') {
     const code = String(data.locale || 'EN').toUpperCase();
-    if(LANGUAGES.some(item => item.code === code)){
+    if (LANGUAGES.some(item => item.code === code)) {
       STATE.lang = code;
-      if(typeof renderWindowContent === 'function') renderWindowContent('win-lang');
+      if (typeof renderWindowContent === 'function') renderWindowContent('win-lang');
+      const sdtFrame = document.getElementById('sdt-frame');
+      if (sdtEngineReady && sdtFrame?.contentWindow) {
+        sdtFrame.contentWindow.postMessage({ type: 'trampillera:locale-change', locale: code }, window.location.origin);
+      }
     }
+  } else if (data.type === 'trampillera:command') {
+    const reply = executeJarviserCommand(data.command);
+    if (reply) setJarviserMessage(reply);
   }
 });
 
 // Receive messages from the embedded SDT engine.
-window.addEventListener('message',(ev)=>{
-  const frame=document.getElementById('sdt-frame');
-  if(ev.origin!==window.location.origin || !frame || ev.source!==frame.contentWindow) return;
-  const data=ev.data||{};
-  if(data.type==='sdt-exit')exitSDTStudio();
-  else if(data.type==='sdt-toast')showToast(data.message||'SDT event');
+window.addEventListener('message', (ev) => {
+  const frame = document.getElementById('sdt-frame');
+  if (ev.origin !== window.location.origin || !frame || ev.source !== frame.contentWindow) return;
+  const data = ev.data || {};
+  if (data.type === 'sdt-ready') {
+    sdtEngineReady = true;
+    frame.contentWindow.postMessage({ type: 'trampillera:locale-change', locale: STATE.lang || 'EN' }, window.location.origin);
+    flushSDTCommands();
+    showToast('SDT 5D Engine v20 ready · Multiverse Studio connected');
+  } else if (data.type === 'sdt-exit') {
+    exitSDTStudio();
+  } else if (data.type === 'sdt-toast') {
+    showToast(data.message || 'SDT event');
+  } else if (data.type === 'sdt-error') {
+    showToast('SDT 5D engine error: ' + String(data.message || 'initialization failed').slice(0, 120));
+  }
 });
 
 // ============================================================================
