@@ -20,6 +20,28 @@ const referenceCode = () => "TP-" + new Date().toISOString().slice(0,10).replace
 const INQUIRY_TRANSITIONS = { NEW:["REVIEWING","LOST"], REVIEWING:["QUALIFIED","LOST"], QUALIFIED:["PROPOSAL","LOST"], PROPOSAL:["NEGOTIATION","WON","LOST"], NEGOTIATION:["PROPOSAL","WON","LOST"], WON:[], LOST:["REVIEWING"] };
 const PARTNER_TRANSITIONS = { PENDING:["REVIEWING","REJECTED"], REVIEWING:["APPROVED","REJECTED"], APPROVED:[], REJECTED:["REVIEWING"] };
 
+async function notifyBusinessSubmission(payload) {
+  const url = process.env.GOOGLE_APPS_SCRIPT_WEBHOOK_URL;
+  const secret = process.env.GOOGLE_APPS_SCRIPT_WEBHOOK_SECRET;
+  if (!url || !secret) return false;
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, secret }),
+      signal: AbortSignal.timeout(5000),
+      redirect: "follow"
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || result?.ok !== true) throw new Error("Webhook rejected notification");
+    return true;
+  } catch (error) {
+    // Intake is already stored. Email failure must never discard the submission.
+    console.error(JSON.stringify({ level: "warn", event: "business_email_notification_failed", error: error?.name || "Error" }));
+    return false;
+  }
+}
+
 export function createBusinessRouter({ pool, requireAdmin, audit }) {
   if (!pool || typeof requireAdmin !== "function" || typeof audit !== "function") {
     throw new TypeError("Business router requires pool, requireAdmin and audit dependencies.");
@@ -51,6 +73,7 @@ export function createBusinessRouter({ pool, requireAdmin, audit }) {
         [ref, organization, contact, email, website, type, subject, message]
       );
       await audit("BUSINESS_INQUIRY_RECEIVED","business_inquiry",ref,"Public inquiry received: "+type,"public");
+      await notifyBusinessSubmission({ kind: "business inquiry", reference: ref, organization, contactName: contact, email, subject, message });
       return res.status(201).json({ accepted: true, reference: result.rows[0].reference_code, receivedAt: result.rows[0].created_at });
     } catch (error) { return next(error); }
   });
@@ -76,6 +99,7 @@ export function createBusinessRouter({ pool, requireAdmin, audit }) {
         [organization, contact, email, website, capabilities, message]
       );
       await audit("BUSINESS_PARTNER_APPLICATION_RECEIVED","partner_application",String(result.rows[0].id),"Public partner application received","public");
+      await notifyBusinessSubmission({ kind: "partner application", applicationId: result.rows[0].id, organization, contactName: contact, email, capabilities, message });
       return res.status(201).json({ accepted: true, applicationId: result.rows[0].id, receivedAt: result.rows[0].created_at });
     } catch (error) { return next(error); }
   });
