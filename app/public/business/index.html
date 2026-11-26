@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080e16">
+<title>TRAMPILLERA · Business & Partnerships</title>
+<style>
+:root{color-scheme:dark;--bg:#080e16;--panel:#111d29;--line:#26394a;--text:#eaf3fa;--muted:#91a5b8;--cyan:#47d6e8;--violet:#a78bfa;--green:#5ad6a1}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 20% 0%,#102738 0,transparent 45%),var(--bg);color:var(--text);font:14px Inter,system-ui,sans-serif}.shell{max-width:1080px;margin:auto;padding:clamp(18px,4vw,42px)}a{color:var(--cyan)}.eyebrow{font:10px ui-monospace,monospace;letter-spacing:1.6px;color:var(--cyan)}h1{font-size:clamp(28px,5vw,48px);margin:12px 0}.lead{color:var(--muted);line-height:1.7;max-width:720px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:28px 0}.panel{background:linear-gradient(145deg,#142331,#101a25);border:1px solid var(--line);border-radius:12px;padding:22px;min-width:0}.panel h2{margin:0 0 8px}.panel p{color:var(--muted);line-height:1.6;font-size:12px}.field{display:grid;gap:6px;margin:12px 0}.field label{font:10px ui-monospace,monospace;letter-spacing:.7px;color:var(--muted)}input,select,textarea{width:100%;padding:11px;background:#09131d;border:1px solid #304354;border-radius:6px;color:var(--text)}textarea{min-height:110px;resize:vertical}.consent{display:flex;gap:9px;align-items:flex-start;color:var(--muted);font-size:11px;line-height:1.5;margin:14px 0}.consent input{width:auto;margin-top:2px}.btn{border:1px solid #31556b;background:#12303c;color:#c7f7fb;border-radius:7px;padding:11px 15px;font-size:11px;font-weight:700}.status{display:none;margin-top:12px;padding:12px;border:1px solid #28694f;border-radius:7px;color:var(--green);font-size:12px}.status.error{border-color:#75414a;color:#ffb7be}.hp{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}.foot{margin-top:26px;color:#6f8295;font:10px ui-monospace,monospace}@media(max-width:720px){.grid{grid-template-columns:1fr}.panel{padding:17px}}
+</style></head>
+<body><main class="shell">
+<div class="eyebrow">TRAMPILLERA MEDIA / BUSINESS NETWORK</div>
+<h1>Build something useful together.</h1>
+<p class="lead">We work across independent media, research, AI-assisted workflows, interactive environments and territorial intelligence. Tell us what you are trying to achieve, or introduce your organization as a potential partner. Every request is reviewed by a person before any commitment is made.</p>
+<div class="grid">
+<section class="panel"><h2>Project inquiry</h2><p>For organizations and individuals looking for a product, service, research collaboration or a tailored technical project.</p>
+<form id="inquiry">
+<div class="field"><label>NAME</label><input name="contactName" required minlength="2" maxlength="120"></div>
+<div class="field"><label>ORGANIZATION (OPTIONAL)</label><input name="organization" maxlength="160"></div>
+<div class="field"><label>EMAIL</label><input name="email" type="email" required maxlength="254"></div>
+<div class="field"><label>WEBSITE (OPTIONAL)</label><input name="website" type="url" placeholder="https://" maxlength="500"></div>
+<div class="field"><label>REQUEST TYPE</label><select name="requestType"><option value="SERVICE">Service / project</option><option value="PRODUCT">Product / licensing</option><option value="PARTNERSHIP">Partnership</option><option value="OTHER">Other</option></select></div>
+<div class="field"><label>SUBJECT</label><input name="subject" required minlength="3" maxlength="180"></div>
+<div class="field"><label>WHAT DO YOU NEED?</label><textarea name="message" required minlength="20" maxlength="5000"></textarea></div>
+<label class="consent"><input name="consent" type="checkbox" required><span>I agree that TRAMPILLERA may use the information submitted to evaluate and respond to this inquiry. I can request deletion through the contact channel published on the site.</span></label>
+<div class="hp"><label>Company fax<input name="companyFax" tabindex="-1" autocomplete="off"></label></div>
+<button class="btn" type="submit">SEND PROJECT INQUIRY</button><div class="status" id="inquiry-status" role="status"></div>
+</form></section>
+<section class="panel"><h2>Become a partner</h2><p>For independent specialists, studios, research groups and companies interested in delivering work through the TRAMPILLERA network.</p>
+<form id="partner">
+<div class="field"><label>ORGANIZATION</label><input name="organization" required minlength="2" maxlength="160"></div>
+<div class="field"><label>CONTACT NAME</label><input name="contactName" required minlength="2" maxlength="120"></div>
+<div class="field"><label>EMAIL</label><input name="email" type="email" required maxlength="254"></div>
+<div class="field"><label>WEBSITE (OPTIONAL)</label><input name="website" type="url" placeholder="https://" maxlength="500"></div>
+<div class="field"><label>CAPABILITIES / SERVICES</label><textarea name="capabilities" required minlength="20" maxlength="2500" placeholder="What can your organization reliably deliver?"></textarea></div>
+<div class="field"><label>ADDITIONAL INFORMATION (OPTIONAL)</label><textarea name="message" maxlength="3000"></textarea></div>
+<label class="consent"><input name="consent" type="checkbox" required><span>I agree that TRAMPILLERA may use the information submitted to evaluate this partner application and contact me about it.</span></label>
+<div class="hp"><label>Company fax<input name="companyFax" tabindex="-1" autocomplete="off"></label></div>
+<button class="btn" type="submit">SUBMIT PARTNER APPLICATION</button><div class="status" id="partner-status" role="status"></div>
+</form></section></div>
+<div class="foot">SUBMISSION DOES NOT CREATE A CONTRACT, PARTNERSHIP OR PAYMENT OBLIGATION. ALL APPLICATIONS ARE REVIEWED BEFORE APPROVAL.<br><a href="/">← Return to TRAMPILLERA</a></div>
+</main>
+<script>
+(function(){
+"use strict";
+function payload(form){const data=new FormData(form),out={};for(const [k,v] of data.entries())out[k]=v;out.consent=data.get("consent")==="on";return out}
+async function submit(form,path,statusId){const status=document.getElementById(statusId);status.className="status";status.style.display="block";status.textContent="Submitting…";const button=form.querySelector("button");button.disabled=true;try{const response=await fetch(path,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload(form))});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||"Submission could not be accepted.");status.textContent=data.reference?"Received. Reference: "+data.reference:"Application received. Reference ID: "+data.applicationId+". We will review it.";form.reset()}catch(error){status.className="status error";status.textContent=error.message}finally{button.disabled=false}}
+document.getElementById("inquiry").addEventListener("submit",e=>{e.preventDefault();submit(e.currentTarget,"/api/business/inquiries","inquiry-status")});
+document.getElementById("partner").addEventListener("submit",e=>{e.preventDefault();submit(e.currentTarget,"/api/business/partner-applications","partner-status")});
+})();
+</script></body></html>
