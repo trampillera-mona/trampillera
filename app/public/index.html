@@ -2003,7 +2003,6 @@ const PolarGameBridge = (() => {
       frame.src = frame.dataset.src || '/games/polar-settlement.html';
     }
     if (frame.contentDocument && frame.contentDocument.readyState === 'complete') syncLocale();
-    else window.setTimeout(syncLocale, 250);
   }
 
   function setLocale(code) {
