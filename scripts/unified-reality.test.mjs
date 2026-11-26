@@ -42,3 +42,14 @@ test('banner delegates actions to existing application modules instead of fake l
   assert.match(js, /function updateSolarLighting\(\)/);
   assert.match(js, /prefers-reduced-motion/);
 });
+
+test('3D FUI keeps one Polarny entry, clickable polar sector, responsive controls and day/night', () => {
+  assert.equal((html.match(/id="fui-open-polarny"/g) || []).length, 1);
+  assert.match(html, /filter\(w => !w\.visible && w\.id !== 'win-polarny'\)/);
+  assert.match(html, /if \(data\.isPolarnySector\)\s*\{[\s\S]*?openPolarnySettlement\('sector'\)/);
+  assert.match(html, /id="fui-open-dock"/);
+  assert.match(html, /id="fui-daynight-toggle"/);
+  assert.match(html, /function toggleFUIDayNight\(\)/);
+  assert.match(html, /@media\(max-width:767px\)/);
+  assert.match(html, /win\.width = Math\.min\(380, Math\.max\(280, width - 24\)\)/);
+});
