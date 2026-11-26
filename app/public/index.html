@@ -400,6 +400,8 @@
       background: radial-gradient(ellipse at 55% 42%, #121723 0%, #07090e 75%);
     }
     #realm-fui.active { display: block; animation: fadeView 0.25s ease; }
+    #realm-fui { height: calc(100dvh - 82px); min-height: 420px; }
+    #polar-settlement-game-frame { display:block; width:100%; height:100%; min-height:0; border:0; background:#07090e; }
     .fui-grid-bg {
       position: absolute; inset: 0; pointer-events: none; z-index: 1;
       background-image: linear-gradient(rgba(0, 200, 215, 0.035) 1px, transparent 1px),
@@ -1012,40 +1014,17 @@
   </section>
 
   <!-- ============================================================
-       REALM 1: 3D FUI SPATIAL CONSTRUCTOR (HEX PLANET + SAUCERS)
+       REALM 1: POLAR SETTLEMENT GAME (ISOLATED FRONTEND MODULE)
        ============================================================ -->
-  <section id="realm-fui" aria-label="3D FUI Spatial Constructor">
-    <div class="fui-grid-bg"></div>
-    <div id="three-canvas-wrap"></div>
-    <svg id="node-wires-svg"></svg>
-    <main id="spatial-windows-layer"></main>
-
-    <div id="hex-tooltip">
-      <div class="flex items-center justify-between gap-3 border-b border-white/15 pb-1 mb-1">
-        <span id="tt-coord" class="font-orbit font-bold text-[var(--fui-cyan)]">HEX-000</span>
-        <span id="tt-biome" class="text-[9px] px-1.5 py-0.5 rounded bg-[var(--fui-orange)]/20 text-[var(--fui-orange)] font-bold uppercase">SECTOR</span>
-      </div>
-      <div id="tt-region" class="text-white font-medium text-[10px]">Eurasia-Node Alpha</div>
-      <div id="tt-hint" class="text-[9px] text-fuiMuted mt-0.5">Click: inspect sector hub</div>
-    </div>
-
-    <div id="neocube-banner" class="fixed top-24 left-1/2 -translate-x-1/2 z-40 hidden bg-[var(--fui-orange)]/20 border border-[var(--fui-orange)] backdrop-blur-md px-4 py-1.5 rounded-full text-xs text-white items-center gap-3 shadow-[0_0_25px_rgba(255,128,0,0.4)]">
-      <span class="font-bold text-[var(--fui-orange)]">🧲 NEOCUBE:</span>
-      <span id="neocube-instruction">Click any saucer to detach dome, then click another to magnetize</span>
-      <button onclick="toggleNeocubeMode()" class="px-2 py-0.5 rounded bg-white/10 text-[10px] font-bold">Exit</button>
-    </div>
-
-    <div id="wire-banner" class="fixed top-24 left-1/2 -translate-x-1/2 z-40 hidden bg-[var(--fui-cyan)]/20 border border-[var(--fui-cyan)] backdrop-blur-md px-4 py-1.5 rounded-full text-xs text-white items-center gap-3 shadow-[0_0_25px_rgba(0,200,215,0.4)]">
-      <span class="font-bold text-[var(--fui-cyan)]">🔗 LINKING:</span>
-      <span id="wire-instruction">Click source window header, then target window header</span>
-      <button onclick="cancelWireMode()" class="px-2 py-0.5 rounded bg-white/10 text-[10px] font-bold">Cancel</button>
-    </div>
-
-    <div id="hud-summon-trigger" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 hidden">
-      <button onclick="expandBasePanelsWithHints()" class="px-5 py-2.5 rounded-full bg-gradient-to-r from-[var(--fui-orange)] to-[#ffaa33] text-black font-orbit font-black text-xs tracking-[0.14em] uppercase shadow-[0_0_32px_rgba(255,128,0,0.8)] border border-white/80 animate-pulse">
-        ✦ EXPAND TRAMPILLERA PANELS ✦
-      </button>
-    </div>
+  <section id="realm-fui" aria-label="TRAMPILLERA Polar Settlement Game">
+    <iframe
+      id="polar-settlement-game-frame"
+      data-src="/games/polar-settlement.html"
+      title="TRAMPILLERA Polar Settlement Game"
+      loading="lazy"
+      allow="autoplay; fullscreen; xr-spatial-tracking"
+      allowfullscreen
+    ></iframe>
   </section>
 
   <!-- ============================================================
@@ -1970,6 +1949,7 @@ function selectGlobalLanguage(code) {
   setJarviserMessage(found ? found.greeting : `Locale: ${UNIFIED_STATE.lang}`);
   renderWindowContent('win-lang');
   showToast(`🌐 Язык / Locale: ${found ? found.name : UNIFIED_STATE.lang}`);
+  if (typeof PolarGameBridge !== 'undefined') PolarGameBridge.setLocale(UNIFIED_STATE.lang);
 }
 
 function cycleGlobalLanguage() {
@@ -1979,8 +1959,49 @@ function cycleGlobalLanguage() {
 }
 
 // ============================================================================
-// 4. REALM ROUTER (INTRO GATE <-> GAME 3D FUI <-> CLASSIC PORTAL)
+ // POLAR SETTLEMENT GAME BRIDGE
+ // ============================================================================
+const PolarGameBridge = (() => {
+  const getFrame = () => document.getElementById('polar-settlement-game-frame');
+  function send(message) {
+    const frame = getFrame();
+    if (frame && frame.contentWindow && frame.getAttribute('src')) {
+      frame.contentWindow.postMessage(message, window.location.origin);
+    }
+  }
+  function syncLocale() {
+    send({ type: 'trampillera:parent-open', locale: UNIFIED_STATE.lang || 'EN' });
+  }
+  function open() {
+    const frame = getFrame();
+    if (!frame) return;
+    if (!frame.dataset.bridgeBound) {
+      frame.addEventListener('load', syncLocale);
+      frame.dataset.bridgeBound = 'true';
+    }
+    if (!frame.getAttribute('src')) frame.src = frame.dataset.src || '/games/polar-settlement.html';
+    if (frame.contentDocument && frame.contentDocument.readyState === 'complete') syncLocale();
+    else window.setTimeout(syncLocale, 250);
+  }
+  function setLocale(code) {
+    send({ type: 'trampillera:locale-change', locale: code });
+  }
+  function command(command) {
+    send({ type: 'trampillera:command', command });
+  }
+  window.addEventListener('message', event => {
+    const frame = getFrame();
+    if (!frame || event.origin !== window.location.origin || event.source !== frame.contentWindow) return;
+    const data = event.data || {};
+    if (data.type === 'trampillera:game-exit') RealmRouter.switchRealm('intro');
+    else if (data.type === 'trampillera:game-toast') showToast(String(data.message || 'Game event'));
+  });
+  return { open, setLocale, command };
+})();
+
 // ============================================================================
+ // 4. REALM ROUTER (INTRO GATE <-> GAME 3D FUI <-> CLASSIC PORTAL)
+ // ============================================================================
 const RealmRouter = {
   activeRealm: 'intro',
   switchRealm(realm) {
@@ -2000,10 +2021,7 @@ const RealmRouter = {
     document.getElementById('tab-classic')?.classList.toggle('active', realm === 'classic');
 
     if (realm === 'fui') {
-      setTimeout(() => {
-        onFUIResize();
-        renderAllFUIWindows();
-      }, 40);
+      setTimeout(() => PolarGameBridge.open(), 40);
     } else if (realm === 'classic') {
       setTimeout(() => {
         Hero3D.resize();
@@ -3622,11 +3640,11 @@ const MischiefNavigator = {
       RealmRouter.switchRealm('classic'); reply = 'Открыл Классический портал и новостные ленты.';
     } else if (lq.includes('заставк') || lq.includes('intro')) {
       RealmRouter.switchRealm('intro');
-  try { if (typeof FUIWorkspace !== 'undefined') FUIWorkspace.load(true); } catch(e){}
+  // Legacy FUI workspace state is retained for rollback compatibility but is not mounted.
  reply = 'Открыл заставку Trampillera Media.';
     } else if (lq.includes('терра') || lq.includes('биом')) {
-      RealmRouter.switchRealm('fui'); UNIFIED_STATE.theme.terraMode = !UNIFIED_STATE.theme.terraMode;
-      buildHexagonalPlanet(); reply = `Режим биомов Terra: ${UNIFIED_STATE.theme.terraMode ? 'ВКЛ' : 'ВЫКЛ'}.`;
+      RealmRouter.switchRealm('fui'); PolarGameBridge.command('terra');
+      reply = 'Sent the Terra biome command to the Polar Settlement game.';
     } else if (lq.includes('дисплей')) {
       DisplayBuilder.openModal(); reply = 'Открыл конструктор пользовательского дисплея.';
     } else if (lq.includes('оркестратор') || lq.includes('реактор') || lq.includes('jarviser')) {
@@ -4519,10 +4537,8 @@ document.addEventListener('DOMContentLoaded', () => {
   safeStartup('Theme', () => Theme.init());
   safeStartup('MasterClock', () => MasterClock.start());
   safeStartup('IntroGateway', () => IntroGateway.init());
-  // 3D is an enhancement, not a prerequisite for the Classic Portal.
-  safeStartup('3D scene (WebGL)', () => initThreeScene());
-  safeStartup('FUI windows', () => renderAllFUIWindows());
-  safeStartup('Main animation loop', () => startMainLoop());
+  // The Polar Settlement game runs in its own isolated frontend module.
+  // Classic Portal 3D components initialize independently below.
 
   // Restore the shared locale; use the browser language only on first visit.
   let savedLocale = 'EN';
