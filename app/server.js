@@ -47,13 +47,16 @@ app.use(helmet({
     useDefaults: true,
     directives: {
       "default-src": ["'self'"],
-      "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
+      "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net", "https://esm.sh", "https://fonts.googleapis.com"],
       "script-src-attr": ["'unsafe-inline'"],
       "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
       "img-src": ["'self'", "data:", "blob:", "https:"],
       "media-src": ["'self'", "blob:", "https:"],
-      "connect-src": ["'self'", "https:"],
+      "connect-src": ["'self'", "https:", "wss:", "blob:", "data:"],
+      "worker-src": ["'self'", "blob:", "https:"],
+      "frame-src": ["'self'", "https:"],
+      "media-src": ["'self'", "blob:", "https:"],
       "frame-ancestors": ["'self'"],
       "object-src": ["'none'"],
       "base-uri": ["'self'"]
@@ -64,7 +67,7 @@ app.use(helmet({
 }));
 // Allow microphone use in this origin, including the same-origin ITY CITY module iframes.
 app.use((req, res, next) => {
-  res.setHeader("Permissions-Policy", "microphone=(self)");
+  res.setHeader("Permissions-Policy", "camera=(self), microphone=(self), xr-spatial-tracking=(self)");
   next();
 });
 app.use(express.json({ limit: "256kb" }));
