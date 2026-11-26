@@ -456,7 +456,7 @@ const allowedAssetMimeByExtension = new Map([
 ]);
 async function inspectPublicAsset(publicPath) {
   if (typeof publicPath !== "string" || !publicPath.startsWith("/") ||
-      publicPath.startsWith("//") || publicPath.includes("\\\\") || /[?#]/.test(publicPath) || /[\\x00-\\x1f]/.test(publicPath)) {
+      publicPath.startsWith("//") || publicPath.includes("\\") || /[?#]/.test(publicPath) || /[\x00-\x1f]/.test(publicPath)) {
     throw Object.assign(new Error("Asset path must be a same-origin public path."), { status: 400 });
   }
   const resolved = path.resolve(PUBLIC_DIR, publicPath.slice(1));
