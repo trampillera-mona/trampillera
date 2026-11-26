@@ -477,7 +477,12 @@ async function inspectPublicAsset(publicPath) {
   await new Promise((resolve, reject) => {
     const stream = createReadStream(realFile);
     stream.on("data", chunk => hash.update(chunk));
-    stream.function tapsStorageConfig() {
+    stream.on("error", reject);
+    stream.on("end", resolve);
+  });
+  return { mimeType, sha256: hash.digest("hex"), bytes: info.size };
+}
+function tapsStorageConfig() {
   const required = ["TAPS_S3_ENDPOINT","TAPS_S3_BUCKET","TAPS_S3_ACCESS_KEY_ID","TAPS_S3_SECRET_ACCESS_KEY"];
   const missing = required.filter((key) => !process.env[key]);
   if (missing.length) return { configured:false, missing, client:null, bucket:"" };
@@ -652,7 +657,7 @@ app.get("/api/control/assets", asyncRoute(async (req,res) => {
   if (state && !["ACTIVE","RESTRICTED","RETIRED"].includes(state)) return res.status(400).json({ error:"Invalid asset protection state." });
   const values = state ? [state] : [];
   const result = await pool.query(
-    "SELECT asset_id,title,public_path,mime_type,sha256,rights_holder,source_credit,license_label,watermark_state,protection_state,pipeline_state,storage_provider,version_number,original_bytes,derivative_bytes,verified_at,verification_details,metadata,created_at,updated_at FROM media_assets " +
+    "SELECT asset_id,title,public_path,mime_type,sha256,rights_holder,source_credit,license_label,watermark_state,protection_state,metadata,created_at,updated_at FROM media_assets " +
     (state ? "WHERE protection_state=$1 " : "") + "ORDER BY created_at DESC LIMIT 500", values
   );
   res.set("Cache-Control","no-store");
