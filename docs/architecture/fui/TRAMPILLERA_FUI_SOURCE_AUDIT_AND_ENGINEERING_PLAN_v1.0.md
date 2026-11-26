@@ -190,6 +190,7 @@ A release is not complete until all gates pass:
 ## 9. Audit evidence and limitations
 
 - Reference-file static inspection: 1,717 lines; 112,501 bytes; no duplicate IDs in parsed static markup; no CSS media queries; no translation dictionary or translation-key attributes; two inline script blocks plus external library scripts.
+- Production root-page static scan: 12 locale dictionaries are present, but each currently contains 17 keys; only 18 distinct `data-i18n` keys are present in the HTML. A simple source scan found 308 Cyrillic word-like tokens, 113 inline event-handler attributes, and 50 `.innerHTML =` assignments. These are source-scan indicators, not counts of unique user-facing strings or proof that every occurrence is user-visible.
 - Production repository inspection: the existing app has an authoritative shared twelve-locale core and a partial root-page dictionary. Existing language/voice audit already states full translation coverage and live browser verification are open.
 - Production FUI currently contains a Polarny window, a rail entry, a sector focus function, and day/night controls. Their presence in source is not proof of browser operability or responsive fit.
 - No real-device browser matrix was executed during this source audit.
