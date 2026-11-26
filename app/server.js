@@ -484,7 +484,7 @@ async function inspectPublicAsset(publicPath) {
   let endpoint;
   try { endpoint = new URL(process.env.TAPS_S3_ENDPOINT); }
   catch { return { configured:false, missing:["TAPS_S3_ENDPOINT_INVALID"], client:null, bucket:"" }; }
-  if (endpoint.protocol !== "https:" || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
+  if (endpoint.protocol !== "https:" || endpoint.username || endpoint.password || endpoint.search || endpoint.hash || (endpoint.pathname !== "/" && endpoint.pathname !== "")) {
     return { configured:false, missing:["TAPS_S3_ENDPOINT_INVALID"], client:null, bucket:"" };
   }
   const client = new S3Client({
@@ -597,6 +597,9 @@ app.post("/api/control/assets/ingest",
         Bucket:storage.bucket,Key:derivativeKey,Body:derivativeBuffer,ContentType:"image/webp",
         Metadata:{assetid:assetId,version:String(version),sha256:derivativeHash,watermark:"TRAMPILLERA_VISIBLE_V1",role:"protected-derivative"}
       }));
+      const originalStoredObject = await storage.client.send(new GetObjectCommand({Bucket:storage.bucket,Key:originalKey}));
+      const originalReadBack = await objectBodyBuffer(originalStoredObject.Body);
+      if (sha256(originalReadBack) !== originalHash || originalReadBack.length !== originalBuffer.length) throw new Error("Original failed storage round-trip integrity verification.");
       const stored = await storage.client.send(new GetObjectCommand({Bucket:storage.bucket,Key:derivativeKey}));
       const readBack = await objectBodyBuffer(stored.Body);
       const readBackHash = sha256(readBack);
@@ -607,13 +610,13 @@ app.post("/api/control/assets/ingest",
         await client.query(
           "UPDATE media_assets SET derivative_object_key=$2,derivative_sha256=$3,derivative_bytes=$4,mime_type=$5,watermark_state='EMBEDDED',pipeline_state='VERIFIED',verified_at=NOW(),verification_details=$6::jsonb,metadata=metadata || $7::jsonb,updated_at=NOW() WHERE asset_id=$1",
           [assetId,derivativeKey,derivativeHash,derivativeBuffer.length,contentType,
-            JSON.stringify({originalHash,derivativeHash,derivativeReadBackHash:readBackHash,derivativeBytesVerified:readBack.length,watermarkProfile:"TRAMPILLERA_VISIBLE_V1",storageRoundTrip:"PASS"}),
+            JSON.stringify({originalHash,originalReadBackHash:sha256(originalReadBack),derivativeHash,derivativeReadBackHash:readBackHash,originalBytesVerified:originalReadBack.length,derivativeBytesVerified:readBack.length,watermarkProfile:"TRAMPILLERA_VISIBLE_V1",storageRoundTrip:"PASS"}),
             JSON.stringify({derivativeMimeType:"image/webp",derivativeWidth:transformed.info.width,derivativeHeight:transformed.info.height})]
         );
         await client.query(
           "INSERT INTO media_asset_versions(asset_id,version_number,original_object_key,derivative_object_key,original_sha256,derivative_sha256,original_bytes,derivative_bytes,mime_type,image_width,image_height,watermark_profile,pipeline_state,verification_details) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'TRAMPILLERA_VISIBLE_V1','VERIFIED',$12::jsonb)",
           [assetId,version,originalKey,derivativeKey,originalHash,derivativeHash,originalBuffer.length,derivativeBuffer.length,contentType,transformed.info.width,transformed.info.height,
-            JSON.stringify({storageRoundTrip:"PASS",derivativeHashMatches:true,watermarkEmbedded:true})]
+            JSON.stringify({storageRoundTrip:"PASS",originalHashMatches:true,derivativeHashMatches:true,watermarkEmbedded:true})]
         );
         await client.query("INSERT INTO media_asset_access_events(asset_id,event_type,actor,request_id,details) VALUES($1,'VERIFICATION',$2,$3,$4::jsonb)",
           [assetId,actor,req.get("x-request-id") || "",JSON.stringify({result:"VERIFIED",derivativeSha256:derivativeHash})]);
