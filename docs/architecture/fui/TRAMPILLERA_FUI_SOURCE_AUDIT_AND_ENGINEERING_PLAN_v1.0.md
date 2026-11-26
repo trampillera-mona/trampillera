@@ -51,8 +51,9 @@ The file contains no duplicate static HTML IDs in its parsed markup. This does n
 - The production root page has a separate, partial `I18N_DICT` for portal content. FUI window templates and dynamic status messages still contain hardcoded Russian/English strings.
 - Locale selection updates some portal labels and the language orbit, but does not translate the full FUI, modals, tooltips, generated window controls, notifications, and all realm screens.
 - Arabic requires full RTL-aware layout behavior, not only setting `document.dir`.
+- There is a declared-locale conflict: the uploaded reference file lists Turkish (TR) but not Korean (KO), while the production shared locale core lists Korean (KO) but not Turkish (TR).
 
-**Required direction:** the production locale catalog is authoritative unless a deliberate product decision changes it. Keep the existing twelve locales and BCP-47 tags; do not silently add/remove locales. Introduce stable translation keys and a single translation API for static markup, dynamic templates, ARIA labels, tooltips, notifications, empty/error states, and generated controls. Add locale completeness tests that fail on missing keys. Preserve original-language user content unless an explicit, provenance-tracked translation is requested.
+**Required direction:** preserve the production twelve-locale catalog and add Turkish as a thirteenth locale, because both KO and TR have been explicitly declared across the two sources. The target locale set is therefore EN, RU, SR, DE, FR, ES, IT, PT, ZH, JA, KO, AR, and TR. Use canonical BCP-47 tags and direction metadata. Introduce stable translation keys and a single translation API for static markup, dynamic templates, ARIA labels, tooltips, notifications, empty/error states, and generated controls. Add locale completeness tests that fail on missing keys. Preserve original-language user content unless an explicit, provenance-tracked translation is requested.
 
 ### P1 — Window lifecycle and state
 
@@ -124,9 +125,9 @@ Required invariants:
 
 ## 6. Localization contract
 
-- Canonical locale set: EN, RU, SR, DE, FR, ES, IT, PT, ZH, JA, KO, AR.
-- Canonical BCP-47 tags and RTL direction come from `TrampilleraLocaleCore`.
-- Do not maintain a second competing language list in FUI.
+- Canonical target locale set: EN, RU, SR, DE, FR, ES, IT, PT, ZH, JA, KO, AR, TR.
+- Canonical BCP-47 tags and RTL direction come from `TrampilleraLocaleCore`; extend that shared core for TR rather than maintaining a second competing language list in FUI.
+- Do not silently drop KO or TR.
 - Translation keys must cover: realm navigation, window titles, window controls, buttons, labels, inputs, placeholders, tooltips, ARIA labels, validation, errors, notifications, empty states, help text, and all dynamic FUI-generated markup.
 - Every locale must have the same required key set; CI must fail on missing or empty translations.
 - Avoid injecting translated strings as HTML. Rich text must use explicit trusted templates or DOM nodes.
@@ -191,7 +192,7 @@ A release is not complete until all gates pass:
 
 - Reference-file static inspection: 1,717 lines; 112,501 bytes; no duplicate IDs in parsed static markup; no CSS media queries; no translation dictionary or translation-key attributes; two inline script blocks plus external library scripts.
 - Production root-page static scan: 12 locale dictionaries are present, but each currently contains 17 keys; only 18 distinct `data-i18n` keys are present in the HTML. A simple source scan found 308 Cyrillic word-like tokens, 113 inline event-handler attributes, and 50 `.innerHTML =` assignments. These are source-scan indicators, not counts of unique user-facing strings or proof that every occurrence is user-visible.
-- Production repository inspection: the existing app has an authoritative shared twelve-locale core and a partial root-page dictionary. Existing language/voice audit already states full translation coverage and live browser verification are open.
+- Production repository inspection: the existing app has an authoritative shared twelve-locale core and a partial root-page dictionary. The uploaded reference adds TR, so the combined declared requirement is thirteen locales. Existing language/voice audit already states full translation coverage and live browser verification are open.
 - Production FUI currently contains a Polarny window, a rail entry, a sector focus function, and day/night controls. Their presence in source is not proof of browser operability or responsive fit.
 - No real-device browser matrix was executed during this source audit.
 - No production files or Render services were changed by this audit document.
