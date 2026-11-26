@@ -1613,6 +1613,12 @@ function executeJarviserCommand(rawCommand) {
     return 'Opening SDT 5D Multiverse Studio.';
   }
 
+  if (/^polar(?:\s+|$)/i.test(original) && !document.getElementById('sdt-frame')?.classList.contains('visible')) {
+    enterSDTStudio();
+    postSDTCommand(original);
+    return sdtEngineReady ? 'SDT5D Polar command sent: ' + original : 'SDT5D is loading; Polar command queued.';
+  }
+
   const studioCommands = /^(branch|snapshot|merge|probability|superpose|quantum|workspace|multiverse\s+3d|mv3d|search|layer|operator\s+cam|opcam|broadcast|overlay|radial|shot|mode|time|day|night|rain|fog|cloud|zone|road|bim|gltf|polar)(?:\s|$)/i;
   if (document.getElementById('sdt-frame')?.classList.contains('visible') && studioCommands.test(original)) {
     postSDTCommand(original);
