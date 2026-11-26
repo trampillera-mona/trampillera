@@ -410,6 +410,10 @@
     #three-canvas-wrap:active { cursor: grabbing; }
     #node-wires-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 12; }
     #spatial-windows-layer { position: absolute; inset: 0; pointer-events: none; z-index: 18; }
+    #fui-control-rail { position:absolute; z-index:24; right:12px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:7px; max-width:calc(100% - 24px); }
+    #fui-control-rail button { border:1px solid rgba(0,200,215,.55); border-radius:6px; background:rgba(5,15,25,.92); color:#a9edf2; padding:9px 11px; font:700 9px/1.2 var(--mono); letter-spacing:.06em; box-shadow:0 5px 18px #0008; backdrop-filter:blur(10px); white-space:nowrap; }
+    #fui-control-rail button:hover,#fui-control-rail button[aria-pressed="true"] { background:rgba(0,200,215,.2); border-color:#61edf5; color:#fff; }
+    @media(max-width:767px) { #fui-control-rail { top:auto; bottom:12px; right:10px; transform:none; flex-direction:row; flex-wrap:wrap; justify-content:flex-end; } #fui-control-rail button { padding:8px 9px; font-size:8px; } }
 
     .spatial-window {
       position: absolute; pointer-events: auto;
@@ -1019,6 +1023,11 @@
     <div id="three-canvas-wrap"></div>
     <svg id="node-wires-svg"></svg>
     <main id="spatial-windows-layer"></main>
+    <nav id="fui-control-rail" aria-label="Game controls">
+      <button type="button" id="fui-open-polarny" onclick="openPolarnySettlement('rail')">❄ ПОЛЯРНЫЙ</button>
+      <button type="button" id="fui-open-dock" onclick="toggleWindowById('win-planet-dock')">☷ ПАНЕЛЬ</button>
+      <button type="button" id="fui-daynight-toggle" onclick="toggleFUIDayNight()" aria-pressed="false">☀ ДЕНЬ</button>
+    </nav>
 
     <div id="hex-tooltip">
       <div class="flex items-center justify-between gap-3 border-b border-white/15 pb-1 mb-1">
@@ -2171,6 +2180,7 @@ const IntroGateway = (() => {
 // 6. THREE.JS 3D MICRO-HEX PLANET, SAUCERS, SCULPTOR & NEOCUBE (FROM FILE 1)
 // ============================================================================
 let scene, camera, renderer, controls, raycaster, mouse;
+let fuiAmbientLight = null, fuiCyanLight = null, fuiOrangeLight = null, fuiIsNight = false;
 let planetGroup, hexCellsGroup, beaconsGroup, saucersGroup, beamsGroup, starField;
 let hexCellMeshes = [];
 let saucerGroupsMap = new Map();
@@ -2222,10 +2232,10 @@ function initThreeScene() {
   controls.autoRotateSpeed = 0.55;
   controls.addEventListener('start', () => { targetCameraPos = null; });
 
-  scene.add(new THREE.AmbientLight(0x202b3c, 1.8));
-  const cyanLight = new THREE.PointLight(0x00C8D7, 2.2, 28); cyanLight.position.set(-6, 5, 6);
-  const orangeLight = new THREE.PointLight(0xFF8000, 2.1, 28); orangeLight.position.set(6, -4, 5);
-  scene.add(cyanLight, orangeLight);
+  fuiAmbientLight = new THREE.AmbientLight(0x202b3c, 1.8);
+  fuiCyanLight = new THREE.PointLight(0x00C8D7, 2.2, 28); fuiCyanLight.position.set(-6, 5, 6);
+  fuiOrangeLight = new THREE.PointLight(0xFF8000, 2.1, 28); fuiOrangeLight.position.set(6, -4, 5);
+  scene.add(fuiAmbientLight, fuiCyanLight, fuiOrangeLight);
 
   raycaster = new THREE.Raycaster();
   mouse = new THREE.Vector2(-999, -999);
@@ -2570,6 +2580,21 @@ function focusPolarnySector() {
   openPolarnySettlement('sector');
 }
 
+function toggleFUIDayNight() {
+  fuiIsNight = !fuiIsNight;
+  if (fuiAmbientLight) fuiAmbientLight.intensity = fuiIsNight ? 0.72 : 1.8;
+  if (fuiCyanLight) fuiCyanLight.intensity = fuiIsNight ? 2.8 : 2.2;
+  if (fuiOrangeLight) fuiOrangeLight.intensity = fuiIsNight ? 0.65 : 2.1;
+  if (scene && scene.fog) scene.fog.color.set(fuiIsNight ? 0x020611 : 0x07090e);
+  const button = document.getElementById('fui-daynight-toggle');
+  if (button) {
+    button.textContent = fuiIsNight ? '☾ НОЧЬ' : '☀ ДЕНЬ';
+    button.setAttribute('aria-pressed', String(fuiIsNight));
+  }
+  showToast(fuiIsNight ? '🌙 Игровой мир: ночь' : '☀ Игровой мир: день');
+  return fuiIsNight;
+}
+
 function applySculptorTool(hexId) {
   if (!UNIFIED_STATE.hexOverrides[hexId]) UNIFIED_STATE.hexOverrides[hexId] = { elevDelta: 0, customColor: null };
   const ov = UNIFIED_STATE.hexOverrides[hexId];
@@ -2615,6 +2640,14 @@ function onFUIResize() {
   const h = wrap.clientHeight || Math.max(540, window.innerHeight - 82);
   camera.aspect = w / h; camera.updateProjectionMatrix();
   renderer.setSize(w, h);
+  UNIFIED_STATE.windows.filter(win => win.visible).forEach(win => {
+    win.width = Math.min(win.width, Math.max(175, w - 12));
+    win.height = Math.min(win.height, Math.max(76, h - 12));
+    win.x = Math.max(6, Math.min(win.x, w - win.width - 6));
+    win.y = Math.max(6, Math.min(win.y, h - win.height - 6));
+    const el = document.getElementById(win.id);
+    if (el) { el.style.left = win.x + 'px'; el.style.top = win.y + 'px'; el.style.width = win.width + 'px'; el.style.height = win.minimized ? '36px' : win.height + 'px'; }
+  });
   renderNodeWires();
 }
 
@@ -2861,7 +2894,7 @@ function renderWindowContent(winId) {
             <button onclick="spawnCustomFUIWindow('article')" class="px-2 py-1 rounded bg-[var(--fui-cyan)]/15 border border-[var(--fui-cyan)]/40 text-[9px] font-bold text-[var(--fui-cyan)]">+ Panel</button>
             <button onclick="toggleWindowById('win-craft-editor')" class="px-2 py-1 rounded bg-[var(--fui-orange)]/15 border border-[var(--fui-orange)]/40 text-[9px] font-bold text-[var(--fui-orange)]">🛸 Saucers</button>
             <button onclick="toggleWindowById('win-studio')" class="px-2 py-1 rounded bg-purple-500/15 border border-purple-400/40 text-[9px] font-bold text-purple-300">🎨 Sculptor</button>
-            <button onclick="openPolarnySettlement('dock')" class="px-2 py-1 rounded bg-[var(--fui-cyan)]/15 border border-[var(--fui-cyan)]/50 text-[9px] font-bold text-[var(--fui-cyan)]">❄ Полярный · Умка-Товн</button>
+            
             <button onclick="toggleNeocubeMode()" class="px-2 py-1 rounded bg-white/10 border border-white/20 text-[9px] font-bold">🧲 Neocube</button>
             <button onclick="startWireLinkingMode()" class="px-2 py-1 rounded bg-white/10 border border-white/20 text-[9px] font-bold text-[var(--fui-cyan)]">🔗 Link</button>
             <button onclick="FUIWorkspace.save()" class="px-2 py-1 rounded bg-white/10 border border-white/20 text-[9px] font-bold">💾 Save</button>
@@ -2872,7 +2905,7 @@ function renderWindowContent(winId) {
             <button onclick="JarvisOrchestrator.open()" class="px-2 py-1 rounded bg-[var(--fui-orange)] text-black text-[9px] font-bold">⚙ Reactor</button>
           </div>
           <div class="flex flex-wrap gap-1 pt-1 border-t border-white/10">
-            ${UNIFIED_STATE.windows.filter(w => !w.visible).map(w => `<button onclick="toggleWindowById('${w.id}')" class="px-1.5 py-0.5 rounded bg-white/10 text-[8.5px]">+ ${w.title}</button>`).join('')}
+            ${UNIFIED_STATE.windows.filter(w => !w.visible && w.id !== 'win-polarny').map(w => `<button onclick="toggleWindowById('${w.id}')" class="px-1.5 py-0.5 rounded bg-white/10 text-[8.5px]">+ ${w.title}</button>`).join('')}
           </div>
         </div>`;
       return;
