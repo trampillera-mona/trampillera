@@ -1,0 +1,1782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Trampillera Media · Modular Reality OS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      colors: { fuiBg:'#07090e', fuiOrange:'#FF8000', fuiCyan:'#00C8D7', fuiGreen:'#3FB950', fuiText:'#E8EAED', fuiMuted:'#8B93A0' },
+      fontFamily: { mono:['"JetBrains Mono"','monospace'], orbit:['Orbitron','sans-serif'] }
+    }}
+  }
+</script>
+<style>
+  :root{
+    --fui-orange:#FF8000; --fui-cyan:#00C8D7; --fui-green:#3FB950;
+    --fui-panel-bg:rgba(14,18,28,0.80); --fui-border-alpha:0.36;
+    --sdt-cyan:#7fc9dd; --sdt-purple:#a78bfa; --sdt-bg:#04070d;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;
+    background:radial-gradient(ellipse at 55% 42%,#121723 0%,#07090e 75%);
+    color:#E8EAED;font-family:'JetBrains Mono',monospace;user-select:none}
+  .fui-grid-bg{position:fixed;inset:0;pointer-events:none;z-index:1;
+    background-image:linear-gradient(rgba(0,200,215,.032) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,215,.032) 1px,transparent 1px);
+    background-size:48px 48px}
+  #three-canvas-wrap{position:fixed;inset:0;z-index:2;cursor:grab}
+  #three-canvas-wrap:active{cursor:grabbing}
+  #node-wires-svg{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:25}
+  .spatial-window{position:fixed;pointer-events:auto;background:var(--fui-panel-bg);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+    box-shadow:0 14px 42px rgba(0,0,0,.62),inset 0 0 22px rgba(255,255,255,.02);
+    display:flex;flex-direction:column;min-width:170px;min-height:68px;overflow:hidden;
+    transition:border-radius .28s cubic-bezier(.2,.9,.3,1),box-shadow .2s ease,border-color .2s ease}
+  .spatial-window.wire-source{box-shadow:0 0 0 2px var(--fui-orange),0 0 30px rgba(255,128,0,.55)}
+  .shape-rect{border-radius:14px}
+  .shape-chamfer{border-radius:4px 18px 4px 18px}
+  .shape-hex{border-radius:26px}
+  .shape-pill{border-radius:9999px}
+  .win-accent-orange{border:1px solid rgba(255,128,0,var(--fui-border-alpha))}
+  .win-accent-cyan{border:1px solid rgba(0,200,215,var(--fui-border-alpha))}
+  .win-header{cursor:grab;touch-action:none;flex-shrink:0}
+  .win-header:active{cursor:grabbing}
+  .win-resize-handle{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;touch-action:none;z-index:15;
+    background:linear-gradient(135deg,transparent 45%,var(--fui-cyan) 100%);opacity:.65;border-bottom-right-radius:10px}
+  .win-resize-handle:hover{opacity:1}
+  .petal-btn{position:absolute;top:50%;left:50%;width:68px;height:26px;margin-left:-34px;margin-top:-13px;transform-origin:34px 13px;
+    background:linear-gradient(90deg,rgba(0,200,215,.14),rgba(0,200,215,.04));
+    border:1px solid rgba(0,200,215,.3);border-radius:4px 14px 14px 4px;
+    display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:9px;font-weight:700;color:#8B93A0;
+    letter-spacing:.06em;cursor:pointer;transition:all .2s ease;
+    clip-path:polygon(0 20%,14% 0,100% 0,100% 100%,14% 100%,0 80%)}
+  .petal-btn:hover{border-color:var(--fui-orange);color:#fff;background:linear-gradient(90deg,rgba(255,128,0,.28),rgba(255,128,0,.08))}
+  .petal-btn.active{background:linear-gradient(90deg,rgba(255,128,0,.42),rgba(255,128,0,.14));border-color:var(--fui-orange);color:#fff;box-shadow:0 0 16px rgba(255,128,0,.4);z-index:6}
+  @keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  .ticker-animate{display:flex;white-space:nowrap;animation:tickerScroll 48s linear infinite}
+  @keyframes eqPulse{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+  .eq-bar{transform-origin:bottom;animation:eqPulse .85s ease-in-out infinite}
+  .custom-scroll::-webkit-scrollbar{width:5px;height:5px}
+  .custom-scroll::-webkit-scrollbar-track{background:rgba(255,255,255,.02)}
+  .custom-scroll::-webkit-scrollbar-thumb{background:rgba(0,200,215,.34);border-radius:999px}
+  .classic-card:hover{border-color:rgba(255,128,0,.6)!important;transform:translateY(-2px)}
+  #umka-screen{position:fixed;inset:0;z-index:90000;background:rgba(2,6,12,.76);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+    display:flex;visibility:hidden;pointer-events:none;align-items:center;justify-content:center;overflow-y:auto;padding:clamp(12px,3vh,30px) 16px;color:#E8EAED;opacity:0;transition:opacity .22s ease,visibility .22s ease}
+  #umka-screen.visible{visibility:visible;pointer-events:auto;opacity:1}
+  #umka-screen .uk-stars{position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.6;
+    background-image:radial-gradient(1px 1px at 20% 30%,#fff 50%,transparent 100%),radial-gradient(1px 1px at 60% 15%,#9fd 50%,transparent 100%),radial-gradient(1.5px 1.5px at 80% 60%,#fff 50%,transparent 100%),radial-gradient(1px 1px at 35% 75%,#7fc9dd 50%,transparent 100%),radial-gradient(1px 1px at 90% 25%,#fff 50%,transparent 100%),radial-gradient(1px 1px at 15% 90%,#c4b5fd 50%,transparent 100%),radial-gradient(2px 2px at 50% 50%,#fff 40%,transparent 100%)}
+  #umka-screen .uk-wrap{max-width:820px;margin:auto;width:100%;max-height:100%;overflow-y:auto;position:relative;z-index:1;transform:translateY(8px) scale(.985);transition:transform .22s ease}
+  #umka-screen.visible .uk-wrap{transform:translateY(0) scale(1)}
+  #umka-screen .uk-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+  #umka-screen .uk-back,#umka-screen .uk-studio{padding:8px 18px;border-radius:4px;cursor:pointer;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;transition:all .2s}
+  #umka-screen .uk-back{background:transparent;border:1px solid rgba(127,201,221,.4);color:var(--sdt-cyan)}
+  #umka-screen .uk-back:hover{background:rgba(127,201,221,.15)}
+  #umka-screen .uk-studio{background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.5);color:var(--sdt-purple)}
+  #umka-screen .uk-studio:hover{background:rgba(167,139,250,.25)}
+  #umka-screen .uk-title{font-family:'Orbitron',sans-serif;font-size:clamp(20px,4vw,28px);font-weight:900;color:#E8EAED;letter-spacing:2px;margin-bottom:8px;text-shadow:0 0 30px rgba(127,201,221,.35)}
+  #umka-screen .uk-sub{font-size:11px;color:var(--sdt-cyan);letter-spacing:3px;text-transform:uppercase;margin-bottom:32px}
+  #umka-screen .uk-hero{background:rgba(6,10,16,.94);border:1px solid rgba(127,201,221,.32);border-radius:12px;padding:clamp(16px,3vw,26px);margin-bottom:12px;backdrop-filter:blur(12px);box-shadow:0 24px 80px rgba(0,0,0,.55)}
+  #umka-screen .uk-hero h2{font-family:'Orbitron',sans-serif;font-size:18px;font-weight:700;color:var(--sdt-cyan);margin-bottom:16px;letter-spacing:1px}
+  #umka-screen .uk-hero p{font-size:12px;line-height:1.75;color:#c8d4dc;margin-bottom:11px}
+  #umka-screen .uk-hero em{color:var(--fui-orange);font-style:normal;font-weight:700}
+  #umka-screen .uk-bear{display:flex;align-items:center;gap:16px;padding:20px;margin-top:20px;
+    background:linear-gradient(135deg,rgba(127,201,221,.08),rgba(167,139,250,.06));border:1px solid rgba(127,201,221,.3);border-radius:6px}
+  #umka-screen .uk-bear .uk-bear-icon{font-size:48px;filter:drop-shadow(0 0 16px rgba(127,201,221,.6))}
+  #umka-screen .uk-bear .uk-bear-text{font-size:12px;line-height:1.7;color:#c8d4dc}
+  #umka-screen .uk-bear .uk-bear-text strong{color:var(--sdt-cyan);font-family:'Orbitron',sans-serif;letter-spacing:1px;display:block;margin-bottom:4px}
+  #umka-screen .uk-dom{display:flex;align-items:center;gap:10px;margin-top:20px;font-size:10px;color:#5a8a9a;letter-spacing:1px;text-transform:uppercase}
+  #umka-screen .uk-dom span{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--fui-orange);box-shadow:0 0 12px var(--fui-orange);animation:ukPulse 2s ease-in-out infinite}
+  @keyframes ukPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
+  #sdt-placeholder{position:fixed;inset:0;z-index:89000;background:radial-gradient(ellipse at 50% 40%,#0a0f1e 0%,#04070d 80%);
+    display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;color:#c8d4dc}
+  #sdt-placeholder.visible{display:flex}
+  #sdt-placeholder .ph-box{max-width:680px;width:100%;padding:36px;background:rgba(6,10,16,.85);backdrop-filter:blur(16px);border:1px solid rgba(167,139,250,.4);border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.7);text-align:center}
+  #sdt-placeholder .ph-icon{font-size:48px;margin-bottom:20px;filter:drop-shadow(0 0 20px rgba(167,139,250,.6))}
+  #sdt-placeholder .ph-title{font-family:'Orbitron',sans-serif;font-size:22px;font-weight:700;color:var(--sdt-purple);letter-spacing:2px;margin-bottom:12px}
+  #sdt-placeholder .ph-sub{font-size:11px;color:var(--sdt-cyan);letter-spacing:3px;text-transform:uppercase;margin-bottom:24px}
+  #sdt-placeholder .ph-text{font-size:13px;line-height:1.8;color:#8fa4b0;margin-bottom:24px;text-align:left}
+  #sdt-placeholder .ph-text strong{color:var(--sdt-purple)}
+  #sdt-placeholder .ph-text code{background:rgba(0,0,0,.5);padding:2px 6px;border-radius:3px;color:var(--fui-orange);font-size:11px}
+  #sdt-placeholder .ph-back{padding:10px 24px;background:transparent;border:1px solid rgba(127,201,221,.5);color:var(--sdt-cyan);border-radius:4px;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;transition:all .2s}
+  #sdt-placeholder .ph-back:hover{background:rgba(127,201,221,.15)}
+  #sdt-frame{position:fixed;inset:0;width:100%;height:100%;border:0;z-index:89000;display:none;background:#04070d}
+  #sdt-frame.visible{display:block}
+  #app-trampillera.hidden-by-sdt{display:none}
+</style>
+</head>
+<body>
+
+<!-- SETTLEMENT STORY WINDOW -->
+<div id="umka-screen" role="dialog" aria-modal="true" aria-labelledby="polar-title" onclick="if(event.target===this)exitUmkaTown()">
+  <div class="uk-stars"></div>
+  <div class="uk-wrap">
+    <div class="uk-top">
+      <button class="uk-back" onclick="exitUmkaTown()">← BACK TO PLANET</button>
+      <button class="uk-studio" onclick="enterSDTStudio()">🌌 ENTER SDT 5D STUDIO</button>
+    </div>
+    <div class="uk-title" id="polar-title">POLAR SETTLEMENT</div>
+    <div class="uk-sub">OFFICIAL NAME: POLARNY · LOCAL NAME: UMKA-TOWN · GALACTIC KOLKHOZ</div>
+    <div class="uk-hero">
+      <h2>❄️ A HANDFUL OF WARM LIGHTS</h2>
+      <p>From orbit, the settlement looks like <em>a handful of warm lights</em> under transparent geodesic domes. On official maps it is <em>Polarny</em>, a settlement beyond the Arctic Circle. But the residents — especially the children — call it <em>Umka-Town</em>. The local name stuck, and nobody is in a hurry to change it. Home.</p>
+      <p>Station rings drift around the planet. Shuttles glide along them — orange and blue. One module is painted deep red with a thin gold rim. Here beats the heart of the <em>Galactic Kolkhoz</em>.</p>
+      <p>They believe here that you can plow anything: the soil under the domes, the vacuum between stations, data streams, and even probabilities. When you descend, snow crunches underfoot. Under geodesic domes, something impossible for these latitudes turns green. Wind turbines cut the dry air. A red banner flutters above the houses.</p>
+      <p>And here lives <em>Umka</em> — a little white polar bear cub with a tiny black nose. He doesn't make long speeches. He simply appears beside you, watches, and sometimes brings a mouthful of snow in his teeth. If Umka is near — it means everything can still go on.</p>
+      <p>The canteen smells of simple food. A robot in a worn cap drinks from a mug labeled <em>"Forever"</em>. Chickens strut importantly between the buildings. And above it all drift the orbital rings, reflecting cold stars and the warm light of windows.</p>
+      <p>Here they don't promise an easy life. Here they simply keep plowing. And if you decide to stay — no one will be surprised. The Galactic Kolkhoz has always been a promise that even at the edge of everything, one can live <em>humanely</em>.</p>
+      <div class="uk-bear">
+        <div class="uk-bear-icon">🐻‍❄️</div>
+        <div class="uk-bear-text">
+          <strong>UMKA · THE LITTLE POLAR BEAR</strong>
+          Wakes up, sticks his little nose out of a snowdrift, opens his eyes — and the first thing he sees is the black velvet of space. And blinking lights.
+        </div>
+      </div>
+      <div class="uk-dom"><span></span> GEODESIC DOMES ACTIVE · WIND TURBINES SPINNING · ORBITAL RINGS REFLECTING STARS</div>
+    </div>
+  </div>
+</div>
+
+<!-- SDT PLACEHOLDER -->
+<div id="sdt-placeholder">
+  <div class="ph-box">
+    <div class="ph-icon">🌌</div>
+    <div class="ph-title">SDT 5D ENGINE v20</div>
+    <div class="ph-sub">MULTIVERSE STUDIO · LOADING MODULE</div>
+    <div class="ph-text">
+      <p>The <strong>SDT 5D Multiverse Studio</strong> module is being integrated. The full engine contains:</p>
+      <p>
+        • <code>init()</code> — scene, camera, renderer, lights<br>
+        • <code>buildTerrain()</code> / <code>buildBuildings()</code> / <code>buildRoads()</code><br>
+        • H3 geospatial grid, Yuka agents, Rapier physics<br>
+        • Timeline & multiverse branch manager<br>
+        • Camera Hub, Studio Console, Director panel<br>
+        • Operator Cam, Overlay Window, voice input, handwriting<br>
+        • Macro recording, layer manager, artist tools<br>
+        • Event timeline, telemetry, radial menu<br>
+        • All ~400 DOM event bindings + animation loop
+      </p>
+      <p>To activate: paste the full <code>sdt-5d-engine-v20.html</code> (Part 2 + Part 3 of the module script) into the placeholder slot. Until then, you can continue using the <strong>Trampillera Media FUI</strong> on the planet.</p>
+    </div>
+    <button class="ph-back" onclick="exitSDTStudio()">← RETURN TO PLANET</button>
+  </div>
+</div>
+
+<!-- SDT IFRAME (реальный движок) -->
+<iframe id="sdt-frame" src="sdt-5d-engine-v20.html" title="SDT 5D Engine" allow="camera; microphone; xr-spatial-tracking; fullscreen"></iframe>
+
+<!-- MAIN APP -->
+<div id="app-trampillera">
+  <div class="fui-grid-bg"></div>
+  <div id="three-canvas-wrap"></div>
+  <svg id="node-wires-svg"></svg>
+
+  <div id="hex-tooltip" class="fixed pointer-events-none z-50 hidden bg-black/90 border border-[var(--fui-cyan)]/60 rounded-xl px-3 py-2 text-[11px] shadow-[0_0_25px_rgba(0,200,215,0.28)] backdrop-blur-md">
+    <div class="flex items-center justify-between gap-3 border-b border-white/15 pb-1 mb-1">
+      <span id="tt-coord" class="font-orbit font-bold text-[var(--fui-cyan)]">HEX-000</span>
+      <span id="tt-biome" class="text-[9px] px-1.5 py-0.5 rounded bg-[var(--fui-orange)]/20 text-[var(--fui-orange)] font-bold uppercase">SECTOR</span>
+    </div>
+    <div id="tt-region" class="text-white font-medium text-[10px]">Eurasia-Node Alpha</div>
+    <div id="tt-hint" class="text-[9px] text-fuiMuted mt-0.5">Click: inspect sector hub</div>
+  </div>
+
+  <div id="fui-toast" class="fixed top-14 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-2 rounded-full bg-black/90 border border-[var(--fui-orange)]/70 text-[11px] font-medium text-white shadow-[0_0_25px_rgba(255,128,0,0.35)]"></div>
+
+  <header class="fixed top-0 left-0 right-0 pointer-events-none z-40 flex flex-col gap-2 p-2.5 sm:p-3.5">
+    <div class="flex justify-center items-center gap-2">
+      <div class="pointer-events-auto px-3.5 py-1 rounded-full bg-black/85 border border-[var(--fui-orange)]/45 text-[9px] sm:text-[10px] tracking-[0.16em] text-[var(--fui-orange)] font-bold shadow-[0_0_20px_rgba(255,128,0,0.2)] flex flex-wrap items-center justify-center gap-2">
+        <span>FUI CONCEPT · TRAMPILLERA MEDIA</span>
+        <span class="text-white/25">|</span>
+        <button id="mode-switch-btn" onclick="togglePortalMode()" class="px-2.5 py-0.5 rounded-full bg-[var(--fui-cyan)]/20 hover:bg-[var(--fui-cyan)] hover:text-black border border-[var(--fui-cyan)]/60 text-[var(--fui-cyan)] transition-all font-bold tracking-wider cursor-pointer">🌐 3D ORBIT / 📰 CLASSIC</button>
+        <button id="ambient-radio-btn" onclick="toggleAmbientRadio()" class="px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-[var(--fui-orange)]/25 border border-white/15 text-fuiText transition-all font-bold cursor-pointer" title="Procedural Ambient Synth Stream">📻 RADIO: OFF</button>
+        <button id="sound-toggle-btn" onclick="toggleAudioFX()" class="px-2 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-fuiText transition-all cursor-pointer" title="Tactile UI Sound Effects">🔊</button>
+        <button onclick="openUmkaTown()" class="px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-[var(--fui-cyan)]/25 border border-white/15 text-fuiText transition-all font-bold cursor-pointer">🐻‍❄️ UMKA-TOWN</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="hud-summon-trigger" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 hidden pointer-events-auto">
+    <button onclick="expandBasePanelsWithHints()" class="px-6 py-3 rounded-full bg-gradient-to-r from-[var(--fui-orange)] to-[#ffaa33] text-black font-orbit font-black text-xs sm:text-sm tracking-[0.16em] uppercase shadow-[0_0_38px_rgba(255,128,0,0.85)] border-2 border-white/80 animate-pulse hover:scale-105 transition-transform cursor-pointer">✦ EXPAND TRAMPILLERA MEDIA PANELS ✦</button>
+  </div>
+
+  <section id="classic-media-overlay" class="fixed inset-0 z-30 hidden pointer-events-auto bg-[#07090e]/90 backdrop-blur-md pt-16 pb-8 px-4 sm:px-8 overflow-y-auto custom-scroll">
+    <div class="max-w-6xl mx-auto">
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-white/15 pb-4 mb-6">
+        <div>
+          <div class="text-[10px] tracking-[0.22em] text-[var(--fui-orange)] font-bold uppercase">TRAMPILLERA MEDIA · EDITORIAL &amp; AGGREGATOR</div>
+          <h2 class="font-orbit text-xl sm:text-2xl font-bold text-white mt-1">Classic Feed &amp; Decentralized Sections</h2>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <input id="classic-search-input" type="text" oninput="renderClassicArticles()" placeholder="Search articles, sectors, signals..." class="px-3.5 py-2 rounded-xl bg-white/5 border border-white/15 text-xs text-white placeholder-fuiMuted focus:outline-none focus:border-[var(--fui-cyan)] w-56 sm:w-64">
+          <button onclick="togglePortalMode()" class="px-4 py-2 rounded-xl bg-[var(--fui-orange)] text-black font-bold text-xs hover:brightness-110 transition-all cursor-pointer">← Return to 3D FUI</button>
+        </div>
+      </div>
+      <div id="classic-category-tabs" class="flex flex-wrap gap-2 mb-6"></div>
+      <div id="classic-articles-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </div>
+  </section>
+
+  <main id="spatial-windows-layer" class="fixed inset-0 pointer-events-none z-30"></main>
+
+  <div id="neocube-banner" class="fixed top-14 left-1/2 -translate-x-1/2 z-40 hidden pointer-events-auto bg-[var(--fui-orange)]/20 border border-[var(--fui-orange)] backdrop-blur-md px-4 py-2 rounded-full text-xs text-white flex items-center gap-3 shadow-[0_0_25px_rgba(255,128,0,0.4)]">
+    <span class="font-bold text-[var(--fui-orange)]">🧲 NEOCUBE MODE:</span>
+    <span id="neocube-instruction">Click any saucer to detach its top dome module, then click another to magnetize</span>
+    <button onclick="toggleNeocubeMode()" class="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[10px] font-bold cursor-pointer">Exit</button>
+  </div>
+
+  <div id="wire-banner" class="fixed top-14 left-1/2 -translate-x-1/2 z-40 hidden pointer-events-auto bg-[var(--fui-cyan)]/20 border border-[var(--fui-cyan)] backdrop-blur-md px-4 py-2 rounded-full text-xs text-white flex items-center gap-3 shadow-[0_0_25px_rgba(0,200,215,0.4)]">
+    <span class="font-bold text-[var(--fui-cyan)]">🔗 NODE-GRAPH LINKING:</span>
+    <span id="wire-instruction">Click the source window header, then click a target window to connect live data</span>
+    <button onclick="cancelWireMode()" class="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[10px] font-bold cursor-pointer">Cancel</button>
+  </div>
+
+  <div id="layer-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4 pointer-events-auto">
+    <div id="layer-modal-card" class="w-full max-w-2xl bg-[#0e131f] border border-[var(--fui-cyan)]/50 rounded-2xl shadow-[0_0_50px_rgba(0,200,215,0.22)] overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-3.5 bg-white/5 border-b border-white/10">
+        <div class="flex items-center gap-2.5">
+          <span id="modal-icon" class="text-xl">🛸</span>
+          <div>
+            <h3 id="modal-title" class="font-orbit text-sm sm:text-base font-bold text-white tracking-wider">SERVICE LAYER</h3>
+            <p id="modal-subtitle" class="text-[10px] text-[var(--fui-cyan)] uppercase tracking-widest">TRAMPILLERA MEDIA MODULE</p>
+          </div>
+        </div>
+        <button onclick="closeLayerModal()" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/15 text-fuiMuted hover:text-white flex items-center justify-center transition-colors cursor-pointer">✕</button>
+      </div>
+      <div id="modal-body" class="p-5 max-h-[74vh] overflow-y-auto custom-scroll text-xs space-y-4"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// STATE & DATA  (сокращённо — полный код из первого файла сохранён)
+// ============================================================================
+const LANGUAGES = [
+  {code:'EN',name:'English'},{code:'RU',name:'Russian'},{code:'SR',name:'Serbian'},{code:'JA',name:'Japanese'},
+  {code:'DE',name:'German'},{code:'AR',name:'Arabic'},{code:'FR',name:'French'},{code:'ES',name:'Spanish'},
+  {code:'ZH',name:'Chinese'},{code:'PT',name:'Portuguese'},{code:'IT',name:'Italian'},{code:'TR',name:'Turkish'}
+];
+
+const INITIAL_SAUCERS = [
+  {id:'radio',name:'RADIO',fullName:'Radio Streams',icon:'📻',color:'#00C8D7',shape:'ufo',scale:.62,orbitRadius:3.35,angle:2.35,yOffset:.85,crimp:.14,flatness:.34,meta:'LIVE · 3 SYNTH CHANNELS',connect:'audio',detachedTop:false},
+  {id:'tv',name:'TV',fullName:'Orbital Broadcast',icon:'📺',color:'#00C8D7',shape:'dumpling',scale:.58,orbitRadius:3.55,angle:3.55,yOffset:-.45,crimp:.22,flatness:.42,meta:'STREAM · 4K FUI FEED',connect:'video',detachedTop:false},
+  {id:'worlds',name:'WORLDS',fullName:'Interactive Worlds',icon:'🌍',color:'#3FB950',shape:'pelmen',scale:.62,orbitRadius:3.45,angle:4.55,yOffset:-1.15,crimp:.24,flatness:.56,meta:'ATLAS · MICRO-HEX GRID',connect:'map',detachedTop:false},
+  {id:'exchange',name:'EXCHANGE',fullName:'TRP Exchange & 3D',icon:'⚡',color:'#FF8000',shape:'ufo',scale:.66,orbitRadius:3.35,angle:.35,yOffset:.95,crimp:.14,flatness:.34,meta:'AUCTION · 3D · QUESTS',connect:'model3d',detachedTop:false},
+  {id:'club',name:'CLUB',fullName:'Citizen Club & DAO',icon:'👥',color:'#C084FC',shape:'dumpling',scale:.58,orbitRadius:3.55,angle:5.75,yOffset:-.25,crimp:.22,flatness:.42,meta:'DAO · GOVERNANCE',connect:'article',detachedTop:false},
+  {id:'intel',name:'INTEL',fullName:'Intelligence Desk',icon:'🧠',color:'#FF8000',shape:'pelmen',scale:.62,orbitRadius:3.4,angle:1.25,yOffset:-1.2,crimp:.24,flatness:.56,meta:'JARVISER · SIGNALS',connect:'terminal',detachedTop:false}
+];
+
+const MEDIA_ARTICLES = [
+  {id:'art-1',cat:'INTEL',badge:'SIGNAL',title:'Cross-border corridor planning phase entered',summary:'Intelligence briefing on synchronizing continental micro-hexagonal relay nodes and orbital telemetry links.',region:'Eurasia-Node Alpha',trpReward:15},
+  {id:'art-2',cat:'EXCHANGE',badge:'MARKET',title:'TRP volume +12% in last cycle across 3D artifacts',summary:'Overview of modular hex-saucer hulls, rare Neocube dome sectors, and decentralized citizen auctions.',region:'Neo-Atlantis Grid',trpReward:20},
+  {id:'art-3',cat:'WORLDS',badge:'ATLAS',title:'Ultra-dense micro-hexagons: satellite-grade geodesic terrain',summary:'How geodesic subdivision scales spherical surfaces into tens of thousands of interactive regional hubs.',region:'Pacific Rim Hex-09',trpReward:15},
+  {id:'art-4',cat:'CLUB',badge:'DAO',title:'AI governance frameworks under review by Citizens',summary:'Community proposal defining autonomous navigator protocols and transparent voting inside modular layers.',region:'Americas Nexus',trpReward:25},
+  {id:'art-5',cat:'RADIO & TV',badge:'BROADCAST',title:'Late-night Trampillera Synth Radio & Orbital Chronicles',summary:'Live schedule of procedural ambient soundscapes and multi-angle 4K FUI reality streams.',region:'Polar Relay Station',trpReward:10},
+  {id:'art-6',cat:'EXCHANGE',badge:'QUESTS',title:'Daily sector reconnaissance & geo-sticker bounties',summary:'Explore planetary cells, pin persistent geo-notes for fellow citizens, and level up your Citizen rank.',region:'Sahara Solar Array',trpReward:15}
+];
+
+const CONNECT_MODES = [
+  {id:'native',label:'NODE'},{id:'article',label:'ARTICLE'},{id:'video',label:'VIDEO'},
+  {id:'map',label:'MAP'},{id:'model3d',label:'3D'},{id:'audio',label:'RADIO'},{id:'terminal',label:'TERM'}
+];
+const WINDOW_SHAPES = [
+  {id:'shape-chamfer',label:'CHAMFER'},{id:'shape-rect',label:'RECT'},
+  {id:'shape-hex',label:'HEX'},{id:'shape-pill',label:'PILL'}
+];
+
+const STATE = {
+  lang:'EN', trp:0, level:1,
+  classicMode:false, classicCategory:'ALL',
+  audioEnabled:true, radioPlaying:false, radioChannel:1,
+  showDataBeams:true, neocubeMode:false, neocubeSourceId:null,
+  wireMode:false, wireSourceWinId:null, wires:[],
+  activeEditorSaucerId:'exchange', selectedHexData:null,
+  sculptMode:'inspect', hexOverrides:{},
+  hexStickers:{'HEX-042':'🛰️ Trampillera Media Relay Beacon — Sector Open'},
+  theme:{orange:'#FF8000',cyan:'#00C8D7',panelOpacity:.80,borderAlpha:.36,hexDetail:4,reliefHeight:.14,terraMode:false,autoRotate:true},
+  saucers:[], windows:[],
+  guard:{events:[],lastCheck:null}
+};
+
+function getDefaultWindows(){
+  const w=window.innerWidth,h=window.innerHeight,isMobile=w<768;
+  const centerX=Math.max(20,Math.round(w/2-175));
+  return [
+    {id:'win-timer',title:'⏱ TIMER · NODE-NEUM',nativeType:'timerHud',connectType:'native',shape:'shape-chamfer',accent:'orange',x:isMobile?12:20,y:54,width:isMobile?205:224,height:112,visible:true,minimized:false},
+    {id:'win-brand',title:'TRAMPILLERA MEDIA',nativeType:'brandHud',connectType:'native',shape:'shape-chamfer',accent:'orange',x:isMobile?12:centerX,y:isMobile?174:54,width:isMobile?Math.min(340,w-24):350,height:92,visible:true,minimized:false},
+    {id:'win-citizen',title:'👤 CITIZEN · 142 ONLINE',nativeType:'citizenHud',connectType:'native',shape:'shape-chamfer',accent:'cyan',x:isMobile?12:Math.max(20,w-224),y:isMobile?274:54,width:isMobile?205:204,height:112,visible:true,minimized:false},
+    {id:'win-ticker',title:'📡 LIVE SIGNAL TICKER',nativeType:'tickerHud',connectType:'native',shape:'shape-pill',accent:'orange',x:isMobile?12:Math.max(255,Math.round(w*.21)),y:isMobile?394:154,width:isMobile?Math.min(340,w-24):Math.max(360,Math.round(w*.58)),height:70,visible:true,minimized:false},
+    {id:'win-planet-dock',title:'🌐 PLANET · HEX GRID · CONSTRUCTOR',nativeType:'planetDockHud',connectType:'native',shape:'shape-chamfer',accent:'cyan',x:isMobile?12:20,y:Math.max(210,h-216),width:isMobile?Math.min(350,w-24):Math.min(790,Math.max(440,w-375)),height:192,visible:true,minimized:false},
+    {id:'win-lang',title:'LANGUAGE ORBIT',nativeType:'langOrbit',connectType:'native',shape:'shape-chamfer',accent:'cyan',x:isMobile?12:20,y:isMobile?480:232,width:isMobile?245:252,height:isMobile?265:275,visible:!isMobile,minimized:false},
+    {id:'win-craft-editor',title:'🛸 SAUCER & HULL EDITOR',nativeType:'craftEditor',connectType:'native',shape:'shape-chamfer',accent:'orange',x:isMobile?12:282,y:isMobile?480:232,width:isMobile?Math.min(320,w-24):316,height:312,visible:!isMobile,minimized:false},
+    {id:'win-services',title:'SERVICE NODES',nativeType:'serviceNodes',connectType:'native',shape:'shape-chamfer',accent:'orange',x:isMobile?12:Math.max(20,w-296),y:isMobile?480:178,width:isMobile?255:276,height:300,visible:!isMobile,minimized:false},
+    {id:'win-jarviser',title:'JARVISER · v4.2 AI',nativeType:'jarviser',connectType:'native',shape:'shape-rect',accent:'orange',x:isMobile?12:Math.max(20,w-336),y:isMobile?Math.max(150,h-240):Math.max(210,h-230),width:isMobile?Math.min(310,w-24):316,height:204,visible:true,minimized:false},
+    {id:'win-studio',title:'🎨 SCULPTOR, THEME & PRESETS',nativeType:'studio',connectType:'native',shape:'shape-rect',accent:'cyan',x:Math.max(20,Math.round(w/2-180)),y:215,width:365,height:410,visible:false,minimized:false},
+    {id:'win-polaris-guard',title:'🛡 POLARIS GUARD · SETTLEMENT SAFETY',nativeType:'polarisGuard',connectType:'native',shape:'shape-chamfer',accent:'cyan',x:isMobile?12:Math.max(20,w-360),y:isMobile?Math.max(100,h-470):Math.max(210,h-430),width:isMobile?Math.min(340,w-24):340,height:isMobile?420:390,visible:false,minimized:false}
+  ];
+}
+
+// --- AUDIO ---
+let audioCtx=null, radioInterval=null;
+function ensureAudioContext(){
+  if(!audioCtx){const C=window.AudioContext||window.webkitAudioContext;audioCtx=new C();}
+  if(audioCtx.state==='suspended')audioCtx.resume();
+}
+function playTactileSound(type='tick'){
+  if(!STATE.audioEnabled)return;
+  try{
+    ensureAudioContext();
+    const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
+    osc.connect(gain);gain.connect(audioCtx.destination);
+    const now=audioCtx.currentTime;
+    if(type==='tick'){osc.type='sine';osc.frequency.setValueAtTime(780,now);osc.frequency.exponentialRampToValueAtTime(1140,now+.035);gain.gain.setValueAtTime(.035,now);gain.gain.exponentialRampToValueAtTime(.0001,now+.04);osc.start(now);osc.stop(now+.045);}
+    else if(type==='snap'){osc.type='triangle';osc.frequency.setValueAtTime(290,now);osc.frequency.exponentialRampToValueAtTime(660,now+.08);gain.gain.setValueAtTime(.08,now);gain.gain.exponentialRampToValueAtTime(.0001,now+.09);osc.start(now);osc.stop(now+.095);}
+    else if(type==='chime'){osc.type='sine';osc.frequency.setValueAtTime(520,now);osc.frequency.setValueAtTime(780,now+.06);gain.gain.setValueAtTime(.05,now);gain.gain.exponentialRampToValueAtTime(.0001,now+.16);osc.start(now);osc.stop(now+.17);}
+  }catch(err){}
+}
+function toggleAudioFX(){
+  STATE.audioEnabled=!STATE.audioEnabled;
+  const btn=document.getElementById('sound-toggle-btn');
+  if(btn)btn.textContent=STATE.audioEnabled?'🔊':'🔇';
+  showToast(STATE.audioEnabled?'🔊 Tactile UI Sound FX enabled':'🔇 UI Sound FX muted');
+}
+function toggleAmbientRadio(channel=null){
+  if(channel!==null)STATE.radioChannel=channel;
+  else STATE.radioPlaying=!STATE.radioPlaying;
+  const btn=document.getElementById('ambient-radio-btn');
+  if(radioInterval){clearInterval(radioInterval);radioInterval=null;}
+  if(STATE.radioPlaying){
+    ensureAudioContext();
+    const scales={1:[110,164.81,196,246.94,329.63],2:[130.81,196,261.63,293.66,392],3:[98,146.83,220,261.63,329.63]};
+    const playChordNote=()=>{
+      if(!STATE.radioPlaying)return;
+      try{
+        ensureAudioContext();
+        const notes=scales[STATE.radioChannel]||scales[1];
+        const freq=notes[Math.floor(Math.random()*notes.length)];
+        const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
+        osc.type=STATE.radioChannel===2?'triangle':'sine';
+        osc.frequency.setValueAtTime(freq,audioCtx.currentTime);
+        gain.gain.setValueAtTime(.001,audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(.04,audioCtx.currentTime+.35);
+        gain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+1.8);
+        osc.connect(gain);gain.connect(audioCtx.destination);
+        osc.start();osc.stop(audioCtx.currentTime+1.85);
+      }catch(e){}
+    };
+    playChordNote();radioInterval=setInterval(playChordNote,1100);
+    if(btn){btn.textContent=`📻 RADIO CH-${STATE.radioChannel}: ON`;btn.classList.add('border-[var(--fui-orange)]','text-[var(--fui-orange)]');}
+    showToast(`📻 Trampillera Synth Radio Channel ${STATE.radioChannel} streaming`);
+  }else{
+    if(btn){btn.textContent='📻 RADIO: OFF';btn.classList.remove('border-[var(--fui-orange)]','text-[var(--fui-orange)]');}
+  }
+  renderAllSpatialWindows();
+}
+
+// --- TOAST ---
+let toastTimer=null;
+function showToast(msg){
+  const t=document.getElementById('fui-toast');
+  if(!t)return;
+  t.textContent=msg;t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.add('hidden'),2600);
+}
+
+// ============================================================================
+// THREE.JS SCENE (полный код из первого файла)
+// ============================================================================
+let scene,camera,renderer,controls,raycaster,mouse;
+let planetGroup,hexCellsGroup,beaconsGroup,saucersGroup,beamsGroup,starField;
+let hexCellMeshes=[],saucerGroupsMap=new Map(),miniViewers=[];
+let hoveredHex=null,hoveredSaucerId=null,targetCameraPos=null;
+let clock=new THREE.Clock();
+
+function pseudoNoise3D(v){
+  const n=Math.sin(v.x*2.7+v.y*1.9)*Math.cos(v.z*2.3-v.x*1.4)+0.5*Math.sin(v.x*6.1-v.z*5.2)*Math.cos(v.y*5.7);
+  return n/1.5;
+}
+function classifyBiome(dir){
+  const lat=Math.abs(dir.y),val=pseudoNoise3D(dir);
+  if(lat>.83)return{type:'ice',label:'POLAR ICE CAP',region:'Arctic / Antarctic Ice Shield'};
+  if(val>.24)return{type:'mountain',label:'HIGHLAND RIDGE',region:'Tectonic Peak Sector'};
+  if(val>.03){
+    if(lat<.26&&pseudoNoise3D(dir.clone().multiplyScalar(1.8))>.1)return{type:'desert',label:'ARID BASIN',region:'Sunbelt Dune Sector'};
+    return{type:'land',label:'CONTINENT CELL',region:'Continental Hub'};
+  }
+  return{type:'ocean',label:'OCEANIC NODE',region:'Deep Hydro Mesh'};
+}
+
+function initThreeScene(){
+  const container=document.getElementById('three-canvas-wrap');
+  scene=new THREE.Scene();
+  scene.fog=new THREE.FogExp2(0x07090e,.02);
+  camera=new THREE.PerspectiveCamera(45,window.innerWidth/window.innerHeight,.1,120);
+  camera.position.set(0,1.8,8.2);
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  container.appendChild(renderer.domElement);
+  controls=new THREE.OrbitControls(camera,renderer.domElement);
+  controls.enableDamping=true;controls.dampingFactor=.06;
+  controls.minDistance=2.85;controls.maxDistance=15.0;
+  controls.autoRotate=STATE.theme.autoRotate;controls.autoRotateSpeed=.55;
+  controls.addEventListener('start',()=>{targetCameraPos=null;});
+
+  scene.add(new THREE.AmbientLight(0x202b3c,1.8));
+  const cyanLight=new THREE.PointLight(0x00C8D7,2.2,28);cyanLight.position.set(-6,5,6);scene.add(cyanLight);
+  const orangeLight=new THREE.PointLight(0xFF8000,2.1,28);orangeLight.position.set(6,-4,5);scene.add(orangeLight);
+  const dirLight=new THREE.DirectionalLight(0xffffff,.65);dirLight.position.set(0,10,6);scene.add(dirLight);
+
+  raycaster=new THREE.Raycaster();mouse=new THREE.Vector2(-999,-999);
+  createStarfield();
+
+  planetGroup=new THREE.Group();hexCellsGroup=new THREE.Group();beaconsGroup=new THREE.Group();
+  planetGroup.add(hexCellsGroup,beaconsGroup);scene.add(planetGroup);
+  saucersGroup=new THREE.Group();beamsGroup=new THREE.Group();scene.add(saucersGroup,beamsGroup);
+
+  buildHexagonalPlanet();buildAllSaucers();buildNeuralDataBeams();
+
+  window.addEventListener('resize',onWindowResize);
+  renderer.domElement.addEventListener('pointermove',onPointerMove);
+  renderer.domElement.addEventListener('pointerup',onPointerUp);
+
+  renderer.setAnimationLoop(()=>{
+    const dt=clock.getDelta(),t=clock.getElapsedTime();
+    if(controls)controls.update();
+    STATE.saucers.forEach((s,i)=>{
+      const g=saucerGroupsMap.get(s.id);
+      if(!g)return;
+      const a=s.angle+t*.12*(i%2===0?1:-1);
+      g.position.set(Math.cos(a)*s.orbitRadius,s.yOffset+Math.sin(t*.8+i)*.06,Math.sin(a)*s.orbitRadius);
+      g.rotation.y=a+Math.PI/2;
+      g.rotation.x=Math.sin(t*.5+i)*.12;
+    });
+    if(targetCameraPos){
+      camera.position.lerp(targetCameraPos,.06);
+      if(camera.position.distanceTo(targetCameraPos)<.05)targetCameraPos=null;
+    }
+    if(starField)starField.rotation.y+=dt*.008;
+    if(planetGroup)planetGroup.rotation.y+=dt*.02;
+    renderer.render(scene,camera);
+  });
+}
+
+function createStarfield(){
+  const starCount=700,geom=new THREE.BufferGeometry();
+  const positions=new Float32Array(starCount*3);
+  for(let i=0;i<starCount;i++){
+    const r=18+Math.random()*28,theta=Math.random()*Math.PI*2,phi=Math.acos(2*Math.random()-1);
+    positions[i*3]=r*Math.sin(phi)*Math.cos(theta);
+    positions[i*3+1]=r*Math.sin(phi)*Math.sin(theta);
+    positions[i*3+2]=r*Math.cos(phi);
+  }
+  geom.setAttribute('position',new THREE.BufferAttribute(positions,3));
+  starField=new THREE.Points(geom,new THREE.PointsMaterial({color:0x00C8D7,size:.075,transparent:true,opacity:.55}));
+  scene.add(starField);
+}
+
+function buildHexagonalPlanet(){
+  while(hexCellsGroup.children.length>0){
+    const c=hexCellsGroup.children[0];
+    if(c.geometry)c.geometry.dispose();
+    if(c.material)c.material.dispose();
+    hexCellsGroup.remove(c);
+  }
+  while(beaconsGroup.children.length>0){
+    const b=beaconsGroup.children[0];
+    if(b.geometry)b.geometry.dispose();
+    if(b.material)b.material.dispose();
+    beaconsGroup.remove(b);
+  }
+  hexCellMeshes=[];hoveredHex=null;
+
+  const baseRadius=1.75,detail=STATE.theme.hexDetail;
+  const icoGeom=new THREE.IcosahedronGeometry(1,detail);
+  const posAttr=icoGeom.attributes.position;
+  const uniqueVerts=[],vertMap=new Map(),faceVertIndices=[];
+
+  function getVertIndex(v){
+    const key=`${Math.round(v.x*100000)},${Math.round(v.y*100000)},${Math.round(v.z*100000)}`;
+    if(vertMap.has(key))return vertMap.get(key);
+    const idx=uniqueVerts.length;
+    uniqueVerts.push(v.clone().normalize());
+    vertMap.set(key,idx);
+    return idx;
+  }
+  for(let i=0;i<posAttr.count;i+=3){
+    const vA=new THREE.Vector3().fromBufferAttribute(posAttr,i);
+    const vB=new THREE.Vector3().fromBufferAttribute(posAttr,i+1);
+    const vC=new THREE.Vector3().fromBufferAttribute(posAttr,i+2);
+    faceVertIndices.push([getVertIndex(vA),getVertIndex(vB),getVertIndex(vC)]);
+  }
+  const vertToFaces=Array.from({length:uniqueVerts.length},()=>[]);
+  faceVertIndices.forEach((tri,fIdx)=>{vertToFaces[tri[0]].push(fIdx);vertToFaces[tri[1]].push(fIdx);vertToFaces[tri[2]].push(fIdx);});
+  const faceCentroids=faceVertIndices.map(tri=>new THREE.Vector3().add(uniqueVerts[tri[0]]).add(uniqueVerts[tri[1]]).add(uniqueVerts[tri[2]]).normalize());
+
+  const countBadge=document.getElementById('hex-count-badge');
+  if(countBadge)countBadge.textContent=`${uniqueVerts.length.toLocaleString('en-US')} cells`;
+
+  const coreGeom=new THREE.SphereGeometry(baseRadius*.96,36,36);
+  const coreMat=new THREE.MeshPhongMaterial({
+    color:STATE.theme.terraMode?0x0b233d:0x07101a,
+    emissive:STATE.theme.terraMode?0x06192e:0x041824,
+    emissiveIntensity:.85,shininess:80
+  });
+  hexCellsGroup.add(new THREE.Mesh(coreGeom,coreMat));
+
+  const wirePositions=[];
+  const cOrange=new THREE.Color(STATE.theme.orange),cCyan=new THREE.Color(STATE.theme.cyan);
+
+  uniqueVerts.forEach((centerDir,idx)=>{
+    const adjFaces=vertToFaces[idx];
+    if(adjFaces.length<5)return;
+    const hexId=`HEX-${String(idx+1).padStart(3,'0')}`;
+    const override=STATE.hexOverrides[hexId]||{elevDelta:0,customColor:null};
+    const biome=classifyBiome(centerDir);
+    const baseElev=biome.type==='mountain'?1.0:((biome.type==='land'||biome.type==='desert')?.55:0.0);
+    const totalElev=Math.max(-.25,baseElev+override.elevDelta);
+    const rTop=baseRadius*(1.0+totalElev*STATE.theme.reliefHeight*.35);
+
+    const refVec=faceCentroids[adjFaces[0]].clone().sub(centerDir).normalize();
+    const tangent=new THREE.Vector3().crossVectors(centerDir,refVec).normalize();
+    const bitangent=new THREE.Vector3().crossVectors(centerDir,tangent).normalize();
+    const sortedCorners=adjFaces.map(fIdx=>{
+      const c=faceCentroids[fIdx];const rel=c.clone().sub(centerDir);
+      const angle=Math.atan2(rel.dot(bitangent),rel.dot(tangent));
+      const insetCorner=centerDir.clone().lerp(c,.86).normalize();
+      return{vec:insetCorner,angle};
+    }).sort((a,b)=>a.angle-b.angle).map(item=>item.vec);
+
+    const positions=[],nSides=sortedCorners.length;
+    for(let s=0;s<nSides;s++){
+      const c1=sortedCorners[s],c2=sortedCorners[(s+1)%nSides];
+      const p1=c1.clone().multiplyScalar(rTop),p2=c2.clone().multiplyScalar(rTop);
+      const topCenter=centerDir.clone().multiplyScalar(rTop);
+      positions.push(topCenter.x,topCenter.y,topCenter.z,p1.x,p1.y,p1.z,p2.x,p2.y,p2.z);
+      const w1=c1.clone().multiplyScalar(rTop+.004),w2=c2.clone().multiplyScalar(rTop+.004);
+      wirePositions.push(w1.x,w1.y,w1.z,w2.x,w2.y,w2.z);
+    }
+    const cellGeom=new THREE.BufferGeometry();
+    cellGeom.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+    cellGeom.computeVertexNormals();
+
+    let baseColor,emissiveColor,emissiveIntensity;
+    if(override.customColor){
+      baseColor=new THREE.Color(override.customColor);emissiveColor=new THREE.Color(override.customColor);emissiveIntensity=.42;
+    }else if(STATE.theme.terraMode){
+      if(biome.type==='ice'){baseColor=new THREE.Color(0xeef6ff);emissiveColor=new THREE.Color(0x90caf9);emissiveIntensity=.25;}
+      else if(biome.type==='mountain'){baseColor=new THREE.Color(0x7c6f64);emissiveColor=new THREE.Color(0xff8000);emissiveIntensity=.22;}
+      else if(biome.type==='desert'){baseColor=new THREE.Color(0xd9a84e);emissiveColor=new THREE.Color(0xb87324);emissiveIntensity=.16;}
+      else if(biome.type==='land'){baseColor=new THREE.Color(0x2e7d32);emissiveColor=new THREE.Color(0x1b5e20);emissiveIntensity=.18;}
+      else{baseColor=new THREE.Color(0x0d47a1);emissiveColor=new THREE.Color(0x00838f);emissiveIntensity=.2;}
+    }else{
+      const isLand=biome.type==='land'||biome.type==='mountain'||biome.type==='desert'||override.elevDelta>.2;
+      baseColor=isLand?new THREE.Color(0x2a180a):new THREE.Color(0x0a1924);
+      emissiveColor=isLand?cOrange.clone().multiplyScalar(.55):cCyan.clone().multiplyScalar(.32);
+      emissiveIntensity=isLand?.44:.22;
+    }
+    const cellMat=new THREE.MeshPhongMaterial({color:baseColor,emissive:emissiveColor,emissiveIntensity,shininess:85,flatShading:true});
+    const cellMesh=new THREE.Mesh(cellGeom,cellMat);
+    const latDeg=`${centerDir.y>=0?'+':''}${(Math.asin(centerDir.y)*180/Math.PI).toFixed(1)}°`;
+    const lonDeg=`${(Math.atan2(centerDir.z,centerDir.x)*180/Math.PI).toFixed(1)}°`;
+    cellMesh.userData={id:hexId,biome:biome.label,region:`${biome.region} (${latDeg}, ${lonDeg})`,worldNormal:centerDir.clone(),origEmissive:emissiveColor.clone(),origIntensity:emissiveIntensity,biomeType:biome.type};
+    hexCellsGroup.add(cellMesh);hexCellMeshes.push(cellMesh);
+
+    if(idx%Math.max(12,Math.floor(uniqueVerts.length/26))===0&&(biome.type==='land'||biome.type==='mountain')){
+      const beaconGeom=new THREE.SphereGeometry(.024,10,10);
+      const beaconMat=new THREE.MeshBasicMaterial({color:0x3FB950});
+      const beacon=new THREE.Mesh(beaconGeom,beaconMat);
+      beacon.position.copy(centerDir).multiplyScalar(rTop+.025);
+      beaconsGroup.add(beacon);
+    }
+  });
+
+  const wireGeom=new THREE.BufferGeometry();
+  wireGeom.setAttribute('position',new THREE.Float32BufferAttribute(wirePositions,3));
+  const wireMat=new THREE.LineBasicMaterial({color:0x00C8D7,transparent:true,opacity:detail>=7?.14:.26});
+  hexCellsGroup.add(new THREE.LineSegments(wireGeom,wireMat));
+  icoGeom.dispose();
+}
+
+function morphSaucerPoint(dir,shapeType,customCrimp=null,customFlatness=null){
+  const rXZ=Math.hypot(dir.x,dir.z),absY=Math.abs(dir.y),angle=Math.atan2(dir.z,dir.x);
+  const eqFactor=Math.pow(1.0-absY,2.3);
+  let flatness=customFlatness!==null?customFlatness:.34,rimFlare=.52,domeBulge=.28,crescent=0.0;
+  let crimp=customCrimp!==null?customCrimp:.14;
+  if(shapeType==='dumpling'){if(customFlatness===null)flatness=.42;rimFlare=.62;domeBulge=.22;crescent=.65;if(customCrimp===null)crimp=.22;}
+  else if(shapeType==='pelmen'){if(customFlatness===null)flatness=.56;rimFlare=.46;domeBulge=.35;crescent=.26;if(customCrimp===null)crimp=.24;}
+  const crimpWave=1.0+crimp*eqFactor*Math.cos(angle*14.0);
+  const radial=(.78+rimFlare*eqFactor*.65)*crimpWave;
+  let x=dir.x*radial,z=dir.z*radial;
+  const dome=Math.exp(-Math.pow(rXZ*2.1,2.0));
+  let y=dir.y*(.72*flatness)+Math.sign(dir.y)*dome*domeBulge;
+  if(crescent>.001){z+=crescent*(x*x)*.45;y+=crescent*Math.abs(x)*.2;}
+  return new THREE.Vector3(x,y,z);
+}
+
+function createHexSaucerMesh(saucer){
+  const root=new THREE.Group(),baseGroup=new THREE.Group(),topDomeGroup=new THREE.Group();
+  topDomeGroup.name='topDome';root.add(baseGroup,topDomeGroup);
+  const saucerCol=new THREE.Color(saucer.color);
+  const icoGeom=new THREE.IcosahedronGeometry(1,3);
+  const posAttr=icoGeom.attributes.position;
+  const uniqueVerts=[],vertMap=new Map(),faceVertIndices=[];
+  function getVertIndex(v){
+    const key=`${Math.round(v.x*10000)},${Math.round(v.y*10000)},${Math.round(v.z*10000)}`;
+    if(vertMap.has(key))return vertMap.get(key);
+    const idx=uniqueVerts.length;uniqueVerts.push(v.clone().normalize());vertMap.set(key,idx);return idx;
+  }
+  for(let i=0;i<posAttr.count;i+=3){
+    const vA=new THREE.Vector3().fromBufferAttribute(posAttr,i);
+    const vB=new THREE.Vector3().fromBufferAttribute(posAttr,i+1);
+    const vC=new THREE.Vector3().fromBufferAttribute(posAttr,i+2);
+    faceVertIndices.push([getVertIndex(vA),getVertIndex(vB),getVertIndex(vC)]);
+  }
+  const vertToFaces=Array.from({length:uniqueVerts.length},()=>[]);
+  faceVertIndices.forEach((tri,fIdx)=>{vertToFaces[tri[0]].push(fIdx);vertToFaces[tri[1]].push(fIdx);vertToFaces[tri[2]].push(fIdx);});
+  const faceCentroids=faceVertIndices.map(tri=>new THREE.Vector3().add(uniqueVerts[tri[0]]).add(uniqueVerts[tri[1]]).add(uniqueVerts[tri[2]]).normalize());
+  const wiresBase=[],wiresTop=[];
+
+  uniqueVerts.forEach((centerDir)=>{
+    const adjFaces=vertToFaces[uniqueVerts.indexOf(centerDir)];
+    if(adjFaces.length<5)return;
+    const isTopDomeCell=centerDir.y>.36,isRimCrimped=Math.abs(centerDir.y)<.22;
+    const refVec=faceCentroids[adjFaces[0]].clone().sub(centerDir).normalize();
+    const tangent=new THREE.Vector3().crossVectors(centerDir,refVec).normalize();
+    const bitangent=new THREE.Vector3().crossVectors(centerDir,tangent).normalize();
+    const corners=adjFaces.map(fIdx=>{
+      const c=faceCentroids[fIdx];const rel=c.clone().sub(centerDir);
+      const angle=Math.atan2(rel.dot(bitangent),rel.dot(tangent));
+      const inset=centerDir.clone().lerp(c,.85).normalize();
+      return{vec:inset,angle};
+    }).sort((a,b)=>a.angle-b.angle).map(item=>item.vec);
+
+    const relief=isRimCrimped?1.04:1.01;
+    const topCenter=morphSaucerPoint(centerDir,saucer.shape,saucer.crimp,saucer.flatness).multiplyScalar(relief);
+    const morphedCorners=corners.map(c=>morphSaucerPoint(c,saucer.shape,saucer.crimp,saucer.flatness).multiplyScalar(relief));
+    const positions=[];
+    for(let s=0;s<morphedCorners.length;s++){
+      const c1=morphedCorners[s],c2=morphedCorners[(s+1)%morphedCorners.length];
+      positions.push(topCenter.x,topCenter.y,topCenter.z,c1.x,c1.y,c1.z,c2.x,c2.y,c2.z);
+      const targetWire=isTopDomeCell?wiresTop:wiresBase;
+      targetWire.push(c1.x*1.005,c1.y*1.005,c1.z*1.005,c2.x*1.005,c2.y*1.005,c2.z*1.005);
+    }
+    const geom=new THREE.BufferGeometry();
+    geom.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+    geom.computeVertexNormals();
+    const mat=new THREE.MeshPhongMaterial({
+      color:isRimCrimped?0x24160d:0x101a28,
+      emissive:isRimCrimped?new THREE.Color(0xFF8000):saucerCol,
+      emissiveIntensity:isTopDomeCell?.42:(isRimCrimped?.36:.24),
+      shininess:90,flatShading:true
+    });
+    const mesh=new THREE.Mesh(geom,mat);
+    mesh.userData={saucerId:saucer.id,isTopDome:isTopDomeCell};
+    if(isTopDomeCell)topDomeGroup.add(mesh);else baseGroup.add(mesh);
+  });
+
+  if(wiresBase.length>0){
+    const g1=new THREE.BufferGeometry();g1.setAttribute('position',new THREE.Float32BufferAttribute(wiresBase,3));
+    baseGroup.add(new THREE.LineSegments(g1,new THREE.LineBasicMaterial({color:saucerCol,transparent:true,opacity:.45})));
+  }
+  if(wiresTop.length>0){
+    const g2=new THREE.BufferGeometry();g2.setAttribute('position',new THREE.Float32BufferAttribute(wiresTop,3));
+    topDomeGroup.add(new THREE.LineSegments(g2,new THREE.LineBasicMaterial({color:0x00C8D7,transparent:true,opacity:.55})));
+  }
+  const rimRingGeom=new THREE.RingGeometry(.68,.78,36);rimRingGeom.rotateX(Math.PI/2);
+  const rimRing=new THREE.Mesh(rimRingGeom,new THREE.MeshBasicMaterial({color:saucerCol,side:THREE.DoubleSide,transparent:true,opacity:.28}));
+  baseGroup.add(rimRing);
+  topDomeGroup.position.y=saucer.detachedTop?.32:0.0;
+  root.scale.setScalar(saucer.scale);
+  root.userData={saucerId:saucer.id};
+  icoGeom.dispose();
+  return root;
+}
+
+function buildAllSaucers(){
+  while(saucersGroup.children.length>0)saucersGroup.remove(saucersGroup.children[0]);
+  saucerGroupsMap.clear();
+  STATE.saucers.forEach(s=>{
+    const meshGroup=createHexSaucerMesh(s);
+    saucersGroup.add(meshGroup);
+    saucerGroupsMap.set(s.id,meshGroup);
+  });
+  buildNeuralDataBeams();
+}
+
+function buildNeuralDataBeams(){
+  while(beamsGroup.children.length>0){
+    const b=beamsGroup.children[0];
+    if(b.geometry)b.geometry.dispose();
+    if(b.material)b.material.dispose();
+    beamsGroup.remove(b);
+  }
+  if(!STATE.showDataBeams||STATE.classicMode)return;
+  STATE.saucers.forEach((s,idx)=>{
+    const start=new THREE.Vector3(Math.cos(s.angle)*s.orbitRadius,s.yOffset,Math.sin(s.angle)*s.orbitRadius);
+    const phi=((idx*1.15)%1.4)+.45,theta=idx*1.25;
+    const end=new THREE.Vector3(Math.sin(phi)*Math.cos(theta),Math.cos(phi),Math.sin(phi)*Math.sin(theta)).normalize().multiplyScalar(1.86);
+    const mid=start.clone().lerp(end,.5);mid.y+=.45;
+    const curve=new THREE.QuadraticBezierCurve3(start,mid,end);
+    const geom=new THREE.BufferGeometry().setFromPoints(curve.getPoints(28));
+    const mat=new THREE.LineBasicMaterial({color:new THREE.Color(s.color),transparent:true,opacity:.24});
+    beamsGroup.add(new THREE.Line(geom,mat));
+  });
+}
+
+// ============================================================================
+// RAYCASTING
+// ============================================================================
+function onPointerMove(e){
+  if(!renderer)return;
+  const rect=renderer.domElement.getBoundingClientRect();
+  mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  const tooltip=document.getElementById('hex-tooltip');
+
+  const saucerHits=raycaster.intersectObjects(saucersGroup.children,true);
+  if(saucerHits.length>0){
+    clearHexHover();
+    let obj=saucerHits[0].object;
+    while(obj&&!(obj.userData&&obj.userData.saucerId)&&obj.parent)obj=obj.parent;
+    const sId=obj&&obj.userData?obj.userData.saucerId:null;
+    const saucer=STATE.saucers.find(s=>s.id===sId);
+    if(saucer){
+      if(hoveredSaucerId!==sId){hoveredSaucerId=sId;playTactileSound('tick');}
+      const shapeNames={ufo:'UFO Saucer',dumpling:'Dumpling Hull',pelmen:'Pelmen Capsule'};
+      document.getElementById('tt-coord').textContent=`${saucer.icon} ${saucer.name}`;
+      document.getElementById('tt-biome').textContent=shapeNames[saucer.shape]||'CRAFT';
+      document.getElementById('tt-region').textContent=saucer.meta;
+      document.getElementById('tt-hint').textContent=STATE.neocubeMode?'🧲 Click: detach / magnetize top dome':'Click: open service layer & customize craft';
+      tooltip.classList.remove('hidden');
+      tooltip.style.left=`${Math.min(e.clientX+14,window.innerWidth-235)}px`;
+      tooltip.style.top=`${Math.min(e.clientY+14,window.innerHeight-95)}px`;
+      return;
+    }
+  }
+  hoveredSaucerId=null;
+
+  const hexHits=raycaster.intersectObjects(hexCellMeshes,false);
+  if(hexHits.length>0){
+    const cell=hexHits[0].object;
+    if(hoveredHex!==cell){
+      clearHexHover();
+      hoveredHex=cell;
+      cell.material.emissive.setHex(0x00C8D7);
+      cell.material.emissiveIntensity=.9;
+      playTactileSound('tick');
+    }
+    const modeHints={
+      inspect:'Click: zoom in & open local sector hub',
+      raise:'🖌️ Sculptor: click to raise mountain ridge',
+      lower:'🖌️ Sculptor: click to carve oceanic basin',
+      paintCyan:'🖌️ Sculptor: click to paint Neon Cyan',
+      paintOrange:'🖌️ Sculptor: click to paint Amber Orange',
+      paintForest:'🖌️ Sculptor: click to paint Terra Forest'
+    };
+    document.getElementById('tt-coord').textContent=cell.userData.id;
+    document.getElementById('tt-biome').textContent=cell.userData.biome;
+    document.getElementById('tt-region').textContent=cell.userData.region;
+    document.getElementById('tt-hint').textContent=modeHints[STATE.sculptMode]||modeHints.inspect;
+    tooltip.classList.remove('hidden');
+    tooltip.style.left=`${Math.min(e.clientX+14,window.innerWidth-235)}px`;
+    tooltip.style.top=`${Math.min(e.clientY+14,window.innerHeight-95)}px`;
+  }else{
+    clearHexHover();
+  }
+}
+
+function clearHexHover(){
+  if(hoveredHex){
+    hoveredHex.material.emissive.copy(hoveredHex.userData.origEmissive);
+    hoveredHex.material.emissiveIntensity=hoveredHex.userData.origIntensity;
+    hoveredHex=null;
+  }
+  const t=document.getElementById('hex-tooltip');
+  if(t)t.classList.add('hidden');
+}
+
+function onPointerUp(e){
+  if(e.button!==0)return;
+  const rect=renderer.domElement.getBoundingClientRect();
+  mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+
+  const saucerHits=raycaster.intersectObjects(saucersGroup.children,true);
+  if(saucerHits.length>0){
+    let obj=saucerHits[0].object;
+    while(obj&&!(obj.userData&&obj.userData.saucerId)&&obj.parent)obj=obj.parent;
+    const sId=obj&&obj.userData?obj.userData.saucerId:null;
+    if(sId){
+      playTactileSound('snap');
+      STATE.activeEditorSaucerId=sId;
+      renderAllSpatialWindows();
+      if(STATE.neocubeMode)handleNeocubeSaucerClick(sId);
+      else openSaucerLayerModal(sId);
+      return;
+    }
+  }
+  const hexHits=raycaster.intersectObjects(hexCellMeshes,false);
+  if(hexHits.length>0){
+    const data=hexHits[0].object.userData;
+    if(STATE.sculptMode!=='inspect'){applySculptorTool(data.id);return;}
+    playTactileSound('snap');
+    const worldDir=data.worldNormal.clone().applyQuaternion(planetGroup.quaternion).normalize();
+    targetCameraPos=worldDir.clone().multiplyScalar(3.55);
+    propagateLinkedWindowSignal(data);
+    openHexSectorHubModal(data);
+  }
+}
+
+function applySculptorTool(hexId){
+  if(!STATE.hexOverrides[hexId])STATE.hexOverrides[hexId]={elevDelta:0,customColor:null};
+  const ov=STATE.hexOverrides[hexId];
+  if(STATE.sculptMode==='raise')ov.elevDelta=Math.min(2.2,ov.elevDelta+.55);
+  else if(STATE.sculptMode==='lower')ov.elevDelta=Math.max(-1.0,ov.elevDelta-.55);
+  else if(STATE.sculptMode==='paintCyan')ov.customColor='#00C8D7';
+  else if(STATE.sculptMode==='paintOrange')ov.customColor='#FF8000';
+  else if(STATE.sculptMode==='paintForest')ov.customColor='#3FB950';
+  playTactileSound('snap');
+  buildHexagonalPlanet();
+  showToast(`🖌️ Terraformed ${hexId} (${STATE.sculptMode})`);
+}
+function setSculptMode(mode){
+  STATE.sculptMode=mode;playTactileSound('tick');
+  renderWindowContent('win-studio');
+  showToast(mode==='inspect'?'🔍 Inspect mode active':`🖌️ Sculptor brush active: ${mode}`);
+}
+function setCameraDistance(dist){
+  if(!camera)return;
+  const clamped=Math.max(2.85,Math.min(15.0,dist));
+  targetCameraPos=camera.position.clone().normalize().multiplyScalar(clamped);
+}
+function adjustZoom(delta){if(camera)setCameraDistance(camera.position.length()+delta);}
+function onHexDensityChange(val){
+  STATE.theme.hexDetail=parseInt(val,10);
+  playTactileSound('snap');buildHexagonalPlanet();
+  showToast(`⬡ Hex grid density updated: ${hexCellMeshes.length.toLocaleString('en-US')} cells`);
+}
+function toggleTerraBiomeColors(){
+  STATE.theme.terraMode=!STATE.theme.terraMode;
+  playTactileSound('chime');buildHexagonalPlanet();renderAllSpatialWindows();
+  showToast(STATE.theme.terraMode?'🌍 Earth Terra Biomes enabled':'⚡ Trampillera Neon FUI palette enabled');
+}
+function onWindowResize(){
+  if(!camera||!renderer)return;
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderNodeWires();
+}
+
+// ============================================================================
+// SPATIAL WINDOWS
+// ============================================================================
+let dragInfo=null;
+
+function renderAllSpatialWindows(){
+  miniViewers.forEach(mv=>{if(mv.renderer)mv.renderer.dispose();});
+  miniViewers=[];
+  const layer=document.getElementById('spatial-windows-layer');
+  if(!layer)return;
+  layer.innerHTML='';
+
+  STATE.windows.forEach(win=>{
+    if(!win.visible)return;
+    const winEl=document.createElement('div');
+    winEl.id=win.id;
+    const accentCls=win.accent==='cyan'?'win-accent-cyan':'win-accent-orange';
+    const wireSrcCls=(STATE.wireMode&&STATE.wireSourceWinId===win.id)?'wire-source':'';
+    winEl.className=`spatial-window ${win.shape} ${accentCls} ${wireSrcCls}`;
+    winEl.style.left=`${win.x}px`;winEl.style.top=`${win.y}px`;
+    winEl.style.width=`${win.width}px`;
+    winEl.style.height=win.minimized?'40px':`${win.height}px`;
+
+    const shapeOptionsHtml=WINDOW_SHAPES.map(sh=>`<option value="${sh.id}" ${win.shape===sh.id?'selected':''}>${sh.label}</option>`).join('');
+    const connectOptionsHtml=CONNECT_MODES.map(cm=>`<option value="${cm.id}" ${win.connectType===cm.id?'selected':''}>${cm.label}</option>`).join('');
+
+    winEl.innerHTML=`
+      <div class="win-header flex items-center justify-between gap-1 px-2.5 py-1.5 bg-white/5 border-b border-white/10 text-[10px]" data-win-id="${win.id}">
+        <span class="font-bold tracking-wider truncate text-white/95">${win.title}</span>
+        <div class="flex items-center gap-1 shrink-0" onpointerdown="event.stopPropagation()">
+          <select onchange="setWindowShape('${win.id}', this.value)" title="Morph Window Shape" class="bg-black/75 border border-white/15 rounded px-1 py-0.5 text-[8px] text-[var(--fui-cyan)] font-bold cursor-pointer focus:outline-none">${shapeOptionsHtml}</select>
+          <select onchange="setWindowConnect('${win.id}', this.value)" title="Switch Content Connection" class="bg-black/75 border border-white/15 rounded px-1 py-0.5 text-[8px] text-[var(--fui-orange)] font-bold cursor-pointer focus:outline-none">${connectOptionsHtml}</select>
+          <button onclick="toggleMinimizeWindow('${win.id}')" class="w-4 h-4 rounded bg-white/5 hover:bg-white/20 text-fuiMuted hover:text-white flex items-center justify-center cursor-pointer" title="Minimize">_</button>
+          <button onclick="closeWindowById('${win.id}')" class="w-4 h-4 rounded bg-white/5 hover:bg-red-500/40 text-fuiMuted hover:text-white flex items-center justify-center cursor-pointer" title="Hide Element">✕</button>
+        </div>
+      </div>
+      <div id="${win.id}-body" class="flex-1 p-2.5 overflow-y-auto custom-scroll ${win.minimized?'hidden':''}"></div>
+      ${win.minimized?'':`<div class="win-resize-handle" data-resize-win="${win.id}" title="Resize Window"></div>`}
+    `;
+    layer.appendChild(winEl);
+
+    const headerEl=winEl.querySelector('.win-header');
+    headerEl.addEventListener('pointerdown',e=>{
+      if(STATE.wireMode){e.stopPropagation();handleWireWindowClick(win.id);return;}
+      startWindowDrag(e,win.id,'move');
+    });
+    const resizeEl=winEl.querySelector('.win-resize-handle');
+    if(resizeEl)resizeEl.addEventListener('pointerdown',e=>{e.stopPropagation();startWindowDrag(e,win.id,'resize');});
+
+    renderWindowContent(win.id);
+  });
+
+  updateSummonButtonVisibility();
+  updateClosedPanelsDock();
+  renderNodeWires();
+}
+
+function startWindowDrag(e,winId,mode){
+  if(e.button!==0)return;
+  const win=STATE.windows.find(w=>w.id===winId);
+  if(!win)return;
+  STATE.windows=STATE.windows.filter(w=>w.id!==winId).concat(win);
+  dragInfo={winId,mode,startX:e.clientX,startY:e.clientY,origX:win.x,origY:win.y,origW:win.width,origH:win.height};
+  playTactileSound('tick');
+}
+
+window.addEventListener('pointermove',e=>{
+  if(!dragInfo)return;
+  const win=STATE.windows.find(w=>w.id===dragInfo.winId);
+  if(!win)return;
+  const dx=e.clientX-dragInfo.startX,dy=e.clientY-dragInfo.startY;
+  if(dragInfo.mode==='move'){
+    win.x=Math.max(6,Math.min(window.innerWidth-140,dragInfo.origX+dx));
+    win.y=Math.max(44,Math.min(window.innerHeight-50,dragInfo.origY+dy));
+    const el=document.getElementById(win.id);
+    if(el){el.style.left=`${win.x}px`;el.style.top=`${win.y}px`;}
+    renderNodeWires();
+  }else if(dragInfo.mode==='resize'){
+    win.width=Math.max(175,Math.min(window.innerWidth-win.x-10,dragInfo.origW+dx));
+    win.height=Math.max(85,Math.min(window.innerHeight-win.y-10,dragInfo.origH+dy));
+    const el=document.getElementById(win.id);
+    if(el){el.style.width=`${win.width}px`;el.style.height=`${win.height}px`;}
+    renderNodeWires();
+  }
+});
+window.addEventListener('pointerup',()=>{if(dragInfo)dragInfo=null;});
+
+function startWireLinkingMode(){
+  STATE.wireMode=true;STATE.wireSourceWinId=null;
+  playTactileSound('chime');
+  document.getElementById('wire-banner').classList.remove('hidden');
+  document.getElementById('wire-instruction').textContent='Step 1: Click the header of the SOURCE window';
+  renderAllSpatialWindows();
+}
+function cancelWireMode(){
+  STATE.wireMode=false;STATE.wireSourceWinId=null;
+  document.getElementById('wire-banner').classList.add('hidden');
+  renderAllSpatialWindows();
+}
+function handleWireWindowClick(winId){
+  if(!STATE.wireSourceWinId){
+    STATE.wireSourceWinId=winId;playTactileSound('snap');
+    document.getElementById('wire-instruction').textContent='Step 2: Click the TARGET window header to weld magnetic data conduit';
+    renderAllSpatialWindows();
+  }else if(STATE.wireSourceWinId!==winId){
+    const exists=STATE.wires.some(w=>w.from===STATE.wireSourceWinId&&w.to===winId);
+    if(!exists)STATE.wires.push({from:STATE.wireSourceWinId,to:winId});
+    playTactileSound('chime');
+    showToast('🔗 Magnetic data conduit welded between windows!');
+    cancelWireMode();
+  }
+}
+function clearAllNodeWires(){
+  STATE.wires=[];renderNodeWires();showToast('All window data conduits cleared');
+}
+function renderNodeWires(){
+  const svg=document.getElementById('node-wires-svg');
+  if(!svg)return;
+  if(STATE.classicMode||STATE.wires.length===0){svg.innerHTML='';return;}
+  let pathsHtml='';
+  STATE.wires.forEach(wire=>{
+    const w1=STATE.windows.find(w=>w.id===wire.from&&w.visible);
+    const w2=STATE.windows.find(w=>w.id===wire.to&&w.visible);
+    if(!w1||!w2)return;
+    const x1=w1.x+w1.width/2,y1=w1.y+(w1.minimized?20:w1.height/2);
+    const x2=w2.x+w2.width/2,y2=w2.y+(w2.minimized?20:w2.height/2);
+    const cx=(x1+x2)/2,cy=Math.min(y1,y2)-45;
+    pathsHtml+=`
+      <path d="M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}" fill="none" stroke="rgba(0,200,215,0.55)" stroke-width="2" stroke-dasharray="6 4" />
+      <circle cx="${x1}" cy="${y1}" r="4" fill="#FF8000" />
+      <circle cx="${x2}" cy="${y2}" r="4" fill="#00C8D7" />
+    `;
+  });
+  svg.innerHTML=pathsHtml;
+}
+function propagateLinkedWindowSignal(hexData){
+  STATE.wires.forEach(w=>{
+    const targetWin=STATE.windows.find(win=>win.id===w.to&&win.visible);
+    if(targetWin&&targetWin.nativeType==='jarviser')setJarviserMessage(`Linked telemetry received from ${hexData.id}: ${hexData.region}.`);
+  });
+}
+function setWindowShape(winId,shapeId){
+  const win=STATE.windows.find(w=>w.id===winId);if(!win)return;
+  win.shape=shapeId;playTactileSound('snap');renderAllSpatialWindows();
+}
+function setWindowConnect(winId,connectType){
+  const win=STATE.windows.find(w=>w.id===winId);if(!win)return;
+  win.connectType=connectType;playTactileSound('snap');renderWindowContent(winId);
+}
+function toggleMinimizeWindow(winId){
+  const win=STATE.windows.find(w=>w.id===winId);if(!win)return;
+  win.minimized=!win.minimized;renderAllSpatialWindows();
+}
+function closeWindowById(winId){
+  const win=STATE.windows.find(w=>w.id===winId);if(!win)return;
+  win.visible=false;playTactileSound('tick');renderAllSpatialWindows();
+}
+function toggleWindowById(winId){
+  const win=STATE.windows.find(w=>w.id===winId);if(!win)return;
+  win.visible=!win.visible;win.minimized=false;playTactileSound('snap');renderAllSpatialWindows();
+}
+function updateSummonButtonVisibility(){
+  const summonBtn=document.getElementById('hud-summon-trigger');if(!summonBtn)return;
+  const anyVisible=STATE.windows.some(w=>w.visible);
+  if(!anyVisible&&!STATE.classicMode)summonBtn.classList.remove('hidden');
+  else summonBtn.classList.add('hidden');
+}
+function expandBasePanelsWithHints(){
+  playTactileSound('chime');
+  const baseIds=['win-timer','win-brand','win-citizen','win-ticker','win-planet-dock','win-lang','win-craft-editor','win-services','win-jarviser','win-polaris-guard'];
+  STATE.windows.forEach(w=>{if(baseIds.includes(w.id)){w.visible=true;w.minimized=false;}});
+  renderAllSpatialWindows();
+  setJarviserMessage('Tip: Every window can be dragged, resized, morphed, linked with wires, or hidden.');
+  showToast('✦ Base Trampillera Media panels expanded!');
+}
+function updateClosedPanelsDock(){
+  const closedBar=document.getElementById('closed-panels-bar');if(!closedBar)return;
+  const hiddenWins=STATE.windows.filter(w=>!w.visible);
+  if(hiddenWins.length===0){
+    closedBar.innerHTML=`<span class="text-[9px] text-fuiMuted">All base panels active · hide any element with ✕ or weld links with 🔗</span>`;
+    return;
+  }
+  closedBar.innerHTML=`<span class="text-[9px] text-fuiMuted mr-1">Hidden:</span>`+hiddenWins.map(w=>
+    `<button onclick="toggleWindowById('${w.id}')" class="px-2 py-0.5 rounded bg-white/10 hover:bg-[var(--fui-cyan)]/25 border border-white/15 text-[9px] text-white font-medium cursor-pointer">+ ${w.title}</button>`
+  ).join('');
+}
+function spawnCustomPanel(connectType='article'){
+  const idx=STATE.windows.length+1,id=`win-custom-${Date.now()}`;
+  const labels={article:'📰 Article Feed',video:'🎥 Live Video',map:'🗺 Hex Radar',model3d:'🧊 3D Viewer',audio:'📻 Synth Radio',terminal:'💻 Terminal',native:'⚡ Node'};
+  STATE.windows.push({id,title:`${labels[connectType]||'Module'} #${idx}`,nativeType:'custom',connectType,shape:'shape-rect',accent:idx%2===0?'cyan':'orange',x:90+((idx*28)%260),y:120+((idx*24)%180),width:310,height:235,visible:true,minimized:false});
+  playTactileSound('snap');renderAllSpatialWindows();
+  showToast(`➕ Spawned panel: ${labels[connectType]||'Module'} #${idx}`);
+}
+function initEmbeddedMini3DViewer(containerId){
+  const host=document.getElementById(containerId);if(!host)return;
+  const w=host.clientWidth||260,h=host.clientHeight||135;
+  const mScene=new THREE.Scene();
+  const mCam=new THREE.PerspectiveCamera(42,w/h,.1,30);
+  mCam.position.set(0,1.1,2.7);mCam.lookAt(0,0,0);
+  const mRenderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+  mRenderer.setSize(w,h);mRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  host.innerHTML='';host.appendChild(mRenderer.domElement);
+  mScene.add(new THREE.AmbientLight(0x28384c,1.8));
+  const p1=new THREE.PointLight(0x00C8D7,2.2,12);p1.position.set(2,3,3);mScene.add(p1);
+  const p2=new THREE.PointLight(0xFF8000,2.0,12);p2.position.set(-2,-2,2);mScene.add(p2);
+  const craft=createHexSaucerMesh(STATE.saucers[0]||INITIAL_SAUCERS[3]);
+  craft.scale.setScalar(1.05);mScene.add(craft);
+  miniViewers.push({scene:mScene,camera:mCam,renderer:mRenderer,mesh:craft});
+}
+
+// ============================================================================
+// WINDOW CONTENT
+// ============================================================================
+function renderWindowContent(winId){
+  const win=STATE.windows.find(w=>w.id===winId);
+  const body=document.getElementById(`${winId}-body`);
+  if(!win||!body)return;
+
+  if(win.connectType==='native'){
+    if(win.nativeType==='polarisGuard'){
+      const layers=[
+        ['perimeter','PERIMETER','Outer markers & approach routes'],
+        ['access','ACCESS','Visitor and transport permissions'],
+        ['infrastructure','INFRASTRUCTURE','Power, water, heat and domes'],
+        ['emergency','EMERGENCY','Shelters, routes and response'],
+        ['network','NETWORK','Control links and data integrity'],
+        ['ecology','ECOLOGY','Wildlife and protected habitats']
+      ];
+      const severityRank={NORMAL:0,ATTENTION:1,WARNING:2,EMERGENCY:3};
+      const layerState=(key)=>STATE.guard.events.filter(e=>e.status!=='RESOLVED'&&e.layer===key).sort((a,b)=>severityRank[b.severity]-severityRank[a.severity])[0]?.severity||'NORMAL';
+      const tone=(v)=>v==='EMERGENCY'?'#ff6262':v==='WARNING'?'#ffb454':v==='ATTENTION'?'#7fc9dd':'#54d995';
+      const active=STATE.guard.events.filter(e=>e.status!=='RESOLVED');
+      const top=active.sort((a,b)=>severityRank[b.severity]-severityRank[a.severity])[0];
+      const overall=top?.severity||'NORMAL';
+      const events=STATE.guard.events.slice(0,5).map(e=>`<div class="rounded-lg border border-white/10 bg-black/25 p-2 mb-1.5"><div class="flex items-center justify-between gap-2"><b style="color:${tone(e.severity)}" class="text-[9px] tracking-wider">${e.severity} · ${e.layer.toUpperCase()}</b><span class="text-[8px] text-fuiMuted">${e.time}</span></div><div class="text-[9px] text-slate-200 mt-1">${e.message}</div><div class="flex gap-1 mt-2">${e.status==='ACTIVE'?`<button onclick="acknowledgePolarisEvent('${e.id}')" class="px-2 py-1 rounded border border-cyan-400/30 text-cyan-200 text-[8px]">ACKNOWLEDGE</button>`:''}${e.status!=='RESOLVED'?`<button onclick="resolvePolarisEvent('${e.id}')" class="px-2 py-1 rounded border border-emerald-400/30 text-emerald-200 text-[8px]">RESOLVE</button>`:`<span class="text-[8px] text-emerald-300">RESOLVED</span>`}</div></div>`).join('')||'<div class="text-[9px] text-fuiMuted py-2">No events recorded. All local simulation layers are nominal.</div>';
+      body.innerHTML=`
+        <div class="space-y-2 text-[9px]">
+          <div class="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/30 p-2">
+            <div><div class="font-orbit text-[11px] tracking-wider text-white">POLARIS GUARD</div><div class="text-[8px] text-fuiMuted tracking-widest">POLARNY · UMKA-TOWN</div></div>
+            <span class="px-2 py-1 rounded border font-bold tracking-wider" style="color:${tone(overall)};border-color:${tone(overall)}">${overall}</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5">${layers.map(([key,label,desc])=>{const v=layerState(key);return `<div class="rounded-lg border border-white/10 bg-white/[0.03] p-2"><div class="flex items-center justify-between gap-1"><b class="text-[8px] tracking-wider text-slate-200">${label}</b><i class="w-1.5 h-1.5 rounded-full" style="background:${tone(v)};box-shadow:0 0 8px ${tone(v)}"></i></div><div class="font-bold mt-1" style="color:${tone(v)}">${v}</div><div class="text-[7px] text-fuiMuted mt-1">${desc}</div></div>`;}).join('')}</div>
+          <div class="rounded-lg border border-cyan-400/20 bg-cyan-400/[0.04] p-2"><div class="flex items-center justify-between"><b class="text-[8px] tracking-widest text-cyan-200">SCENARIO SIMULATOR</b><span class="text-[7px] text-cyan-100/60">MANUAL · LOCAL ONLY</span></div><div class="grid grid-cols-2 gap-1 mt-2">
+            <button onclick="setPolarisScenario('approach')" class="rounded border border-white/10 bg-white/5 p-1.5 text-left hover:border-cyan-300/50">↗ <b>Outer approach</b><small class="block text-[7px] text-fuiMuted">Perimeter · attention</small></button>
+            <button onclick="setPolarisScenario('access')" class="rounded border border-white/10 bg-white/5 p-1.5 text-left hover:border-amber-300/50">⌁ <b>Access request</b><small class="block text-[7px] text-fuiMuted">Access · warning</small></button>
+            <button onclick="setPolarisScenario('power')" class="rounded border border-white/10 bg-white/5 p-1.5 text-left hover:border-amber-300/50">⚡ <b>Power reserve</b><small class="block text-[7px] text-fuiMuted">Infrastructure · warning</small></button>
+            <button onclick="setPolarisScenario('blizzard')" class="rounded border border-white/10 bg-white/5 p-1.5 text-left hover:border-cyan-300/50">❄ <b>Blizzard</b><small class="block text-[7px] text-fuiMuted">Emergency · attention</small></button>
+            <button onclick="setPolarisScenario('dome')" class="rounded border border-white/10 bg-white/5 p-1.5 text-left hover:border-red-300/50">⌂ <b>Dome anomaly</b><small class="block text-[7px] text-fuiMuted">Emergency · emergency</small></button>
+            <button onclick="setPolarisScenario('network')" class="rounded border border-white/10 bg-white/5 p-1.5 text-left hover:border-amber-300/50">⌘ <b>Network integrity</b><small class="block text-[7px] text-fuiMuted">Network · warning</small></button>
+            <button onclick="setPolarisScenario('wildlife')" class="rounded border border-white/10 bg-white/5 p-1.5 text-left hover:border-emerald-300/50">🐾 <b>Wildlife route</b><small class="block text-[7px] text-fuiMuted">Ecology · attention</small></button>
+          </div><button onclick="runPolarisRoutineCheck()" class="w-full mt-2 rounded border border-emerald-400/30 bg-emerald-400/10 p-1.5 text-emerald-200 font-bold">✓ RUN ROUTINE CHECK</button></div>
+          <div class="text-[7px] text-fuiMuted">LAST ROUTINE CHECK: ${STATE.guard.lastCheck||'NOT RUN'}</div>
+          <div><div class="flex items-center justify-between mb-1"><b class="text-[8px] tracking-widest text-slate-300">EVENT LOG</b><span class="text-[7px] text-fuiMuted">${active.length} OPEN</span></div>${events}</div>
+          <div class="text-[7px] leading-relaxed text-fuiMuted border-t border-white/10 pt-2">SIMULATION ONLY · No real sensors, cameras, access control or emergency services are connected. Umka is a protected local resident and is never subject to access checks.</div>
+        </div>`;
+      return;
+    }
+    if(win.nativeType==='timerHud'){
+      const now=new Date();
+      body.innerHTML=`
+        <div class="flex flex-col justify-center h-full">
+          <div id="hud-clock" class="font-orbit text-lg sm:text-xl font-bold text-[var(--fui-cyan)] tracking-wider">${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}</div>
+          <div class="text-[9px] text-fuiMuted tracking-[0.12em] uppercase">19 NOV 2026 · LOCAL</div>
+          <div class="flex items-center gap-1.5 mt-1 text-[9px] tracking-wider">
+            <span class="w-2 h-2 rounded-full bg-fuiGreen shadow-[0_0_8px_#3FB950] animate-pulse"></span>
+            <span class="text-fuiGreen font-bold">ONLINE</span>
+            <span class="text-fuiMuted">NODE · NEUM</span>
+          </div>
+        </div>`;
+      return;
+    }
+    if(win.nativeType==='brandHud'){
+      body.innerHTML=`
+        <div class="flex flex-col items-center justify-center text-center h-full">
+          <div class="font-orbit text-sm sm:text-base font-black text-[var(--fui-orange)] tracking-[0.16em] drop-shadow-[0_0_18px_rgba(255,128,0,0.45)] leading-tight">TRAMPILLERA MEDIA</div>
+          <div class="text-[8px] sm:text-[9px] tracking-[0.22em] text-fuiMuted uppercase mt-0.5">FUI LAYER · MODULAR REALITY OS</div>
+        </div>`;
+      return;
+    }
+    if(win.nativeType==='citizenHud'){
+      body.innerHTML=`
+        <div class="flex flex-col justify-center text-right h-full">
+          <div class="flex items-center justify-end gap-1.5 text-[9px] text-fuiMuted tracking-[0.12em] uppercase">
+            <span class="w-1.5 h-1.5 rounded-full bg-[var(--fui-cyan)] animate-ping"></span><span>142 CITIZENS</span>
+          </div>
+          <div class="text-xs sm:text-sm font-bold text-[var(--fui-orange)]" id="hud-level">✦ Lv.${STATE.level}</div>
+          <div class="text-[11px] font-bold text-fuiGreen" id="hud-trp">${STATE.trp} TRP</div>
+        </div>`;
+      return;
+    }
+    if(win.nativeType==='tickerHud'){
+      body.innerHTML=`
+        <div class="flex items-center h-full overflow-hidden relative bg-gradient-to-r from-transparent via-[var(--fui-orange)]/10 to-transparent rounded-lg">
+          <div class="ticker-animate text-[10px] tracking-[0.1em] text-[var(--fui-orange)] gap-10 px-2">
+            <span>SIGNAL · Cross-border corridor planning phase entered</span>
+            <span>TRAMPILLERA MEDIA · Every HUD element is draggable, resizable, linkable &amp; morphable</span>
+            <span>PRESENCE · 142 Citizens active across Eurasia-Node &amp; Neo-Atlantis</span>
+            <span>EXCHANGE · TRP volume +12% in last cycle</span>
+            <span>SIGNAL · Cross-border corridor planning phase entered</span>
+            <span>TRAMPILLERA MEDIA · Every HUD element is draggable, resizable, linkable &amp; morphable</span>
+            <span>PRESENCE · 142 Citizens active across Eurasia-Node &amp; Neo-Atlantis</span>
+            <span>EXCHANGE · TRP volume +12% in last cycle</span>
+          </div>
+        </div>`;
+      return;
+    }
+    if(win.nativeType==='planetDockHud'){
+      const currentDist=(camera&&camera.position)?camera.position.length().toFixed(1):'8.2';
+      body.innerHTML=`
+        <div class="flex flex-col justify-between h-full gap-2 text-[10px]">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="font-bold tracking-[0.12em] text-[var(--fui-cyan)] uppercase">PLANET &amp; HEX GRID</span>
+              <span id="hex-count-badge" class="font-bold text-[var(--fui-orange)]">${hexCellMeshes.length.toLocaleString('en-US')} cells</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-[9px] text-fuiMuted">Cell Size:</span>
+              <input id="hex-density-slider" type="range" min="4" max="8" step="1" value="${STATE.theme.hexDetail}" oninput="onHexDensityChange(parseInt(this.value))" class="w-24 accent-[var(--fui-cyan)] cursor-pointer h-1.5 bg-gray-800 rounded-lg">
+              <button onclick="toggleTerraBiomeColors()" id="terra-biome-btn" class="px-2 py-0.5 rounded-lg ${STATE.theme.terraMode?'bg-fuiGreen/25 border border-fuiGreen text-fuiGreen':'bg-[var(--fui-orange)]/15 border border-[var(--fui-orange)]/40 text-[var(--fui-orange)]'} text-[9px] font-bold transition-all cursor-pointer">${STATE.theme.terraMode?'🌍 TERRA: ON':'🌍 TERRA: OFF'}</button>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-white/10">
+            <div class="flex items-center gap-1">
+              <button onclick="adjustZoom(1.1)" class="w-5 h-5 rounded bg-white/5 border border-[var(--fui-cyan)]/40 text-[var(--fui-cyan)] font-bold text-xs flex items-center justify-center cursor-pointer">−</button>
+              <input id="zoom-slider" type="range" min="2.85" max="15" step="0.1" value="${currentDist}" oninput="setCameraDistance(parseFloat(this.value))" class="w-20 accent-[var(--fui-orange)] cursor-pointer h-1.5 bg-gray-800 rounded-lg">
+              <button onclick="adjustZoom(-1.1)" class="w-5 h-5 rounded bg-white/5 border border-[var(--fui-cyan)]/40 text-[var(--fui-cyan)] font-bold text-xs flex items-center justify-center cursor-pointer">+</button>
+            </div>
+            <div class="flex flex-wrap items-center gap-1">
+              <button onclick="spawnCustomPanel('article')" class="px-2 py-1 rounded bg-[var(--fui-cyan)]/15 hover:bg-[var(--fui-cyan)]/30 border border-[var(--fui-cyan)]/40 text-[9px] font-bold text-[var(--fui-cyan)] cursor-pointer">+ Panel</button>
+              <button onclick="toggleWindowById('win-polaris-guard')" class="px-2 py-1 rounded bg-emerald-400/10 hover:bg-emerald-400/20 border border-emerald-300/40 text-[9px] font-bold text-emerald-200 cursor-pointer">🛡 POLARIS GUARD</button>
+              <button onclick="openAddSaucerModal()" class="px-2 py-1 rounded bg-[var(--fui-orange)]/15 hover:bg-[var(--fui-orange)]/30 border border-[var(--fui-orange)]/40 text-[9px] font-bold text-[var(--fui-orange)] cursor-pointer">+ Saucer</button>
+              <button onclick="toggleWindowById('win-craft-editor')" class="px-2 py-1 rounded bg-[var(--fui-cyan)]/15 hover:bg-[var(--fui-cyan)]/30 border border-[var(--fui-cyan)]/40 text-[9px] font-bold text-[var(--fui-cyan)] cursor-pointer">🛸 Saucers</button>
+              <button onclick="toggleNeocubeMode()" class="px-2 py-1 rounded ${STATE.neocubeMode?'bg-[var(--fui-orange)] text-black':'bg-white/5 hover:bg-white/15 border border-white/20 text-fuiText'} text-[9px] font-bold cursor-pointer">🧲 Neocube</button>
+              <button onclick="startWireLinkingMode()" class="px-2 py-1 rounded bg-white/5 hover:bg-[var(--fui-cyan)]/20 border border-white/20 text-[9px] font-bold text-[var(--fui-cyan)] cursor-pointer">🔗 Link</button>
+              <button onclick="toggleWindowById('win-studio')" class="px-2 py-1 rounded bg-purple-500/15 hover:bg-purple-500/30 border border-purple-400/40 text-[9px] font-bold text-purple-300 cursor-pointer">🎨 Studio</button>
+              <button onclick="enterSDTStudio()" class="px-2 py-1 rounded bg-[#a78bfa]/20 hover:bg-[#a78bfa]/35 border border-[#a78bfa]/50 text-[9px] font-bold text-[#c4b5fd] cursor-pointer">🌌 SDT</button>
+              <button onclick="saveWorkspaceLayout()" class="px-1.5 py-1 rounded bg-fuiGreen/15 hover:bg-fuiGreen/30 border border-fuiGreen/40 text-[9px] font-bold text-fuiGreen cursor-pointer" title="Save Layout">💾</button>
+              <button onclick="resetWorkspaceLayout()" class="px-1.5 py-1 rounded bg-red-500/15 hover:bg-red-500/30 border border-red-400/40 text-[9px] font-bold text-red-300 cursor-pointer" title="Reset Layout">↺</button>
+            </div>
+          </div>
+          <div id="closed-panels-bar" class="flex flex-wrap items-center gap-1 pt-1 border-t border-white/10"></div>
+        </div>`;
+      updateClosedPanelsDock();
+      return;
+    }
+    if(win.nativeType==='langOrbit'){
+      const petalsHtml=LANGUAGES.map((lang,idx)=>{
+        const angle=idx*30,activeCls=STATE.lang===lang.code?'active':'';
+        return `<div class="petal-btn ${activeCls}" style="transform: rotate(${angle}deg) translateX(62px) rotate(${-angle}deg);" onclick="selectLanguage('${lang.code}')" title="${lang.name}">${lang.code}</div>`;
+      }).join('');
+      body.innerHTML=`
+        <div class="relative w-[184px] h-[184px] mx-auto my-1">
+          <div onclick="cycleLanguage()" title="Click to cycle language" class="w-12 h-12 rounded-full bg-[var(--fui-orange)]/20 border border-[var(--fui-orange)]/60 flex items-center justify-center font-orbit font-bold text-[10px] text-[var(--fui-orange)] shadow-[0_0_20px_rgba(255,128,0,0.28)] cursor-pointer hover:scale-105 transition-transform" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:8;">LANG</div>
+          ${petalsHtml}
+        </div>
+        <div class="text-center text-[9px] text-fuiMuted tracking-widest mt-1">ACTIVE: <span class="text-[var(--fui-orange)] font-bold">${STATE.lang}</span> · 12 LOCALES</div>`;
+      return;
+    }
+    if(win.nativeType==='craftEditor'){
+      const s=STATE.saucers.find(item=>item.id===STATE.activeEditorSaucerId)||STATE.saucers[0];
+      if(!s)return;
+      const saucerTabs=STATE.saucers.map(item=>
+        `<button onclick="selectEditorSaucer('${item.id}')" class="px-2 py-0.5 rounded text-[9px] font-bold cursor-pointer ${item.id===s.id?'bg-[var(--fui-orange)] text-black':'bg-white/5 hover:bg-white/15 text-fuiText border border-white/10'}">${item.icon} ${item.name}</button>`
+      ).join('');
+      body.innerHTML=`
+        <div class="space-y-2 text-[10px]">
+          <div class="flex flex-wrap gap-1">${saucerTabs}</div>
+          <div class="p-2 rounded-lg bg-white/5 border border-white/10 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-white">${s.icon} ${s.fullName}</span>
+              <span class="text-[9px] text-[var(--fui-cyan)] font-mono">${s.connect.toUpperCase()}</span>
+            </div>
+            <div>
+              <div class="text-[9px] text-fuiMuted mb-1">Hull Geometry (Micro-Hex):</div>
+              <div class="grid grid-cols-3 gap-1">
+                <button onclick="updateSaucerField('${s.id}', 'shape', 'ufo')" class="py-1 rounded text-[9px] font-bold cursor-pointer ${s.shape==='ufo'?'bg-[var(--fui-cyan)] text-black':'bg-black/40 text-fuiText border border-white/10'}">🛸 Saucer</button>
+                <button onclick="updateSaucerField('${s.id}', 'shape', 'dumpling')" class="py-1 rounded text-[9px] font-bold cursor-pointer ${s.shape==='dumpling'?'bg-[var(--fui-cyan)] text-black':'bg-black/40 text-fuiText border border-white/10'}">🥟 Dumpling</button>
+                <button onclick="updateSaucerField('${s.id}', 'shape', 'pelmen')" class="py-1 rounded text-[9px] font-bold cursor-pointer ${s.shape==='pelmen'?'bg-[var(--fui-cyan)] text-black':'bg-black/40 text-fuiText border border-white/10'}">🥟 Pelmen</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <div class="flex justify-between text-[9px] text-fuiMuted"><span>Scale</span><b class="text-[var(--fui-orange)]">${s.scale.toFixed(2)}x</b></div>
+                <input type="range" min="0.35" max="1.25" step="0.03" value="${s.scale}" oninput="updateSaucerField('${s.id}', 'scale', parseFloat(this.value))" class="w-full accent-[var(--fui-orange)] cursor-pointer h-1.5 bg-gray-800 rounded-lg">
+              </div>
+              <div>
+                <div class="flex justify-between text-[9px] text-fuiMuted"><span>Orbit</span><b class="text-[var(--fui-cyan)]">${s.orbitRadius.toFixed(1)}</b></div>
+                <input type="range" min="2.4" max="5.2" step="0.1" value="${s.orbitRadius}" oninput="updateSaucerField('${s.id}', 'orbitRadius', parseFloat(this.value))" class="w-full accent-[var(--fui-cyan)] cursor-pointer h-1.5 bg-gray-800 rounded-lg">
+              </div>
+              <div>
+                <div class="flex justify-between text-[9px] text-fuiMuted"><span>Crimp Edge</span><b class="text-[var(--fui-orange)]">${(s.crimp??0.14).toFixed(2)}</b></div>
+                <input type="range" min="0.0" max="0.45" step="0.02" value="${s.crimp??0.14}" oninput="updateSaucerField('${s.id}', 'crimp', parseFloat(this.value))" class="w-full accent-[var(--fui-orange)] cursor-pointer h-1.5 bg-gray-800 rounded-lg">
+              </div>
+              <div>
+                <div class="flex justify-between text-[9px] text-fuiMuted"><span>Disc Flat</span><b class="text-[var(--fui-cyan)]">${(s.flatness??0.36).toFixed(2)}</b></div>
+                <input type="range" min="0.18" max="0.95" step="0.03" value="${s.flatness??0.36}" oninput="updateSaucerField('${s.id}', 'flatness', parseFloat(this.value))" class="w-full accent-[var(--fui-cyan)] cursor-pointer h-1.5 bg-gray-800 rounded-lg">
+              </div>
+            </div>
+            <div class="flex items-center justify-between gap-2 pt-1">
+              <label class="text-[9px] text-fuiMuted">Stream:</label>
+              <select onchange="updateSaucerField('${s.id}', 'connect', this.value)" class="bg-black/80 border border-white/20 rounded px-2 py-0.5 text-[9px] text-[var(--fui-orange)] font-bold cursor-pointer">
+                <option value="article" ${s.connect==='article'?'selected':''}>📰 Article Feed</option>
+                <option value="video" ${s.connect==='video'?'selected':''}>🎥 Video Stream</option>
+                <option value="map" ${s.connect==='map'?'selected':''}>🗺 Hex Radar</option>
+                <option value="model3d" ${s.connect==='model3d'?'selected':''}>🧊 3D Model</option>
+                <option value="audio" ${s.connect==='audio'?'selected':''}>📻 Synth Radio</option>
+                <option value="terminal" ${s.connect==='terminal'?'selected':''}>💻 Terminal</option>
+              </select>
+              <input type="color" value="${s.color}" onchange="updateSaucerField('${s.id}', 'color', this.value)" class="w-6 h-5 rounded bg-transparent border-0 cursor-pointer" title="Craft Glow Color">
+            </div>
+          </div>
+          <div class="flex gap-1.5">
+            <button onclick="openSaucerLayerModal('${s.id}')" class="flex-1 py-1.5 rounded-lg bg-[var(--fui-orange)] text-black font-bold text-[9px] cursor-pointer">Open Layer</button>
+            <button onclick="removeSaucer('${s.id}')" class="px-2.5 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/35 border border-red-400/40 text-red-300 font-bold text-[9px] cursor-pointer">Remove</button>
+          </div>
+        </div>`;
+      return;
+    }
+    if(win.nativeType==='serviceNodes'){
+      body.innerHTML=`<div class="space-y-1.5">`+STATE.saucers.map(s=>`
+        <div onclick="openSaucerLayerModal('${s.id}')" class="flex items-center justify-between gap-2.5 p-2 rounded-xl bg-white/[0.03] hover:bg-[var(--fui-orange)]/15 border border-transparent hover:border-[var(--fui-orange)]/40 transition-all cursor-pointer">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-8 h-8 rounded-lg bg-[var(--fui-cyan)]/10 border border-[var(--fui-cyan)]/30 flex items-center justify-center text-sm shrink-0">${s.icon}</div>
+            <div class="truncate">
+              <div class="text-[11px] font-bold text-white truncate">${s.fullName}</div>
+              <div class="text-[8px] text-fuiMuted tracking-wider uppercase truncate">${s.meta} · ${s.shape.toUpperCase()}</div>
+            </div>
+          </div>
+          <span class="text-[var(--fui-orange)] text-xs font-bold shrink-0">›</span>
+        </div>`).join('')+`</div>`;
+      return;
+    }
+    if(win.nativeType==='jarviser'){
+      body.innerHTML=`
+        <div class="flex flex-col justify-between h-full gap-2 text-[11px]">
+          <div>
+            <div class="flex items-center gap-2 mb-1.5">
+              <div class="w-6 h-6 rounded-full bg-gradient-to-br from-[#FF9259] to-[#B83A00] flex items-center justify-center text-xs shadow-[0_0_12px_rgba(255,128,0,0.45)]">😈</div>
+              <div>
+                <div class="text-[11px] font-bold text-[var(--fui-orange)] leading-none">JARVISER</div>
+                <div class="text-[8px] text-fuiMuted tracking-wider mt-0.5">Mischief Navigator · v4.2</div>
+              </div>
+            </div>
+            <div id="jarviser-text" class="text-[10px] leading-relaxed text-fuiText/95">Language orbit online. Try commands: <em>"micro hex"</em>, <em>"terra"</em>, <em>"classic"</em>, <em>"neocube"</em>, <em>"zoom 5"</em>, <em>"umka"</em>, <em>"sdt"</em>, or <em>"clear"</em>.</div>
+          </div>
+          <form onsubmit="handleJarviserCommand(event)" class="flex gap-1.5 pt-1 border-t border-white/10">
+            <input id="jarviser-cmd-input" type="text" placeholder="Navigator command..." class="flex-1 px-2.5 py-1 rounded-lg bg-black/60 border border-white/15 text-[10px] text-white placeholder-fuiMuted focus:outline-none focus:border-[var(--fui-orange)]">
+            <button type="submit" class="px-2.5 py-1 rounded-lg bg-[var(--fui-orange)] text-black font-bold text-[10px] hover:brightness-110 cursor-pointer">↵</button>
+          </form>
+        </div>`;
+      return;
+    }
+    if(win.nativeType==='studio'){
+      const sculptBtns=[
+        {id:'inspect',label:'🔍 Inspect'},{id:'raise',label:'⛰️ Raise'},
+        {id:'lower',label:'🌊 Carve'},{id:'paintCyan',label:'💠 Cyan'},
+        {id:'paintOrange',label:'🟠 Amber'},{id:'paintForest',label:'🌲 Forest'}
+      ].map(b=>`<button onclick="setSculptMode('${b.id}')" class="py-1 px-1.5 rounded text-[9px] font-bold cursor-pointer ${STATE.sculptMode===b.id?'bg-[var(--fui-orange)] text-black':'bg-black/50 text-fuiText border border-white/10'}">${b.label}</button>`).join('');
+      body.innerHTML=`
+        <div class="space-y-2.5 text-[10px]">
+          <div class="p-2 rounded-xl bg-white/5 border border-white/10 space-y-2">
+            <div class="text-[9px] font-bold text-[var(--fui-orange)] uppercase tracking-wider">Workspace Presets</div>
+            <div class="grid grid-cols-2 gap-1">
+              <button onclick="applyWorkspacePreset('minimal')" class="py-1 px-2 rounded bg-white/5 hover:bg-[var(--fui-cyan)]/20 border border-white/10 text-[9px] font-bold cursor-pointer">🌌 Minimal Cosmos</button>
+              <button onclick="applyWorkspacePreset('trader')" class="py-1 px-2 rounded bg-white/5 hover:bg-[var(--fui-orange)]/20 border border-white/10 text-[9px] font-bold cursor-pointer">⚡ Exchange Trader</button>
+              <button onclick="applyWorkspacePreset('editorial')" class="py-1 px-2 rounded bg-white/5 hover:bg-[var(--fui-cyan)]/20 border border-white/10 text-[9px] font-bold cursor-pointer">📰 Media Editor</button>
+              <button onclick="applyWorkspacePreset('navigator')" class="py-1 px-2 rounded bg-white/5 hover:bg-[var(--fui-orange)]/20 border border-white/10 text-[9px] font-bold cursor-pointer">🧭 Navigator Desk</button>
+            </div>
+          </div>
+          <div class="p-2 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+            <div class="text-[9px] font-bold text-[var(--fui-cyan)] uppercase tracking-wider">🖌️ Planet Terraforming Sculptor Brush</div>
+            <div class="grid grid-cols-3 gap-1">${sculptBtns}</div>
+          </div>
+          <div class="p-2 rounded-xl bg-white/5 border border-white/10 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-fuiMuted">Primary / Secondary Glow</span>
+              <div class="flex gap-1.5">
+                <input type="color" value="${STATE.theme.orange}" onchange="updateThemeColor('orange', this.value)" class="w-6 h-5 rounded bg-transparent border-0 cursor-pointer">
+                <input type="color" value="${STATE.theme.cyan}" onchange="updateThemeColor('cyan', this.value)" class="w-6 h-5 rounded bg-transparent border-0 cursor-pointer">
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-[9px] text-fuiMuted mb-0.5">
+                <span>Micro-Hex Density (up to 40k+)</span>
+                <span class="text-[var(--fui-cyan)] font-bold">${hexCellMeshes.length.toLocaleString('en-US')}</span>
+              </div>
+              <input type="range" min="4" max="8" step="1" value="${STATE.theme.hexDetail}" oninput="onHexDensityChange(parseInt(this.value)); renderWindowContent('${win.id}');" class="w-full accent-[var(--fui-cyan)] cursor-pointer h-1.5 bg-gray-800 rounded-lg">
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-fuiMuted">Earth Terra Biome Colors</span>
+              <button onclick="toggleTerraBiomeColors(); renderWindowContent('${win.id}');" class="px-2 py-0.5 rounded bg-[var(--fui-cyan)]/20 border border-[var(--fui-cyan)]/50 text-[var(--fui-cyan)] text-[9px] font-bold cursor-pointer">${STATE.theme.terraMode?'ON':'OFF'}</button>
+            </div>
+          </div>
+          <div class="flex gap-1.5">
+            <button onclick="openJsonConfigModal()" class="flex-1 py-1.5 rounded-lg bg-[var(--fui-cyan)]/15 border border-[var(--fui-cyan)]/45 text-[var(--fui-cyan)] font-bold text-[9px] cursor-pointer">📤 Export / Import JSON</button>
+            <button onclick="clearAllNodeWires()" class="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/15 text-fuiMuted hover:text-white font-bold text-[9px] cursor-pointer">Clear Links</button>
+          </div>
+        </div>`;
+      return;
+    }
+    if(win.nativeType==='custom'){
+      body.innerHTML=`<div class="text-[10px] text-fuiMuted">Custom module (${win.connectType}) — content rendered below by connect type.</div>`;
+    }
+  }
+
+  if(win.connectType==='article'){
+    const art=MEDIA_ARTICLES[0];
+    body.innerHTML=`
+      <div class="space-y-2 text-[10px]">
+        <div class="text-[9px] text-[var(--fui-orange)] font-bold uppercase">${art.badge} · ${art.region}</div>
+        <div class="font-bold text-xs text-white leading-snug">${art.title}</div>
+        <p class="text-fuiMuted leading-relaxed">${art.summary}</p>
+        <button onclick="claimReward(${art.trpReward}, 'Article synchronized')" class="px-2.5 py-1 rounded bg-[var(--fui-orange)]/20 border border-[var(--fui-orange)]/50 text-[var(--fui-orange)] font-bold cursor-pointer">+${art.trpReward} TRP</button>
+      </div>`;
+  }else if(win.connectType==='video'){
+    body.innerHTML=`
+      <div class="h-full flex flex-col justify-between bg-gradient-to-br from-[#0d1b2a] via-[#12263a] to-[#1d1328] rounded-xl p-2.5 border border-[var(--fui-cyan)]/30 text-[10px]">
+        <div class="flex items-center justify-between">
+          <span class="px-2 py-0.5 rounded bg-red-500/30 text-red-300 font-bold text-[9px] animate-pulse">● LIVE STREAM</span>
+          <span class="text-fuiMuted text-[9px]">TRAMPILLERA TV</span>
+        </div>
+        <div class="my-auto text-center"><div class="text-xl mb-1">📡</div><div class="font-orbit font-bold text-white text-[11px]">ORBITAL RELAY FEED #04</div></div>
+        <div class="text-[9px] text-[var(--fui-cyan)] font-mono">BITRATE 48.2 Mbps · NODE-NEUM</div>
+      </div>`;
+  }else if(win.connectType==='map'){
+    body.innerHTML=`
+      <div class="h-full flex flex-col justify-between bg-[#08121c] rounded-xl p-2.5 border border-[var(--fui-cyan)]/30 text-[10px]">
+        <div class="flex justify-between items-center"><span class="font-bold text-[var(--fui-cyan)]">HEX ATLAS RADAR</span><span class="text-fuiGreen font-bold">142 ONLINE</span></div>
+        <div class="grid grid-cols-6 gap-1 my-2">
+          ${Array.from({length:18},(_,i)=>`<div onclick="setCameraDistance(${3.2+(i%5)*1.6})" class="h-4 rounded ${i%4===0?'bg-[var(--fui-orange)]/45 border border-[var(--fui-orange)]':'bg-[var(--fui-cyan)]/20 border border-[var(--fui-cyan)]/35'} cursor-pointer" title="Sector #${i+1}"></div>`).join('')}
+        </div>
+        <div class="text-[9px] text-fuiMuted">Click any sector tile to zoom the 3D globe</div>
+      </div>`;
+  }else if(win.connectType==='model3d'){
+    const canvasHostId=`mini-3d-${win.id}`;
+    body.innerHTML=`
+      <div class="h-full flex flex-col justify-between bg-[#090d14] rounded-xl p-2 border border-[var(--fui-orange)]/35">
+        <div id="${canvasHostId}" class="w-full flex-1 min-h-[115px] rounded-lg overflow-hidden"></div>
+        <div class="flex justify-between items-center text-[9px] pt-1">
+          <span class="font-orbit font-bold text-[var(--fui-orange)]">LIVE 3D ARTIFACT VIEWPORT</span>
+          <span class="text-fuiMuted">WEBGL · 60 FPS</span>
+        </div>
+      </div>`;
+    setTimeout(()=>initEmbeddedMini3DViewer(canvasHostId),0);
+  }else if(win.connectType==='audio'){
+    const bars=Array.from({length:14},(_,i)=>`<div class="flex-1 bg-[var(--fui-cyan)] rounded-t ${STATE.radioPlaying?'eq-bar':'opacity-25'}" style="height:${25+((i*19)%75)}%; animation-delay:${(i*0.08).toFixed(2)}s"></div>`).join('');
+    body.innerHTML=`
+      <div class="h-full flex flex-col justify-between bg-[#08121c] rounded-xl p-2.5 border border-[var(--fui-cyan)]/30 text-[10px]">
+        <div class="flex justify-between items-center">
+          <span class="font-bold text-[var(--fui-cyan)]">📻 SYNTH RADIO CH-${STATE.radioChannel}</span>
+          <button onclick="toggleAmbientRadio()" class="px-2 py-0.5 rounded bg-[var(--fui-orange)] text-black font-bold text-[9px] cursor-pointer">${STATE.radioPlaying?'STOP':'PLAY'}</button>
+        </div>
+        <div class="h-12 flex items-end gap-1 my-1 px-1">${bars}</div>
+        <div class="flex gap-1">
+          <button onclick="STATE.radioPlaying=true; toggleAmbientRadio(1);" class="flex-1 py-0.5 rounded bg-white/10 text-[9px] font-bold cursor-pointer">CH-1 Ambient</button>
+          <button onclick="STATE.radioPlaying=true; toggleAmbientRadio(2);" class="flex-1 py-0.5 rounded bg-white/10 text-[9px] font-bold cursor-pointer">CH-2 Pulse</button>
+          <button onclick="STATE.radioPlaying=true; toggleAmbientRadio(3);" class="flex-1 py-0.5 rounded bg-white/10 text-[9px] font-bold cursor-pointer">CH-3 Drift</button>
+        </div>
+      </div>`;
+  }else if(win.connectType==='terminal'){
+    body.innerHTML=`
+      <div class="font-mono text-[9px] space-y-1 text-fuiGreen bg-black/50 p-2 rounded-lg h-full">
+        <div>&gt; TRAMPILLERA MEDIA OS v4.2</div>
+        <div class="text-[var(--fui-cyan)]">&gt; HEX CELLS: ${hexCellMeshes.length.toLocaleString('en-US')} ACTIVE</div>
+        <div class="text-[var(--fui-orange)]">&gt; SAUCERS IN ORBIT: ${STATE.saucers.length}</div>
+        <div>&gt; NODE-GRAPH LINKS: ${STATE.wires.length}</div>
+      </div>`;
+  }
+}
+
+// ============================================================================
+// PRESETS / MODALS / MISC
+// ============================================================================
+function applyWorkspacePreset(presetName){
+  playTactileSound('chime');
+  if(presetName==='minimal')STATE.windows.forEach(w=>{w.visible=(w.id==='win-brand'||w.id==='win-planet-dock');});
+  else if(presetName==='trader'){
+    STATE.windows.forEach(w=>{w.visible=['win-timer','win-citizen','win-ticker','win-planet-dock','win-craft-editor','win-services'].includes(w.id);});
+    const ed=STATE.windows.find(w=>w.id==='win-craft-editor');
+    if(ed)ed.connectType='model3d';
+  }else if(presetName==='editorial')STATE.windows.forEach(w=>{w.visible=['win-brand','win-ticker','win-planet-dock','win-lang','win-jarviser'].includes(w.id);});
+  else if(presetName==='navigator'){expandBasePanelsWithHints();return;}
+  renderAllSpatialWindows();
+  showToast(`🎨 Workspace preset applied: ${presetName}`);
+}
+function selectLanguage(code){
+  STATE.lang=code;playTactileSound('tick');
+  renderWindowContent('win-lang');
+  showToast(`🌐 Language set: ${code} (${LANGUAGES.find(l=>l.code===code)?.name||code})`);
+}
+function cycleLanguage(){
+  const idx=LANGUAGES.findIndex(l=>l.code===STATE.lang);
+  STATE.lang=LANGUAGES[(idx+1)%LANGUAGES.length].code;
+  playTactileSound('tick');renderWindowContent('win-lang');
+}
+function selectEditorSaucer(id){
+  STATE.activeEditorSaucerId=id;playTactileSound('tick');renderWindowContent('win-craft-editor');
+}
+function updateSaucerField(id,field,value){
+  const s=STATE.saucers.find(x=>x.id===id);if(!s)return;
+  s[field]=value;playTactileSound('tick');
+  buildAllSaucers();renderWindowContent('win-craft-editor');
+}
+function removeSaucer(id){
+  STATE.saucers=STATE.saucers.filter(s=>s.id!==id);
+  if(STATE.activeEditorSaucerId===id)STATE.activeEditorSaucerId=STATE.saucers[0]?.id;
+  buildAllSaucers();renderAllSpatialWindows();
+  showToast('🗑️ Saucer removed from orbit');
+}
+function openAddSaucerModal(){
+  const id='custom-'+Date.now();
+  STATE.saucers.push({id,name:'CUSTOM',fullName:'Custom Node',icon:'🛸',color:'#00C8D7',shape:'ufo',scale:.6,orbitRadius:3.4,angle:Math.random()*Math.PI*2,yOffset:0,crimp:.14,flatness:.34,meta:'CUSTOM · NODE',connect:'article',detachedTop:false});
+  STATE.activeEditorSaucerId=id;
+  buildAllSaucers();renderAllSpatialWindows();
+  showToast('➕ New saucer deployed to orbit');
+}
+function openSaucerLayerModal(id){
+  const s=STATE.saucers.find(x=>x.id===id);
+  const modal=document.getElementById('layer-modal');
+  if(!s||!modal)return;
+  document.getElementById('modal-icon').textContent=s.icon;
+  document.getElementById('modal-title').textContent=s.fullName;
+  document.getElementById('modal-subtitle').textContent=`${s.meta} · ${s.shape.toUpperCase()}`;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="grid grid-cols-2 gap-3 text-[11px]">
+      <div class="p-2 rounded bg-white/5"><div class="text-fuiMuted text-[9px]">CONNECT TYPE</div><div class="font-bold text-[var(--fui-cyan)]">${s.connect}</div></div>
+      <div class="p-2 rounded bg-white/5"><div class="text-fuiMuted text-[9px]">ORBIT RADIUS</div><div class="font-bold text-[var(--fui-orange)]">${s.orbitRadius.toFixed(2)}</div></div>
+      <div class="p-2 rounded bg-white/5"><div class="text-fuiMuted text-[9px]">SCALE</div><div class="font-bold text-[var(--fui-cyan)]">${s.scale.toFixed(2)}x</div></div>
+      <div class="p-2 rounded bg-white/5"><div class="text-fuiMuted text-[9px]">COLOR</div><div class="font-bold" style="color:${s.color}">${s.color}</div></div>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="closeLayerModal()" class="flex-1 py-2 rounded bg-white/10 hover:bg-white/20 font-bold text-[11px] cursor-pointer">Close</button>
+      <button onclick="openEditorFor('${s.id}');closeLayerModal()" class="flex-1 py-2 rounded bg-[var(--fui-orange)] text-black font-bold text-[11px] cursor-pointer">Edit Craft</button>
+    </div>`;
+  modal.classList.remove('hidden');modal.classList.add('flex');
+}
+function openEditorFor(id){STATE.activeEditorSaucerId=id;STATE.windows.find(w=>w.id==='win-craft-editor').visible=true;renderAllSpatialWindows();}
+function closeLayerModal(){const m=document.getElementById('layer-modal');if(m){m.classList.add('hidden');m.classList.remove('flex');}}
+function openHexSectorHubModal(data){
+  const modal=document.getElementById('layer-modal');
+  if(!modal)return;
+  document.getElementById('modal-icon').textContent='⬡';
+  document.getElementById('modal-title').textContent=data.id;
+  document.getElementById('modal-subtitle').textContent=data.biome;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="text-[11px] space-y-1">
+      <div><span class="text-fuiMuted">Region:</span> ${data.region}</div>
+      <div><span class="text-fuiMuted">Biome type:</span> ${data.biomeType}</div>
+      <div><span class="text-fuiMuted">Sticker:</span> ${STATE.hexStickers[data.id]||'—'}</div>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="closeLayerModal()" class="flex-1 py-2 rounded bg-white/10 hover:bg-white/20 font-bold text-[11px] cursor-pointer">Close</button>
+      <button onclick="toggleTerraBiomeColors();closeLayerModal()" class="flex-1 py-2 rounded bg-[var(--fui-cyan)] text-black font-bold text-[11px] cursor-pointer">Toggle Terra</button>
+    </div>`;
+  modal.classList.remove('hidden');modal.classList.add('flex');
+}
+function toggleNeocubeMode(){
+  STATE.neocubeMode=!STATE.neocubeMode;
+  const b=document.getElementById('neocube-banner');
+  if(b)b.classList.toggle('hidden',!STATE.neocubeMode);
+  playTactileSound('chime');
+  showToast(STATE.neocubeMode?'🧲 Neocube mode ON':'🧲 Neocube mode OFF');
+}
+function handleNeocubeSaucerClick(id){
+  if(!STATE.neocubeSourceId){STATE.neocubeSourceId=id;showToast(`🧲 Source selected: ${id}. Click another to magnetize.`);return;}
+  if(STATE.neocubeSourceId!==id){showToast(`🧲 Magnetized ${STATE.neocubeSourceId} ↔ ${id}`);STATE.neocubeSourceId=null;}
+}
+function updateThemeColor(key,val){
+  STATE.theme[key]=val;
+  document.documentElement.style.setProperty(key==='orange'?'--fui-orange':key==='cyan'?'--fui-cyan':'--fui-cyan',val);
+  buildHexagonalPlanet();
+  showToast(`🎨 Theme ${key} updated: ${val}`);
+}
+function claimReward(amount,msg){
+  STATE.trp+=amount;
+  playTactileSound('chime');
+  renderWindowContent('win-citizen');
+  showToast(`+${amount} TRP · ${msg}`);
+}
+function saveWorkspaceLayout(){
+  try{localStorage.setItem('trampillera-layout',JSON.stringify(STATE.windows));showToast('💾 Workspace layout saved');}
+  catch(e){showToast('⚠️ Could not save layout');}
+}
+function resetWorkspaceLayout(){
+  STATE.windows=getDefaultWindows();renderAllSpatialWindows();showToast('↺ Workspace layout reset');
+}
+function openJsonConfigModal(){
+  const modal=document.getElementById('layer-modal');
+  if(!modal)return;
+  document.getElementById('modal-icon').textContent='📤';
+  document.getElementById('modal-title').textContent='EXPORT / IMPORT JSON';
+  document.getElementById('modal-subtitle').textContent='WORKSPACE CONFIG';
+  document.getElementById('modal-body').innerHTML=`
+    <textarea id="json-area" class="w-full h-40 bg-black/60 border border-white/15 rounded p-2 text-[10px] font-mono text-fuiText">${JSON.stringify({windows:STATE.windows,saucers:STATE.saucers,theme:STATE.theme},null,2)}</textarea>
+    <div class="flex gap-2">
+      <button onclick="navigator.clipboard.writeText(document.getElementById('json-area').value);showToast('📋 JSON copied')" class="flex-1 py-2 rounded bg-[var(--fui-cyan)]/20 border border-[var(--fui-cyan)]/50 text-[var(--fui-cyan)] font-bold text-[11px] cursor-pointer">Copy</button>
+      <button onclick="closeLayerModal()" class="flex-1 py-2 rounded bg-white/10 hover:bg-white/20 font-bold text-[11px] cursor-pointer">Close</button>
+    </div>`;
+  modal.classList.remove('hidden');modal.classList.add('flex');
+}
+function refreshPolarisGuard(){renderWindowContent('win-polaris-guard');}
+function setPolarisScenario(kind){
+  const scenarios={
+    approach:{layer:'perimeter',severity:'ATTENTION',message:'Unscheduled movement reported near an outer approach marker.'},
+    access:{layer:'access',severity:'WARNING',message:'A visitor access request is waiting for resident-host confirmation.'},
+    power:{layer:'infrastructure',severity:'WARNING',message:'Power reserve has dropped below the preferred operating band.'},
+    blizzard:{layer:'emergency',severity:'ATTENTION',message:'Blizzard conditions reduce visibility; use sheltered pedestrian routes.'},
+    dome:{layer:'emergency',severity:'EMERGENCY',message:'Dome pressure anomaly. Isolate the affected segment and move residents to the nearest shelter.'},
+    network:{layer:'network',severity:'WARNING',message:'A control-network integrity check returned an inconsistent local signature.'},
+    wildlife:{layer:'ecology',severity:'ATTENTION',message:'Wildlife crossing detected near a service route. Pause vehicle movement and preserve the habitat corridor.'}
+  };
+  const scenario=scenarios[kind];if(!scenario)return;
+  STATE.guard.events.unshift({id:`pg-${Date.now()}`,layer:scenario.layer,severity:scenario.severity,message:scenario.message,status:'ACTIVE',time:new Date().toLocaleTimeString()});
+  STATE.guard.events=STATE.guard.events.slice(0,30);
+  playTactileSound(scenario.severity==='EMERGENCY'?'snap':'tick');refreshPolarisGuard();
+  showToast(`POLARIS GUARD · SIMULATED ${scenario.severity}`);
+}
+function acknowledgePolarisEvent(id){const e=STATE.guard.events.find(x=>x.id===id);if(!e)return;e.status='ACKNOWLEDGED';refreshPolarisGuard();showToast('POLARIS GUARD · Event acknowledged');}
+function resolvePolarisEvent(id){const e=STATE.guard.events.find(x=>x.id===id);if(!e)return;e.status='RESOLVED';refreshPolarisGuard();showToast('POLARIS GUARD · Event resolved in simulation');}
+function runPolarisRoutineCheck(){STATE.guard.lastCheck=new Date().toLocaleTimeString();playTactileSound('chime');refreshPolarisGuard();showToast(`POLARIS GUARD · Routine simulation check ${STATE.guard.lastCheck}`);}
+
+function setJarviserMessage(msg){const el=document.getElementById('jarviser-text');if(el)el.textContent=msg;}
+
+// --- JARVISER (дописан) ---
+function handleJarviserCommand(e){
+  e.preventDefault();
+  const input=document.getElementById('jarviser-cmd-input');
+  const cmd=(input.value||'').trim().toLowerCase();
+  input.value='';
+  if(!cmd)return;
+  let reply='';
+  if(cmd.includes('micro hex')||cmd==='hex'){
+    onHexDensityChange(6);reply='Micro-hex density increased.';
+  }else if(cmd.includes('terra')){
+    toggleTerraBiomeColors();reply='Terra biome palette toggled.';
+  }else if(cmd.includes('classic')){
+    togglePortalMode();reply='Switched to Classic editorial mode.';
+  }else if(cmd.includes('neocube')){
+    toggleNeocubeMode();reply='Neocube magnetic assembly mode toggled.';
+  }else if(cmd.startsWith('zoom')){
+    const n=parseFloat(cmd.split(/\s+/)[1]);
+    if(!isNaN(n)){setCameraDistance(n);reply=`Camera zoom set to ${n}.`;}else reply='Usage: zoom <number>';
+  }else if(cmd.includes('guard')||cmd.includes('polaris')){
+    toggleWindowById('win-polaris-guard');reply='Opening POLARIS GUARD · local simulation only.';
+  }else if(cmd.includes('umka')){
+    openUmkaTown();reply='Opening Umka-Town...';
+  }else if(cmd.includes('sdt')){
+    enterSDTStudio();reply='Entering SDT 5D Studio...';
+  }else if(cmd.includes('clear')){
+    clearAllNodeWires();reply='All node wires cleared.';
+  }else{
+    reply=`Unknown command "${cmd}". Try: micro hex, terra, classic, neocube, zoom 5, umka, sdt, clear.`;
+  }
+  setJarviserMessage(reply);
+}
+
+// ============================================================================
+// CLASSIC MODE (дописан)
+// ============================================================================
+function renderClassicArticles(){
+  const grid=document.getElementById('classic-articles-grid');
+  const tabs=document.getElementById('classic-category-tabs');
+  if(!grid||!tabs)return;
+  const cats=['ALL',...new Set(MEDIA_ARTICLES.map(a=>a.cat))];
+  tabs.innerHTML=cats.map(c=>`<button onclick="STATE.classicCategory='${c}';renderClassicArticles();" class="px-3 py-1.5 rounded-full text-[10px] font-bold border ${STATE.classicCategory===c?'bg-[var(--fui-orange)] text-black border-[var(--fui-orange)]':'bg-white/5 text-fuiText border-white/15 hover:bg-white/10'} cursor-pointer">${c}</button>`).join('');
+  const q=(document.getElementById('classic-search-input')?.value||'').toLowerCase();
+  const filtered=MEDIA_ARTICLES.filter(a=>
+    (STATE.classicCategory==='ALL'||a.cat===STATE.classicCategory)&&
+    (!q||a.title.toLowerCase().includes(q)||a.summary.toLowerCase().includes(q)||a.region.toLowerCase().includes(q))
+  );
+  grid.innerHTML=filtered.map(a=>`
+    <article class="classic-card transition-all duration-200 bg-white/[0.03] border border-white/10 rounded-2xl p-4 space-y-2 cursor-pointer">
+      <div class="flex items-center justify-between">
+        <span class="text-[9px] px-2 py-0.5 rounded bg-[var(--fui-orange)]/20 text-[var(--fui-orange)] font-bold uppercase tracking-wider">${a.badge}</span>
+        <span class="text-[9px] text-fuiMuted">${a.cat}</span>
+      </div>
+      <h3 class="font-bold text-sm text-white leading-snug">${a.title}</h3>
+      <p class="text-[10px] text-fuiMuted leading-relaxed">${a.summary}</p>
+      <div class="flex items-center justify-between pt-1 border-t border-white/10">
+        <span class="text-[9px] text-[var(--fui-cyan)]">${a.region}</span>
+        <button onclick="event.stopPropagation();claimReward(${a.trpReward}, 'Article synchronized')" class="px-2 py-0.5 rounded bg-[var(--fui-orange)]/20 border border-[var(--fui-orange)]/50 text-[var(--fui-orange)] text-[9px] font-bold cursor-pointer">+${a.trpReward} TRP</button>
+      </div>
+    </article>`).join('')||`<div class="col-span-full text-center text-fuiMuted text-xs py-10">No articles match your filter.</div>`;
+}
+function togglePortalMode(){
+  STATE.classicMode=!STATE.classicMode;
+  const overlay=document.getElementById('classic-media-overlay');
+  const btn=document.getElementById('mode-switch-btn');
+  if(STATE.classicMode){
+    overlay.classList.remove('hidden');
+    document.getElementById('spatial-windows-layer').style.display='none';
+    document.getElementById('node-wires-svg').style.display='none';
+    if(btn)btn.textContent='📰 CLASSIC / 🌐 3D ORBIT';
+    renderClassicArticles();
+    playTactileSound('chime');
+    showToast('📰 Classic editorial feed active');
+  }else{
+    overlay.classList.add('hidden');
+    document.getElementById('spatial-windows-layer').style.display='';
+    document.getElementById('node-wires-svg').style.display='';
+    if(btn)btn.textContent='🌐 3D ORBIT / 📰 CLASSIC';
+    buildNeuralDataBeams();
+    playTactileSound('chime');
+    showToast('🌐 3D Orbit FUI active');
+  }
+  updateSummonButtonVisibility();
+  renderNodeWires();
+}
+
+// ============================================================================
+// SPLASH / UMKA / SDT BRIDGE  (дописано)
+// ============================================================================
+function openUmkaTown(){
+  const umka=document.getElementById('umka-screen');
+  if(umka)umka.classList.add('visible');
+  playTactileSound('chime');
+  showToast('❄️ POLARNY · locally known as UMKA-TOWN');
+}
+function exitUmkaTown(){
+  const umka=document.getElementById('umka-screen');
+  if(umka)umka.classList.remove('visible');
+  playTactileSound('tick');
+}
+// --- SDT bridge (iframe) ---
+function enterSDTStudio(){
+  const frame=document.getElementById('sdt-frame');
+  const app=document.getElementById('app-trampillera');
+  const umka=document.getElementById('umka-screen');
+  if(umka)umka.classList.remove('visible');
+  if(frame){frame.classList.add('visible');frame.src='sdt-5d-engine-v20.html';}
+  if(app)app.classList.add('hidden-by-sdt');
+  playTactileSound('chime');
+  showToast('🌌 Entering SDT 5D Studio (iframe module)');
+}
+function exitSDTStudio(){
+  const frame=document.getElementById('sdt-frame');
+  const app=document.getElementById('app-trampillera');
+  if(frame){frame.classList.remove('visible');}
+  if(app)app.classList.remove('hidden-by-sdt');
+  playTactileSound('tick');
+  showToast('← Returned to Planet FUI');
+}
+window.addEventListener('keydown',(ev)=>{if(ev.key==='Escape'&&document.getElementById('umka-screen')?.classList.contains('visible'))exitUmkaTown();});
+
+// Приём сообщений из iframe (например, кнопка «Return to Planet» внутри движка)
+window.addEventListener('message',(ev)=>{
+  const data=ev.data||{};
+  if(data.type==='sdt-exit')exitSDTStudio();
+  else if(data.type==='sdt-toast')showToast(data.message||'SDT event');
+});
+
+// ============================================================================
+// BOOTSTRAP
+// ============================================================================
+function bootstrapTrampillera(){
+  STATE.saucers=INITIAL_SAUCERS.map(s=>({...s}));
+  STATE.windows=getDefaultWindows();
+  // Восстановление сохранённого layout
+  try{
+    const saved=localStorage.getItem('trampillera-layout');
+    if(saved){
+      const parsed=JSON.parse(saved);
+      if(Array.isArray(parsed)&&parsed.length){
+        // Обновляем только позиции/размеры/видимость, сохраняя nativeType
+        parsed.forEach(savedWin=>{
+          const w=STATE.windows.find(x=>x.id===savedWin.id);
+          if(w){Object.assign(w,{x:savedWin.x,y:savedWin.y,width:savedWin.width,height:savedWin.height,visible:savedWin.visible,minimized:savedWin.minimized,shape:savedWin.shape,connectType:savedWin.connectType});}
+        });
+      }
+    }
+  }catch(e){console.warn('Layout restore failed',e);}
+  initThreeScene();
+  renderAllSpatialWindows();
+  setInterval(()=>{
+    const clockEl=document.getElementById('hud-clock');
+    if(clockEl){
+      const now=new Date();
+      clockEl.textContent=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    }
+  },1000);
+  // Загрузка движка в фоне, чтобы при первом enterSDTStudio он уже был готов
+  const frame=document.getElementById('sdt-frame');
+  if(frame&&!frame.src)frame.src='sdt-5d-engine-v20.html';
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootstrapTrampillera);
+else bootstrapTrampillera();
+
+// Экспорт в window для inline-обработчиков
+Object.assign(window,{
+  openUmkaTown,exitUmkaTown,enterSDTStudio,exitSDTStudio,
+  togglePortalMode,toggleAmbientRadio,toggleAudioFX,renderClassicArticles,
+  expandBasePanelsWithHints,setSculptMode,toggleTerraBiomeColors,onHexDensityChange,
+  setCameraDistance,adjustZoom,spawnCustomPanel,openAddSaucerModal,removeSaucer,
+  updateSaucerField,selectEditorSaucer,openSaucerLayerModal,openEditorFor,closeLayerModal,
+  openHexSectorHubModal,toggleNeocubeMode,updateThemeColor,claimReward,
+  saveWorkspaceLayout,resetWorkspaceLayout,openJsonConfigModal,
+  handleJarviserCommand,applyWorkspacePreset,selectLanguage,cycleLanguage,
+  startWireLinkingMode,cancelWireMode,clearAllNodeWires,
+  setWindowShape,setWindowConnect,toggleMinimizeWindow,closeWindowById,toggleWindowById,
+  setPolarisScenario,acknowledgePolarisEvent,resolvePolarisEvent,runPolarisRoutineCheck,
+  STATE
+});
+</script>
+</body>
+</html>

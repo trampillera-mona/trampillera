@@ -371,6 +371,8 @@
       background: rgba(229, 199, 138, 0.12); border: 1px solid var(--gd); color: var(--gd);
     }
     .gateway-cta.gold-cta:hover { background: var(--gd); color: #07090e; transform: translateY(-2px); }
+    .gateway-cta.polarny-cta { background: rgba(0, 200, 215, 0.10); border: 1px solid rgba(127, 201, 221, .75); color: #a8edf3; box-shadow: 0 0 22px rgba(0, 200, 215, .14); }
+    .gateway-cta.polarny-cta:hover { background: #00c8d7; border-color: #00c8d7; color: #07090e; transform: translateY(-2px); }
 
     .intro-chapter {
       position: relative; z-index: 4; margin: 0 auto 18px; text-align: center;
@@ -948,6 +950,7 @@
     <a href="#" data-route="globe">Globe</a>
     <a href="#" data-route="exchange">Exchange</a>
     <a href="#" data-route="connectors">Security</a>
+    <a href="/polarny/" aria-label="Open the Polarny settlement">❄ Polarny</a>
     <a href="#" onclick="event.preventDefault();JarvisOrchestrator.open()">JARVISER</a>
   </nav>
 
@@ -978,6 +981,7 @@
         <button class="gateway-cta game-cta" onclick="RealmRouter.enterFromIntro('fui')">🛸 GAME · 3D FUI CONSTRUCTOR ↗</button>
         <button class="gateway-cta classic-cta" onclick="RealmRouter.enterFromIntro('classic')">📰 CLASSIC · PORTAL & FEEDS ↗</button>
         <button class="gateway-cta gold-cta" onclick="JarvisOrchestrator.open()">⚙ JARVISER ORCHESTRATOR</button>
+        <a class="gateway-cta polarny-cta" href="/polarny/" title="Visit the Polar settlement and Galactic Kolkhoz">❄ POLARNY · UMKA-TOWN ↗</a>
       </div>
       <div style="margin-top:18px;display:flex;justify-content:center">
 
