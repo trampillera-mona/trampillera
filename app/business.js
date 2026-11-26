@@ -17,6 +17,8 @@ const publicIntakeLimit = rateLimit({
   message: { error: "Too many submissions. Please try again later." }
 });
 const referenceCode = () => "TP-" + new Date().toISOString().slice(0,10).replaceAll("-","") + "-" + crypto.randomBytes(3).toString("hex").toUpperCase();
+const INQUIRY_TRANSITIONS = { NEW:["REVIEWING","LOST"], REVIEWING:["QUALIFIED","LOST"], QUALIFIED:["PROPOSAL","LOST"], PROPOSAL:["NEGOTIATION","WON","LOST"], NEGOTIATION:["PROPOSAL","WON","LOST"], WON:[], LOST:["REVIEWING"] };
+const PARTNER_TRANSITIONS = { PENDING:["REVIEWING","REJECTED"], REVIEWING:["APPROVED","REJECTED"], APPROVED:[], REJECTED:["REVIEWING"] };
 
 export function createBusinessRouter({ pool, requireAdmin, audit }) {
   if (!pool || typeof requireAdmin !== "function" || typeof audit !== "function") {
@@ -118,14 +120,19 @@ export function createBusinessRouter({ pool, requireAdmin, audit }) {
           (nextAction && Number.isNaN(nextAction.getTime()))) {
         return res.status(400).json({ error: "Invalid stage, estimated value, currency or next-action date." });
       }
+      const current = await pool.query("SELECT stage FROM business_inquiries WHERE id=$1",[req.params.id]);
+      if (!current.rowCount) return res.status(404).json({ error: "Inquiry not found." });
+      if (!INQUIRY_TRANSITIONS[current.rows[0].stage]?.includes(stage)) {
+        return res.status(409).json({ error: "This inquiry stage transition is not allowed.", currentStage: current.rows[0].stage, allowedNext: INQUIRY_TRANSITIONS[current.rows[0].stage] || [] });
+      }
       const result = await pool.query(
         `UPDATE business_inquiries SET stage=$2,internal_notes=$3,
           estimated_value=COALESCE($4,estimated_value),currency=COALESCE($5,currency),
           next_action_at=$6,updated_at=NOW()
-         WHERE id=$1 RETURNING id,reference_code,stage,estimated_value,currency,next_action_at,updated_at`,
-        [req.params.id,stage,notes,value,currency,nextAction]
+         WHERE id=$1 AND stage=$7 RETURNING id,reference_code,stage,estimated_value,currency,next_action_at,updated_at`,
+        [req.params.id,stage,notes,value,currency,nextAction,current.rows[0].stage]
       );
-      if (!result.rowCount) return res.status(404).json({ error: "Inquiry not found." });
+      if (!result.rowCount) return res.status(409).json({ error: "Inquiry changed during review. Refresh and retry." });
       await audit("BUSINESS_INQUIRY_UPDATED","business_inquiry",result.rows[0].reference_code,"Stage set to "+stage);
       res.json({ item: result.rows[0] });
     } catch (error) { next(error); }
@@ -144,11 +151,16 @@ export function createBusinessRouter({ pool, requireAdmin, audit }) {
       const status = clean(req.body?.status, 20).toUpperCase();
       const notes = clean(req.body?.internalNotes, 4000);
       if (!["PENDING","REVIEWING","APPROVED","REJECTED"].includes(status)) return res.status(400).json({ error: "Invalid partner application status." });
+      const current = await pool.query("SELECT status FROM business_partner_applications WHERE id=$1",[req.params.id]);
+      if (!current.rowCount) return res.status(404).json({ error: "Partner application not found." });
+      if (!PARTNER_TRANSITIONS[current.rows[0].status]?.includes(status)) {
+        return res.status(409).json({ error: "This partner application transition is not allowed.", currentStatus: current.rows[0].status, allowedNext: PARTNER_TRANSITIONS[current.rows[0].status] || [] });
+      }
       const result = await pool.query(
-        "UPDATE business_partner_applications SET status=$2,internal_notes=$3,reviewed_at=CASE WHEN $2 IN ('APPROVED','REJECTED') THEN NOW() ELSE reviewed_at END,updated_at=NOW() WHERE id=$1 RETURNING id,organization_name,status,updated_at",
-        [req.params.id,status,notes]
+        "UPDATE business_partner_applications SET status=$2,internal_notes=$3,reviewed_at=CASE WHEN $2 IN ('APPROVED','REJECTED') THEN NOW() ELSE reviewed_at END,updated_at=NOW() WHERE id=$1 AND status=$4 RETURNING id,organization_name,status,updated_at",
+        [req.params.id,status,notes,current.rows[0].status]
       );
-      if (!result.rowCount) return res.status(404).json({ error: "Partner application not found." });
+      if (!result.rowCount) return res.status(409).json({ error: "Partner application changed during review. Refresh and retry." });
       await audit("BUSINESS_PARTNER_APPLICATION_UPDATED","partner_application",String(result.rows[0].id),"Status set to "+status);
       res.json({ item: result.rows[0] });
     } catch (error) { next(error); }
