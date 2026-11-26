@@ -4,6 +4,8 @@ import helmet from "helmet";
 import cookieSession from "cookie-session";
 import rateLimit from "express-rate-limit";
 import pg from "pg";
+import sharp from "sharp";
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 import { runMigrations } from "./migrations.js";
 import crypto from "node:crypto";
 import path from "node:path";
@@ -475,25 +477,174 @@ async function inspectPublicAsset(publicPath) {
   await new Promise((resolve, reject) => {
     const stream = createReadStream(realFile);
     stream.on("data", chunk => hash.update(chunk));
-    stream.on("error", reject);
-    stream.on("end", resolve);
+    stream.function tapsStorageConfig() {
+  const required = ["TAPS_S3_ENDPOINT","TAPS_S3_BUCKET","TAPS_S3_ACCESS_KEY_ID","TAPS_S3_SECRET_ACCESS_KEY"];
+  const missing = required.filter((key) => !process.env[key]);
+  if (missing.length) return { configured:false, missing, client:null, bucket:"" };
+  let endpoint;
+  try { endpoint = new URL(process.env.TAPS_S3_ENDPOINT); }
+  catch { return { configured:false, missing:["TAPS_S3_ENDPOINT_INVALID"], client:null, bucket:"" }; }
+  if (endpoint.protocol !== "https:" || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
+    return { configured:false, missing:["TAPS_S3_ENDPOINT_INVALID"], client:null, bucket:"" };
+  }
+  const client = new S3Client({
+    endpoint:endpoint.toString().replace(/\/$/,""),
+    region:process.env.TAPS_S3_REGION || "auto",
+    forcePathStyle:true,
+    credentials:{accessKeyId:process.env.TAPS_S3_ACCESS_KEY_ID,secretAccessKey:process.env.TAPS_S3_SECRET_ACCESS_KEY},
+    maxAttempts:3
   });
-  return { mimeType, sha256: hash.digest("hex"), bytes: info.size };
+  return { configured:true, missing:[], client, bucket:process.env.TAPS_S3_BUCKET };
+}
+async function objectBodyBuffer(body) {
+  if (!body || typeof body.transformToByteArray !== "function") throw new Error("Object storage returned an unreadable response body.");
+  return Buffer.from(await body.transformToByteArray());
+}
+function sha256(buffer) {
+  return crypto.createHash("sha256").update(buffer).digest("hex");
+}
+function buildVisibleWatermarkSvg(width,height,assetId) {
+  const safeId = assetId.replace(/[^A-Z0-9-]/g,"");
+  const fontSize = Math.max(16,Math.min(34,Math.round(width/48)));
+  const smallSize = Math.max(12,Math.min(20,Math.round(width/78)));
+  const patternText = "TRAMPILLERA.COM  •  © 2026";
+  const patternWidth = Math.max(300,Math.round(width*0.62));
+  const patternHeight = Math.max(190,Math.round(height*0.38));
+  const bottom = Math.max(0,height-48);
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '">' +
+    '<defs><pattern id="wm" width="' + patternWidth + '" height="' + patternHeight + '" patternUnits="userSpaceOnUse" patternTransform="rotate(-24)">' +
+    '<text x="0" y="72" font-family="Arial,sans-serif" font-size="' + fontSize + '" font-weight="700" letter-spacing="2" fill="#ffffff" fill-opacity="0.17">' + patternText + '</text></pattern></defs>' +
+    '<rect width="100%" height="100%" fill="url(#wm)"/>' +
+    '<rect x="0" y="' + bottom + '" width="' + width + '" height="48" fill="#080d16" fill-opacity="0.62"/>' +
+    '<text x="' + Math.max(14,width-18) + '" y="' + (height-28) + '" text-anchor="end" font-family="Arial,sans-serif" font-size="' + smallSize + '" font-weight="700" letter-spacing="1.2" fill="#ffffff">TRAMPILLERA.COM  •  ' + safeId + '</text></svg>';
+  return Buffer.from(svg,"utf8");
 }
 app.get("/api/control/taps/status", asyncRoute(async (_req,res) => {
-  const required = ["TAPS_S3_ENDPOINT","TAPS_S3_BUCKET","TAPS_S3_REGION","TAPS_S3_ACCESS_KEY_ID","TAPS_S3_SECRET_ACCESS_KEY"];
-  const missing = required.filter((key) => !process.env[key]);
-  const counts = await pool.query(
-    "SELECT pipeline_state,COUNT(*)::int AS count FROM media_assets GROUP BY pipeline_state ORDER BY pipeline_state"
-  );
+  const storage = tapsStorageConfig();
+  let bucketReachable = false;
+  let storageError = "";
+  if (storage.configured) {
+    try { await storage.client.send(new HeadBucketCommand({Bucket:storage.bucket})); bucketReachable = true; }
+    catch (error) { storageError = error.name || "STORAGE_CONNECTION_FAILED"; }
+  }
+  const counts = await pool.query("SELECT pipeline_state,COUNT(*)::int AS count FROM media_assets GROUP BY pipeline_state ORDER BY pipeline_state");
   res.set("Cache-Control","no-store");
   res.json({
     service:"TRAMPILLERA Asset Protection Service",
-    version:"0.1.0",
-    storage:{provider:"S3_COMPATIBLE",configured:missing.length===0,missingConfiguration:missing},
-    pipeline:{implemented:false,state:"SCHEMA_READY",supportedStates:["LEGACY_PUBLIC","RECEIVED","SCANNED","PROCESSING","VERIFIED","FAILED"]},
+    version:"0.2.0",
+    storage:{provider:"S3_COMPATIBLE_PRIVATE_BUCKET",configured:storage.configured,reachable:bucketReachable,missingConfiguration:storage.missing,error:storageError || undefined},
+    pipeline:{implemented:true,enabled:bucketReachable,watermark:"VISIBLE_EMBEDDED_WEBP",originals:"PRIVATE_IMMUTABLE",verification:"SHA256_STORAGE_ROUNDTRIP"},
     assets:counts.rows,
-    note:"Original files are not yet moved or protected by this schema migration. Do not mark an asset VERIFIED until the storage, watermark, hash, and retrieval checks have actually passed."
+    note:"Legacy public assets are not migrated automatically. Only assets ingested through TAPS are stored as private originals with protected derivatives."
+  });
+}));
+app.post("/api/control/assets/ingest",
+  express.raw({type:["image/jpeg","image/png","image/webp","image/avif"],limit:"20mb"}),
+  asyncRoute(async (req,res) => {
+    const storage = tapsStorageConfig();
+    if (!storage.configured) return res.status(503).json({error:"TAPS object storage is not configured.",missingConfiguration:storage.missing});
+    try { await storage.client.send(new HeadBucketCommand({Bucket:storage.bucket})); }
+    catch (error) { return res.status(503).json({error:"TAPS object storage is not reachable.",code:error.name || "STORAGE_UNAVAILABLE"}); }
+    if (!Buffer.isBuffer(req.body) || req.body.length < 16) return res.status(400).json({error:"Upload an image body using image/jpeg, image/png, image/webp or image/avif."});
+    const contentType = String(req.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    const formatByMime = {"image/jpeg":"jpeg","image/png":"png","image/webp":"webp","image/avif":"heif"};
+    if (!formatByMime[contentType]) return res.status(415).json({error:"Unsupported image content type."});
+    const title = clean(req.get("x-asset-title"),160);
+    if (title.length < 2) return res.status(400).json({error:"X-Asset-Title header is required."});
+    const rightsHolder = clean(req.get("x-rights-holder"),160) || "UNCONFIRMED";
+    const sourceCredit = clean(req.get("x-source-credit"),500);
+    const licenseLabel = clean(req.get("x-license-label"),160) || "Permission required";
+    const originalBuffer = req.body;
+    let sourceMetadata;
+    try { sourceMetadata = await sharp(originalBuffer,{failOn:"error",limitInputPixels:40_000_000,animated:false}).metadata(); }
+    catch { return res.status(415).json({error:"The uploaded file is not a valid supported raster image."}); }
+    const actualFormat = sourceMetadata.format;
+    const expectedFormat = formatByMime[contentType];
+    if ((expectedFormat === "heif" && actualFormat !== "heif") || (expectedFormat !== "heif" && actualFormat !== expectedFormat)) {
+      return res.status(415).json({error:"Declared content type does not match the detected image format."});
+    }
+    if (!sourceMetadata.width || !sourceMetadata.height || sourceMetadata.width * sourceMetadata.height > 40_000_000) {
+      return res.status(413).json({error:"Image dimensions exceed the TAPS processing limit."});
+    }
+    const assetId = "TPA-" + crypto.randomUUID().toUpperCase();
+    const version = 1;
+    const extension = ({jpeg:"jpg",png:"png",webp:"webp",heif:"avif"})[actualFormat];
+    const originalKey = "originals/" + assetId + "/v" + version + "/source." + extension;
+    const derivativeKey = "derivatives/" + assetId + "/v" + version + "/protected.webp";
+    const originalHash = sha256(originalBuffer);
+    const actor = clean(req.session?.actor,100) || "admin";
+    await pool.query(
+      "INSERT INTO media_assets(asset_id,title,public_path,mime_type,sha256,rights_holder,source_credit,license_label,watermark_state,protection_state,metadata,pipeline_state,storage_provider,original_sha256,original_bytes,version_number) " +
+      "VALUES($1,$2,NULL,$3,$4,$5,$6,$7,'PENDING','ACTIVE',$8::jsonb,'RECEIVED','S3_COMPATIBLE',$4,$9,1)",
+      [assetId,title,contentType,originalHash,rightsHolder,sourceCredit,licenseLabel,JSON.stringify({hashAlgorithm:"SHA-256",ingest:"TAPS",originalStorage:"private"}),originalBuffer.length]
+    );
+    let originalStored = false;
+    try {
+      await storage.client.send(new PutObjectCommand({
+        Bucket:storage.bucket,Key:originalKey,Body:originalBuffer,ContentType:contentType,
+        Metadata:{assetid:assetId,version:String(version),sha256:originalHash,role:"immutable-original"}
+      }));
+      originalStored = true;
+      await pool.query("UPDATE media_assets SET original_object_key=$2,pipeline_state='SCANNED',image_width=$3,image_height=$4,updated_at=NOW() WHERE asset_id=$1",
+        [assetId,originalKey,sourceMetadata.width,sourceMetadata.height]);
+      await pool.query("UPDATE media_assets SET pipeline_state='PROCESSING',updated_at=NOW() WHERE asset_id=$1",[assetId]);
+      const transformed = await sharp(originalBuffer,{failOn:"error",limitInputPixels:40_000_000,animated:false})
+        .rotate().resize({width:2400,height:2400,fit:"inside",withoutEnlargement:true}).toBuffer({resolveWithObject:true});
+      const watermarkSvg = buildVisibleWatermarkSvg(transformed.info.width,transformed.info.height,assetId);
+      const derivativeBuffer = await sharp(transformed.data).composite([{input:watermarkSvg,blend:"over"}]).webp({quality:88,effort:5}).toBuffer();
+      const derivativeHash = sha256(derivativeBuffer);
+      await storage.client.send(new PutObjectCommand({
+        Bucket:storage.bucket,Key:derivativeKey,Body:derivativeBuffer,ContentType:"image/webp",
+        Metadata:{assetid:assetId,version:String(version),sha256:derivativeHash,watermark:"TRAMPILLERA_VISIBLE_V1",role:"protected-derivative"}
+      }));
+      const stored = await storage.client.send(new GetObjectCommand({Bucket:storage.bucket,Key:derivativeKey}));
+      const readBack = await objectBodyBuffer(stored.Body);
+      const readBackHash = sha256(readBack);
+      if (readBackHash !== derivativeHash || readBack.length !== derivativeBuffer.length) throw new Error("Protected derivative failed storage round-trip integrity verification.");
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query(
+          "UPDATE media_assets SET derivative_object_key=$2,derivative_sha256=$3,derivative_bytes=$4,mime_type=$5,watermark_state='EMBEDDED',pipeline_state='VERIFIED',verified_at=NOW(),verification_details=$6::jsonb,metadata=metadata || $7::jsonb,updated_at=NOW() WHERE asset_id=$1",
+          [assetId,derivativeKey,derivativeHash,derivativeBuffer.length,contentType,
+            JSON.stringify({originalHash,derivativeHash,derivativeReadBackHash:readBackHash,derivativeBytesVerified:readBack.length,watermarkProfile:"TRAMPILLERA_VISIBLE_V1",storageRoundTrip:"PASS"}),
+            JSON.stringify({derivativeMimeType:"image/webp",derivativeWidth:transformed.info.width,derivativeHeight:transformed.info.height})]
+        );
+        await client.query(
+          "INSERT INTO media_asset_versions(asset_id,version_number,original_object_key,derivative_object_key,original_sha256,derivative_sha256,original_bytes,derivative_bytes,mime_type,image_width,image_height,watermark_profile,pipeline_state,verification_details) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'TRAMPILLERA_VISIBLE_V1','VERIFIED',$12::jsonb)",
+          [assetId,version,originalKey,derivativeKey,originalHash,derivativeHash,originalBuffer.length,derivativeBuffer.length,contentType,transformed.info.width,transformed.info.height,
+            JSON.stringify({storageRoundTrip:"PASS",derivativeHashMatches:true,watermarkEmbedded:true})]
+        );
+        await client.query("INSERT INTO media_asset_access_events(asset_id,event_type,actor,request_id,details) VALUES($1,'VERIFICATION',$2,$3,$4::jsonb)",
+          [assetId,actor,req.get("x-request-id") || "",JSON.stringify({result:"VERIFIED",derivativeSha256:derivativeHash})]);
+        await auditWithClient(client,"TAPS_ASSET_VERIFIED","media_asset",assetId,"original_sha256="+originalHash+"; derivative_sha256="+derivativeHash,actor);
+        await client.query("COMMIT");
+      } catch (error) { await client.query("ROLLBACK"); throw error; }
+      finally { client.release(); }
+      res.status(201).json({item:{assetId,title,pipelineState:"VERIFIED",watermarkState:"EMBEDDED",originalSha256:originalHash,derivativeSha256:derivativeHash,originalBytes:originalBuffer.length,derivativeBytes:derivativeBuffer.length,width:transformed.info.width,height:transformed.info.height,preview:"/api/control/assets/"+assetId+"/preview"},message:"Original stored privately; watermarked WebP derivative generated and SHA-256 verified after storage retrieval."});
+    } catch (error) {
+      await pool.query("UPDATE media_assets SET pipeline_state='FAILED',verification_details=$2::jsonb,updated_at=NOW() WHERE asset_id=$1",
+        [assetId,JSON.stringify({failure:error.message,originalStored,originalObjectKey:originalStored?originalKey:null})]).catch(() => {});
+      console.error(JSON.stringify({level:"error",event:"taps_ingest_failed",assetId,message:error.message}));
+      return res.status(502).json({error:"TAPS processing failed. The asset was not marked VERIFIED.",assetId,originalPreserved:originalStored});
+    }
+  })
+);
+app.get("/api/control/assets/:assetId/preview", asyncRoute(async (req,res) => {
+  const assetId = clean(req.params.assetId,64);
+  const result = await pool.query("SELECT derivative_object_key FROM media_assets WHERE asset_id=$1 AND protection_state='ACTIVE' AND pipeline_state='VERIFIED'",
+    [assetId]);
+  if (!result.rowCount || !result.rows[0].derivative_object_key) return res.status(404).json({error:"Verified protected preview not found."});
+  const storage = tapsStorageConfig();
+  if (!storage.configured) return res.status(503).json({error:"TAPS object storage is not configured."});
+  const object = await storage.client.send(new GetObjectCommand({Bucket:storage.bucket,Key:result.rows[0].derivative_object_key}));
+  const body = await objectBodyBuffer(object.Body);
+  await pool.query("INSERT INTO media_asset_access_events(asset_id,event_type,actor,request_id,details) VALUES($1,'PREVIEW',$2,$3,'{}'::jsonb)",
+    [assetId,clean(req.session?.actor,100)||"admin",req.get("x-request-id")||""]);
+  res.set({"Content-Type":"image/webp","Content-Length":String(body.length),"Cache-Control":"private, no-store","Content-Disposition":"inline","X-Content-Type-Options":"nosniff"});
+  res.send(body);
+}));
+ration. Do not mark an asset VERIFIED until the storage, watermark, hash, and retrieval checks have actually passed."
   });
 }));
 app.get("/api/control/assets", asyncRoute(async (req,res) => {
@@ -501,7 +652,7 @@ app.get("/api/control/assets", asyncRoute(async (req,res) => {
   if (state && !["ACTIVE","RESTRICTED","RETIRED"].includes(state)) return res.status(400).json({ error:"Invalid asset protection state." });
   const values = state ? [state] : [];
   const result = await pool.query(
-    "SELECT asset_id,title,public_path,mime_type,sha256,rights_holder,source_credit,license_label,watermark_state,protection_state,metadata,created_at,updated_at FROM media_assets " +
+    "SELECT asset_id,title,public_path,mime_type,sha256,rights_holder,source_credit,license_label,watermark_state,protection_state,pipeline_state,storage_provider,version_number,original_bytes,derivative_bytes,verified_at,verification_details,metadata,created_at,updated_at FROM media_assets " +
     (state ? "WHERE protection_state=$1 " : "") + "ORDER BY created_at DESC LIMIT 500", values
   );
   res.set("Cache-Control","no-store");
