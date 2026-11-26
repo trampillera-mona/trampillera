@@ -371,8 +371,6 @@
       background: rgba(229, 199, 138, 0.12); border: 1px solid var(--gd); color: var(--gd);
     }
     .gateway-cta.gold-cta:hover { background: var(--gd); color: #07090e; transform: translateY(-2px); }
-    .gateway-cta.polarny-cta { background: rgba(0, 200, 215, 0.10); border: 1px solid rgba(127, 201, 221, .75); color: #a8edf3; box-shadow: 0 0 22px rgba(0, 200, 215, .14); }
-    .gateway-cta.polarny-cta:hover { background: #00c8d7; border-color: #00c8d7; color: #07090e; transform: translateY(-2px); }
 
     .intro-chapter {
       position: relative; z-index: 4; margin: 0 auto 18px; text-align: center;
@@ -950,7 +948,6 @@
     <a href="#" data-route="globe">Globe</a>
     <a href="#" data-route="exchange">Exchange</a>
     <a href="#" data-route="connectors">Security</a>
-    <a href="/polarny/" aria-label="Open the Polarny settlement">❄ Polarny</a>
     <a href="#" onclick="event.preventDefault();JarvisOrchestrator.open()">JARVISER</a>
   </nav>
 
@@ -981,7 +978,6 @@
         <button class="gateway-cta game-cta" onclick="RealmRouter.enterFromIntro('fui')">🛸 GAME · 3D FUI CONSTRUCTOR ↗</button>
         <button class="gateway-cta classic-cta" onclick="RealmRouter.enterFromIntro('classic')">📰 CLASSIC · PORTAL & FEEDS ↗</button>
         <button class="gateway-cta gold-cta" onclick="JarvisOrchestrator.open()">⚙ JARVISER ORCHESTRATOR</button>
-        <a class="gateway-cta polarny-cta" href="/polarny/" title="Visit the Polar settlement and Galactic Kolkhoz">❄ POLARNY · UMKA-TOWN ↗</a>
       </div>
       <div style="margin-top:18px;display:flex;justify-content:center">
 
@@ -1023,6 +1019,7 @@
     <div id="three-canvas-wrap"></div>
     <svg id="node-wires-svg"></svg>
     <main id="spatial-windows-layer"></main>
+    <button id="polarny-game-entry" onclick="toggleWindowById('win-polarny')" class="absolute top-4 right-4 z-30 rounded border border-[var(--fui-cyan)]/60 bg-black/80 px-3 py-2 text-[10px] font-bold tracking-wider text-[var(--fui-cyan)] shadow-lg backdrop-blur-md hover:bg-[var(--fui-cyan)]/20">❄ POLARNY · УМКА-ТАУН</button>
 
     <div id="hex-tooltip">
       <div class="flex items-center justify-between gap-3 border-b border-white/15 pb-1 mb-1">
@@ -1778,6 +1775,7 @@ const UNIFIED_STATE = {
   wireMode: false,
   wireSourceWinId: null,
   wires: [],
+  guard: { events: [], lastCheck: null },
   activeEditorSaucerId: 'exchange',
   sculptMode: 'inspect',
   hexOverrides: {},
@@ -1807,6 +1805,7 @@ function getDefaultFUIWindows() {
     { id: 'win-citizen', title: '👤 CITIZEN & TRP', nativeType: 'citizenHud', connectType: 'native', shape: 'shape-chamfer', accent: 'cyan', x: Math.max(16, w - 224), y: 14, width: 204, height: 110, visible: true, minimized: false },
     { id: 'win-ticker', title: '📡 LIVE SIGNAL TICKER', nativeType: 'tickerHud', connectType: 'native', shape: 'shape-pill', accent: 'orange', x: Math.max(245, Math.round(w * 0.22)), y: 110, width: Math.max(340, Math.round(w * 0.55)), height: 64, visible: true, minimized: false },
     { id: 'win-planet-dock', title: '🌐 PLANET · HEX GRID · DOCK', nativeType: 'planetDockHud', connectType: 'native', shape: 'shape-chamfer', accent: 'cyan', x: 16, y: Math.max(220, h - 255), width: Math.min(760, Math.max(360, w - 390)), height: 182, visible: !isMobile, minimized: false },
+    { id: 'win-polarny', title: '❄ POLARNY · УМКА-ТАУН', nativeType: 'polarnySettlement', connectType: 'native', shape: 'shape-chamfer', accent: 'cyan', x: Math.max(16, Math.round((w - Math.min(420, Math.max(300, w - 32))) / 2)), y: Math.max(150, Math.round(h / 2 - 165)), width: Math.min(420, Math.max(300, w - 32)), height: 360, visible: false, minimized: false },
     { id: 'win-lang', title: '🌐 TRANSLATOR ORBIT (12)', nativeType: 'langOrbit', connectType: 'native', shape: 'shape-chamfer', accent: 'cyan', x: 16, y: 184, width: 246, height: 266, visible: !isMobile, minimized: false },
     { id: 'win-craft-editor', title: '🛸 SAUCER & HULL EDITOR', nativeType: 'craftEditor', connectType: 'native', shape: 'shape-chamfer', accent: 'orange', x: 274, y: 184, width: 312, height: 298, visible: false, minimized: false },
     { id: 'win-services', title: 'SERVICE NODES', nativeType: 'serviceNodes', connectType: 'native', shape: 'shape-chamfer', accent: 'orange', x: Math.max(16, w - 284), y: 184, width: 264, height: 274, visible: !isMobile, minimized: false },
@@ -2851,6 +2850,52 @@ function renderWindowContent(winId) {
         </div>`;
       return;
     }
+    if (win.nativeType === 'polarnySettlement') {
+      const events = UNIFIED_STATE.guard.events.filter(e => e.status !== 'RESOLVED').slice(0, 4);
+      const eventRows = events.map(e => `
+        <div class="rounded border border-white/10 bg-white/5 p-1.5 space-y-1">
+          <div class="flex items-center justify-between gap-2"><b class="text-[var(--fui-orange)]">${e.severity}</b><span class="text-[8px] text-fuiMuted">${e.status} · ${e.time}</span></div>
+          <div class="text-[9px] text-fuiText">${e.message}</div>
+          <div class="flex gap-1">
+            ${e.status === 'ACTIVE' ? `<button onclick="acknowledgePolarnyEvent('${e.id}')" class="px-2 py-0.5 rounded bg-white/10 text-[8px]">ACKNOWLEDGE</button>` : ''}
+            <button onclick="resolvePolarnyEvent('${e.id}')" class="px-2 py-0.5 rounded bg-white/10 text-[8px]">RESOLVE</button>
+          </div>
+        </div>`).join('');
+      body.innerHTML = `
+        <div class="space-y-2 text-[10px]">
+          <div class="flex items-center justify-between gap-2">
+            <b class="font-orbit text-[var(--fui-cyan)] tracking-wider">❄ POLARNY SETTLEMENT</b>
+            <span class="text-[8px] text-fuiMuted">GALACTIC KOLKHOZ</span>
+          </div>
+          <div class="rounded border border-white/10 bg-white/5 p-2">
+            <div class="font-bold text-white">Официальное название — посёлок Полярный.</div>
+            <div class="text-[var(--fui-cyan)] mt-0.5">Полярный — на картах, Умка-Товн — в сердцах жителей.</div>
+            <p class="text-fuiMuted mt-1 leading-relaxed">Небольшой арктический посёлок под геодезическими куполами: жилые модули, теплицы, энергетика, мастерские и связь с орбитальными станциями. Это часть мира основной игры, а не отдельная игровая страница.</p>
+            <div class="flex items-center gap-2 mt-2 rounded bg-black/20 p-2">
+              <span class="text-2xl">🐻‍❄️</span>
+              <div><b class="text-[var(--fui-cyan)]">УМКА</b><div class="text-[9px] text-fuiMuted">Белый медвежонок с чёрным носом. Свободно живёт на своей безопасной территории.</div></div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <b class="text-[var(--fui-cyan)]">POLARIS GUARD</b>
+            <span class="text-[8px] text-fuiMuted">LOCAL SIMULATION</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1">
+            <button onclick="setPolarnyScenario('approach')" class="rounded bg-white/10 border border-white/10 px-2 py-1 text-[8px]">⌖ PERIMETER</button>
+            <button onclick="setPolarnyScenario('blizzard')" class="rounded bg-white/10 border border-white/10 px-2 py-1 text-[8px]">❄ BLIZZARD</button>
+            <button onclick="setPolarnyScenario('power')" class="rounded bg-white/10 border border-white/10 px-2 py-1 text-[8px]">⚡ POWER</button>
+            <button onclick="setPolarnyScenario('wildlife')" class="rounded bg-white/10 border border-white/10 px-2 py-1 text-[8px]">🐾 WILDLIFE</button>
+          </div>
+          <div class="flex items-center justify-between gap-2 text-[8px] text-fuiMuted">
+            <span>ACTIVE / ACKNOWLEDGED: ${events.length}</span>
+            <span>LAST CHECK: ${UNIFIED_STATE.guard.lastCheck || 'NOT RUN'}</span>
+          </div>
+          ${eventRows || '<div class="text-[9px] text-fuiMuted rounded bg-white/5 p-2">No active simulated events. Settlement status: NORMAL.</div>'}
+          <button onclick="runPolarnyRoutineCheck()" class="w-full rounded border border-[var(--fui-cyan)]/40 bg-[var(--fui-cyan)]/10 px-2 py-1.5 text-[9px] font-bold text-[var(--fui-cyan)]">✓ RUN ROUTINE CHECK</button>
+          <div class="text-[8px] leading-relaxed text-fuiMuted">SIMULATION ONLY — no real sensors, cameras, access control, infrastructure or emergency services are connected.</div>
+        </div>`;
+      return;
+    }
     if (win.nativeType === 'langOrbit') {
       const petals = LANGUAGES.map((l, idx) => {
         const angle = idx * 30;
@@ -2925,6 +2970,48 @@ function renderWindowContent(winId) {
   } else {
     body.innerHTML = `<div class="text-[10px] font-mono text-fuiGreen">NODE ${win.connectType.toUpperCase()} · trampillera.com SYNCED</div>`;
   }
+}
+
+function setPolarnyScenario(kind) {
+  const scenarios = {
+    approach: { severity: 'ATTENTION', message: 'Симуляция: движение замечено у внешнего периметра.' },
+    blizzard: { severity: 'WARNING', message: 'Симуляция: метель снижает видимость. Используйте защищённые маршруты.' },
+    power: { severity: 'WARNING', message: 'Симуляция: резерв энергоснабжения ниже штатного диапазона.' },
+    wildlife: { severity: 'ATTENTION', message: 'Симуляция: животное пересекает служебный маршрут. Движение транспорта приостановлено.' }
+  };
+  const scenario = scenarios[kind];
+  if (!scenario) return;
+  UNIFIED_STATE.guard.events.unshift({
+    id: 'pol-' + Date.now(),
+    severity: scenario.severity,
+    message: scenario.message,
+    status: 'ACTIVE',
+    time: new Date().toLocaleTimeString()
+  });
+  UNIFIED_STATE.guard.events = UNIFIED_STATE.guard.events.slice(0, 20);
+  playTactileSound('tick');
+  renderWindowContent('win-polarny');
+  showToast('POLARIS GUARD · SIMULATED ' + scenario.severity);
+}
+function acknowledgePolarnyEvent(id) {
+  const event = UNIFIED_STATE.guard.events.find(e => e.id === id);
+  if (!event || event.status !== 'ACTIVE') return;
+  event.status = 'ACKNOWLEDGED';
+  renderWindowContent('win-polarny');
+  showToast('POLARIS GUARD · Event acknowledged');
+}
+function resolvePolarnyEvent(id) {
+  const event = UNIFIED_STATE.guard.events.find(e => e.id === id);
+  if (!event) return;
+  event.status = 'RESOLVED';
+  renderWindowContent('win-polarny');
+  showToast('POLARIS GUARD · Event resolved in simulation');
+}
+function runPolarnyRoutineCheck() {
+  UNIFIED_STATE.guard.lastCheck = new Date().toLocaleTimeString();
+  renderWindowContent('win-polarny');
+  playTactileSound('chime');
+  showToast('POLARIS GUARD · Routine simulation check complete');
 }
 
 function setJarviserMessage(msg) {
