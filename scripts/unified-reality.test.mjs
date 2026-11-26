@@ -57,6 +57,7 @@ test('FUI window geometry is measured, clamped, and observed at the container bo
   assert.match(html, /function getFUIBounds\(\)/);
   assert.match(html, /function clampFUIWindow\(win, bounds = getFUIBounds\(\)\)/);
   assert.match(html, /function observeFUIContainer\(\)/);
+  assert.match(html, /if \(!realm \|\| !realm\.classList\.contains\('active'\) \|\| !wrap \|\| !camera \|\| !renderer\) return/);
   assert.match(html, /new ResizeObserver\(\(\) => onFUIResize\(\)\)/);
   assert.match(html, /const bounds = getFUIBounds\(\);[\s\S]*?clampFUIWindow\(win, bounds\)/);
   assert.match(html, /pointercancel/);
