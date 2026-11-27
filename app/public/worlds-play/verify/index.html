@@ -16,14 +16,21 @@ main{width:min(760px,100%);border:1px solid var(--line);border-radius:18px;backg
 (async()=>{
  const params=new URLSearchParams(location.search),id=params.get('id');
  const el=(key)=>document.getElementById(key);
- el('asset-id').textContent=id||'No asset ID supplied';
+ const setStatus=(message,bad=false)=>{el('status').textContent=message;el('status').classList.toggle('bad',bad);};
  const hex=(buffer)=>Array.from(new Uint8Array(buffer),b=>b.toString(16).padStart(2,'0')).join('');
+ const decodeBase64=(value)=>Uint8Array.from(atob(value),c=>c.charCodeAt(0));
+ el('asset-id').textContent=id||'No asset ID supplied';
  try{
-  const response=await fetch('/worlds-play/provenance/release-manifest.json',{cache:'no-store'});
-  if(!response.ok)throw new Error('Release manifest not published yet');
-  const manifest=await response.json();
+  const [manifestResponse,signatureResponse,trustResponse]=await Promise.all([
+   fetch('/worlds-play/provenance/release-manifest.json',{cache:'no-store'}),
+   fetch('/worlds-play/provenance/release-manifest.sig.json',{cache:'no-store'}),
+   fetch('/worlds-play/provenance/trust-anchor.json',{cache:'no-store'})
+  ]);
+  if(!manifestResponse.ok)throw new Error('Release manifest not published yet');
+  const manifestBytes=await manifestResponse.arrayBuffer();
+  const manifest=JSON.parse(new TextDecoder().decode(manifestBytes));
   const item=manifest.assets.find(x=>x.id===id);
-  if(!item){el('status').textContent=id?'NO MATCHING MANIFEST ENTRY':'SUPPLY AN ASSET ID';return;}
+  if(!item){setStatus(id?'NO MATCHING MANIFEST ENTRY':'SUPPLY AN ASSET ID',true);return;}
   el('asset-title').textContent=item.id+' · '+manifest.product+' · v'+manifest.release;
   el('asset-path').textContent=item.path;
   el('expected').textContent=item.sha256;
@@ -32,8 +39,19 @@ main{width:min(760px,100%);border:1px solid var(--line);border-radius:18px;backg
   const bytes=await fileResponse.arrayBuffer();
   const digest=hex(await crypto.subtle.digest('SHA-256',bytes));
   el('observed').textContent=digest;
-  if(digest===item.sha256 && bytes.byteLength===item.size_bytes){el('status').textContent='SHA-256 MATCH · FILE BYTES VERIFIED';}
-  else{el('status').textContent='INTEGRITY MISMATCH · FILE DIFFERS FROM MANIFEST';el('status').classList.add('bad');}
- }catch(error){el('status').textContent='CHECK UNAVAILABLE · '+error.message;el('status').classList.add('bad');}
+  if(digest!==item.sha256||bytes.byteLength!==item.size_bytes){setStatus('INTEGRITY MISMATCH · FILE DIFFERS FROM MANIFEST',true);return;}
+  setStatus('SHA-256 MATCH · FILE BYTES VERIFIED');
+  if(!signatureResponse.ok||!trustResponse.ok){setStatus('INTEGRITY VERIFIED · SIGNATURE OR TRUST CONFIG NOT PUBLISHED');return;}
+  const signature=await signatureResponse.json(),trust=await trustResponse.json();
+  if(trust.status!=='active'||!trust.public_key_spki_base64||!trust.public_key_fingerprint_sha256){setStatus('INTEGRITY VERIFIED · PUBLISHER KEY NOT YET PROVISIONED');return;}
+  if(signature.algorithm!=='Ed25519'||signature.key_fingerprint_sha256!==trust.public_key_fingerprint_sha256){setStatus('INTEGRITY VERIFIED · SIGNING KEY DOES NOT MATCH TRUST ANCHOR',true);return;}
+  const spki=decodeBase64(trust.public_key_spki_base64);
+  const fingerprint=hex(await crypto.subtle.digest('SHA-256',spki));
+  if(fingerprint!==trust.public_key_fingerprint_sha256){setStatus('INTEGRITY VERIFIED · TRUST ANCHOR FINGERPRINT INVALID',true);return;}
+  const publicKey=await crypto.subtle.importKey('spki',spki,{name:'Ed25519'},false,['verify']);
+  const valid=await crypto.subtle.verify({name:'Ed25519'},publicKey,decodeBase64(signature.signature_base64),manifestBytes);
+  if(valid)setStatus('AUTHENTICATED RELEASE · ED25519 SIGNATURE VALID · ASSET HASH MATCH');
+  else setStatus('INTEGRITY VERIFIED · RELEASE SIGNATURE INVALID',true);
+ }catch(error){setStatus('CHECK INCOMPLETE · '+error.message,true);}
 })();
 </script></body></html>
