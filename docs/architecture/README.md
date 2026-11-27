@@ -14,6 +14,7 @@ This directory is the canonical documentation index for the TRAMPILLERA reposito
 - [Federated Architecture Recovery & Conformance Specification v1.0](TRAMPILLERA_FEDERATED_ARCHITECTURE_RECOVERY_v1.0.md)
 - [Module Inventory and Capability Map v1.0](TRAMPILLERA_MEDIA_MODULE_INVENTORY_v1.0.md)
 - [Independent Technology & Research Portfolio — 2026-11-25](TRAMPILLERA_ECOSYSTEM_PORTFOLIO_2026-11-25.md)
+- [ORIGAMI MAPS PLANNER — Product & Architecture Foundation v0.1](ORIGAMI_MAPS_PLANNER_FOUNDATION_v0.1.md)
 
 ## AI and language
 
