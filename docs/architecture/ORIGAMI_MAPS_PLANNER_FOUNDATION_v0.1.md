@@ -4,7 +4,7 @@
 **Navigation:** TRAMPILLERA → GAME STUDIO → WORLDS & PLAY → ORIGAMI MAPS PLANNER  
 **Initial world pack:** MARS — ORIGAMI WORLD  
 **Specification language:** English  
-**Status:** CONCEPT / FOUNDATION SPECIFICATION — not yet implemented or production-verified
+**Status:** PARTIAL IMPLEMENTATION — source committed on `feat/origami-maps-planner-foundation`; not merged or production-verified
 
 ## 1. Product definition
 
@@ -115,3 +115,22 @@ For the initial foundation:
 - English source language and the 12 declared locales are specified; translation completeness remains unverified.
 - Multi-layer map behavior is specified; no multi-layer editor or printable layer pack is yet claimed.
 - Physical accessory concepts are recorded as future work only.
+
+
+## 10. Implementation snapshot — 2026-11-27
+
+The following source-level elements have been added on the feature branch:
+
+- Static WORLDS & PLAY / ORIGAMI MAPS PLANNER page at `/worlds-play/`.
+- Circular pulsing launcher on the main portal splash and within the Polar Settlement game environment; both link to the product page.
+- A Mars map preview with six independently selectable visual layers: terrain, infrastructure, resources, operations, environment, and scenario/time.
+- A browser print action that prints the currently visible map layers.
+- A language selector exposing the platform's 12 declared locale codes.
+
+**Coverage and verification limits:**
+- The current page contains authored English and Russian UI dictionaries. The other locale options currently fall back to English; full translation coverage is NOT IMPLEMENTED.
+- The six map layers are a static illustrative SVG preview with client-side visibility toggles. There is no editable map authoring engine, layer data model, synchronized multi-player state, or downloadable layer pack yet.
+- The print action uses the browser print dialog. Dedicated print layouts for each paper size and separate layer exports are not yet verified.
+- Lore, origami folding sheets, printable object templates, symbols, resource cards, and campaign notebook content remain planned materials; the current page describes the intended library but does not yet provide those downloadable assets.
+- Wooden counters, calculation/conversion tables, and campaign notebook remain FUTURE CONCEPT.
+- No production deployment has been performed. Render deployment remains a separate operator decision.
