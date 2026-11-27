@@ -216,3 +216,18 @@ Implemented baseline:
 The validator checks the current registry's required fields, unique IDs and paths, supported origin classifications, canonical path scope, source-file existence, embedded asset ID, TRAMPILLERA attribution, and SVG metadata presence.
 
 **Boundary:** this is validation of registry consistency and attribution markers, not automated stamping of arbitrary new assets, SHA-256 file integrity, cryptographic signatures, proof of legal ownership, or trademark registration. Platform-wide publication adapters remain future implementation work.
+
+## 15. Origami Pulse Gate — planner splash entry
+
+A dedicated circular **Origami Pulse Gate** is now placed inside the WORLDS & PLAY / ORIGAMI MAPS PLANNER hero artwork. It is separate from the existing TRAMPILLERA-wide Worlds & Play launcher on the main portal and Polar Settlement.
+
+- The gate uses the existing cyan / graphite visual language, a compact navigation reticle, a soft three-second pulse and a restrained gold hover accent.
+- Activating it navigates to the Mars interactive map workspace on the same page; it does not claim to initialize an unimplemented map-authoring engine.
+- The destination has a stable fragment ID and keyboard focus target.
+- The control has an accessible name and visible keyboard-focus treatment.
+- The animation and smooth scrolling are disabled or reduced when the operating system requests reduced motion.
+- The button label is localized in the authored EN and RU dictionaries. Other selectable locales continue to use the existing English fallback.
+
+A dedicated Node regression test verifies the gate, its destination, accessibility hooks, reduced-motion behavior and EN/RU labels. The test is included in the app check/test scripts and GitHub Actions workflow.
+
+**Verification boundary:** source-level checks confirm markup and integration wiring. Actual browser appearance, touch interaction, viewport placement and scroll behavior still require visual review on the Render preview after deployment.
