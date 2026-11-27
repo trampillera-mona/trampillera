@@ -13,12 +13,12 @@ A small expedition has reached the edge of Arcadia Planitia. Habitat 01 is intac
 - Place one player marker at **Habitat 01**.
 - Place one rover marker at coordinate **D05** (or choose another starting cell).
 - Mark the dashed supply route as known.
-- Put three resource markers at **C03**, **B07**, and **F08**. Their contents are unknown until investigated.
+- Put three provisional point-of-interest markers at **C03**, **B07**, and **F08**. Their contents are unknown until investigated.
 - Each player records one crew priority: safety, science, construction, or logistics.
 
 ## Open objectives
 Choose any combination:
-1. Survey two unknown resource points.
+1. Survey two unknown points of interest.
 2. Establish a safe route between Habitat 01 and one point of interest.
 3. Identify a hazard zone and mark it on a separate environment layer.
 4. Return the rover to the habitat with a written expedition log.

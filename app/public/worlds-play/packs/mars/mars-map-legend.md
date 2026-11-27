@@ -1,6 +1,6 @@
 # MARS / ARCADIA PLANITIA — MAP LEGEND
 
-**Pack:** ORIGAMI MAPS PLANNER · Mars Foundation Pack v0.1  
+**Pack:** ORIGAMI MAPS PLANNER · Mars Foundation Pack v0.2  
 **Assets:** `mars-base-map.svg` and six aligned `layer-*.svg` overlays  
 **Status:** ORIGINAL PRINTABLE PLAY ASSETS · FICTIONAL SCENARIO
 
@@ -16,12 +16,12 @@
 |---|---|---|
 | 01 — Terrain | `layer-terrain.svg` | Contours, crater field, ridge |
 | 02 — Infrastructure | `layer-infrastructure.svg` | Habitats, landing structures, route |
-| 03 — Resources | `layer-resources.svg` | Provisional resource survey points |
+| 03 — Resources | `layer-resources.svg` | Three provisional points of interest; contents unknown |
 | 04 — Operations | `layer-operations.svg` | Rover, route and objective markers |
 | 05 — Environment | `layer-environment.svg` | Illustrative dust / visibility hazard |
 | 06 — Scenario / Time | `layer-scenario.svg` | Event and state timeline markers |
 
-All six files share the same 1100 × 850 page canvas, 900 × 640 map frame, coordinate grid and north orientation. Their SVG page backgrounds are transparent. Use tracing paper or transparent film for simultaneous physical overlays.
+All six files share the same 1100 × 850 page canvas, 900 × 700 map frame, coordinate grid and north orientation. Their SVG page backgrounds are transparent. Use tracing paper or transparent film for simultaneous physical overlays.
 
 ## Overview map key
 The `mars-base-map.svg` overview sheet combines selected sample features:
@@ -38,6 +38,6 @@ This is a fictional tabletop map, not a scientific Mars surface dataset, GIS pro
 
 ---
 
-**TRAMPILLERA PROVENANCE** · OMP-MARS-LEG-001 · ORIGAMI MAPS PLANNER v0.1  
+**TRAMPILLERA PROVENANCE** · OMP-MARS-LEG-001 · ORIGAMI MAPS PLANNER v0.2  
 © 2026 TRAMPILLERA. Original editorial material. Brand identity and product marks are reserved; no trademark registration is claimed by this notice.  
 Source: https://trampillera.com/worlds-play/ · Registry: https://trampillera.com/worlds-play/verify/?id=OMP-MARS-LEG-001

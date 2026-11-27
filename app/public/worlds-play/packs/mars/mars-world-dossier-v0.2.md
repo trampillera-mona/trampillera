@@ -20,7 +20,7 @@ This dossier expands the existing open scenario **The Quiet Landing**. It does n
 - **Map grid:** Columns 01–09; rows A–G as used by the printable layer series.
 - **North:** Top edge of every map sheet.
 - **Scenario scale:** One cell represents 20 km **within this fictional game scenario only**.
-- **Map frame:** 900 × 640 units on a shared 1100 × 850 SVG canvas.
+- **Map frame:** 900 × 700 units on a shared 1100 × 850 SVG canvas.
 - **Coordinate examples:** C03, B07, F08 and D05.
 
 The map is an original game asset. It is not a georeferenced Mars dataset, navigational chart, elevation model or scientific resource survey.

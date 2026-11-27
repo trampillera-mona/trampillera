@@ -1,6 +1,6 @@
 # MARS FOUNDATION PACK — QUICK START
 
-**ORIGAMI MAPS PLANNER · TRAMPILLERA GAME STUDIO · v0.1**
+**ORIGAMI MAPS PLANNER · TRAMPILLERA GAME STUDIO · v0.2**
 
 ## What you need
 - The base map and any selected overlay sheets.
@@ -10,15 +10,15 @@
 
 ## Print
 1. Open the SVG files in a browser or vector-capable application.
-2. Print each sheet landscape at 100% / actual size. Avoid “fit to page” when accurate overlay registration matters.
-3. The six overlay sheets use the same page canvas, map frame, grid and north arrow.
+2. Print each sheet in landscape orientation at 100% / actual size. The 272 × 210 mm print area fits A4 landscape with side margins. Avoid “fit to page” when accurate overlay registration matters.
+3. The six overlay sheets use the same 272 × 210 mm print area, 900 × 700 map frame, 9 × 7 coordinate grid and north arrow.
 4. For simultaneous physical play, print overlays on tracing paper or transparent film. If using ordinary paper, place sheets side by side or consult them in sequence.
 5. Align the outer map frame and coordinate grid. Do not stretch or crop individual sheets.
 
 ## Available map layers
 - 01 — Terrain
 - 02 — Infrastructure
-- 03 — Resources
+- 03 — Resources / provisional points of interest
 - 04 — Operations
 - 05 — Environment / Hazards
 - 06 — Scenario / Time
@@ -44,6 +44,6 @@ The map, six aligned overlay sheets, legend, scenario, symbol sheet and quick-st
 
 ---
 
-**TRAMPILLERA PROVENANCE** · OMP-MARS-QST-001 · ORIGAMI MAPS PLANNER v0.1  
+**TRAMPILLERA PROVENANCE** · OMP-MARS-QST-001 · ORIGAMI MAPS PLANNER v0.2  
 © 2026 TRAMPILLERA. Original editorial material. Brand identity and product marks are reserved; no trademark registration is claimed by this notice.  
 Source: https://trampillera.com/worlds-play/ · Registry: https://trampillera.com/worlds-play/verify/?id=OMP-MARS-QST-001
