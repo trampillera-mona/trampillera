@@ -1,0 +1,66 @@
+{
+  "schema": "trampillera.provenance.registry.v1",
+  "brand": "TRAMPILLERA",
+  "product": "WORLDS & PLAY / ORIGAMI MAPS PLANNER",
+  "release": "0.1",
+  "issued": "2026-11-27",
+  "registry_notice": "An entry confirms that an asset identifier and source path are listed in this project registry. It is not a cryptographic integrity check, legal opinion, or proof of trademark registration.",
+  "assets": [
+    {
+      "id": "OMP-MARS-MAP-001",
+      "title": "Mars / Arcadia Planitia base map",
+      "path": "/worlds-play/packs/mars/mars-base-map.svg",
+      "type": "original-printable-svg",
+      "version": "0.1"
+    },
+    {
+      "id": "OMP-MARS-SYM-001",
+      "title": "Mars tabletop symbol sheet",
+      "path": "/worlds-play/packs/mars/symbol-sheet.svg",
+      "type": "original-printable-svg",
+      "version": "0.1"
+    },
+    {
+      "id": "OMP-MARS-LYR-001",
+      "title": "Mars terrain overlay",
+      "path": "/worlds-play/packs/mars/layer-terrain.svg",
+      "type": "original-printable-svg-overlay",
+      "version": "0.1"
+    },
+    {
+      "id": "OMP-MARS-LYR-002",
+      "title": "Mars infrastructure overlay",
+      "path": "/worlds-play/packs/mars/layer-infrastructure.svg",
+      "type": "original-printable-svg-overlay",
+      "version": "0.1"
+    },
+    {
+      "id": "OMP-MARS-LYR-003",
+      "title": "Mars resources overlay",
+      "path": "/worlds-play/packs/mars/layer-resources.svg",
+      "type": "original-printable-svg-overlay",
+      "version": "0.1"
+    },
+    {
+      "id": "OMP-MARS-LYR-004",
+      "title": "Mars operations overlay",
+      "path": "/worlds-play/packs/mars/layer-operations.svg",
+      "type": "original-printable-svg-overlay",
+      "version": "0.1"
+    },
+    {
+      "id": "OMP-MARS-LYR-005",
+      "title": "Mars environment overlay",
+      "path": "/worlds-play/packs/mars/layer-environment.svg",
+      "type": "original-printable-svg-overlay",
+      "version": "0.1"
+    },
+    {
+      "id": "OMP-MARS-LYR-006",
+      "title": "Mars scenario overlay",
+      "path": "/worlds-play/packs/mars/layer-scenario.svg",
+      "type": "original-printable-svg-overlay",
+      "version": "0.1"
+    }
+  ]
+}
