@@ -29,3 +29,9 @@ Place the marker on the matching map coordinate. A marker can be moved, rotated,
 
 ## Note
 This is an original beginner paper-fold marker concept. Folding results vary with paper weight and crease accuracy. Test with scrap paper before making a full set.
+
+---
+
+**TRAMPILLERA PROVENANCE** · OMP-MARS-ORI-001 · ORIGAMI MAPS PLANNER v0.1  
+© 2026 TRAMPILLERA. Original editorial material. Brand identity and product marks are reserved; no trademark registration is claimed by this notice.  
+Source: https://trampillera.com/worlds-play/ · Registry: https://trampillera.com/worlds-play/verify/?id=OMP-MARS-ORI-001
