@@ -34,3 +34,10 @@ The `mars-base-map.svg` overview sheet combines selected sample features:
 
 ## Important
 This is a fictional tabletop map, not a scientific Mars surface dataset, GIS product, or operational planning chart. The 20 km cell value is a game convention only. Printer scaling and physical overlay registration have not yet been tested.
+
+
+---
+
+**TRAMPILLERA PROVENANCE** · OMP-MARS-LEG-001 · ORIGAMI MAPS PLANNER v0.1  
+© 2026 TRAMPILLERA. Original editorial material. Brand identity and product marks are reserved; no trademark registration is claimed by this notice.  
+Source: https://trampillera.com/worlds-play/ · Registry: https://trampillera.com/worlds-play/verify/?id=OMP-MARS-LEG-001
