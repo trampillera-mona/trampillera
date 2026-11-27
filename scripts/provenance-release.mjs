@@ -69,7 +69,9 @@ if (command === "keygen") {
   console.log("Ed25519 keypair generated locally.");
   console.log("PRIVATE KEY — keep offline; never commit or upload:", privatePath);
   console.log("PUBLIC KEY — publish/pin independently:", publicPath);
-  console.log("Public-key SHA-256 fingerprint:", fingerprint);\n  console.log("Public-key SPKI DER base64:", publicKey.export({ type: "spki", format: "der" }).toString("base64"));\n  console.log("Provision app/public/worlds-play/provenance/trust-anchor.json with status=active, this base64 value, and the independently verified fingerprint.");
+  console.log("Public-key SHA-256 fingerprint:", fingerprint);
+  console.log("Public-key SPKI DER base64:", publicKey.export({ type: "spki", format: "der" }).toString("base64"));
+  console.log("Provision app/public/worlds-play/provenance/trust-anchor.json with status=active, this base64 value, and the independently verified fingerprint.");
 } else if (command === "manifest") {
   const manifest = collectManifest();
   fs.writeFileSync(manifestFile, canonical(manifest));
