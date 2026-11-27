@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="author" content="TRAMPILLERA GAME STUDIO"><meta name="description" content="Printable physical assembly kit for the fictional Mars Foundation tabletop world.">
+<title>Mars Physical Assembly Kit · TRAMPILLERA</title>
+<style>
+:root{color-scheme:light;--ink:#182b38;--muted:#52636d;--line:#9aa8b0;--cyan:#167c8c;--gold:#946b22}
+*{box-sizing:border-box}body{margin:0;background:#e9eef1;color:var(--ink);font:14px/1.45 system-ui,Segoe UI,sans-serif}
+header,.intro,.toolbar{max-width:1080px;margin:22px auto;padding:0 22px}header{display:flex;justify-content:space-between;gap:12px;align-items:center;border-bottom:1px solid #c5d0d5;padding-bottom:14px}
+.brand{font:700 12px ui-monospace,monospace;letter-spacing:.13em}.brand small{display:block;color:var(--muted);font-size:9px;margin-top:4px}
+a{color:var(--cyan)}h1{font-size:clamp(28px,5vw,48px);line-height:1.02;margin:12px 0}.eyebrow{font:10px ui-monospace,monospace;letter-spacing:.15em;color:var(--cyan)}
+.intro p{max-width:760px;color:var(--muted)}.toolbar{display:flex;gap:10px;flex-wrap:wrap}.toolbar button{border:1px solid var(--ink);background:var(--ink);color:white;border-radius:7px;padding:10px 14px;cursor:pointer;font-weight:700}.toolbar a{padding:10px}
+.sheet{max-width:1080px;margin:18px auto;background:white;padding:24px;box-shadow:0 5px 24px #1c334015;break-after:page}
+.sheet h2{margin:0 0 6px;font-size:20px}.sheet>p{color:var(--muted);font-size:12px;margin:0 0 18px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.token{min-height:170px;border:1.5px dashed #73848d;border-radius:10px;padding:14px;position:relative;display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(145deg,#fff,#f4f7f8)}
+.token:after{content:"CUT";position:absolute;right:10px;top:8px;color:#8c999f;font:8px ui-monospace,monospace;letter-spacing:.15em}
+.token .code{font:10px ui-monospace,monospace;color:var(--cyan);letter-spacing:.1em}
+.token .symbol{font-size:36px;line-height:1.2;margin:8px 0}
+.token h3{margin:0;font-size:15px}.token p{margin:5px 0 0;color:var(--muted);font-size:11px}
+.token .write{border-top:1px solid #c8d1d5;margin-top:12px;padding-top:7px;color:#7d8b91;font-size:9px}
+.roles{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.role{border:1px solid #aab6bc;border-left:5px solid var(--cyan);padding:14px;min-height:110px}.role h3{margin:0 0 5px}.role p{margin:0;color:var(--muted);font-size:12px}
+.log{width:100%;border-collapse:collapse;font-size:11px}.log th,.log td{border:1px solid #9aa8b0;padding:10px;text-align:left;height:42px}.log th{background:#edf2f4}
+.note{border-left:4px solid var(--gold);padding:10px 14px;background:#fbf7ed;font-size:11px;margin-top:14px}
+footer{max-width:1080px;margin:20px auto 40px;padding:0 22px;color:var(--muted);font:9px ui-monospace,monospace}
+@media(max-width:680px){.cards{grid-template-columns:repeat(2,1fr)}.roles{grid-template-columns:1fr}.sheet{margin:10px;padding:16px}}
+@media print{body{background:white}.toolbar,header .nav{display:none!important}header,.intro,.sheet,footer{max-width:none;margin:0;padding:10mm;box-shadow:none}.sheet{break-after:page;padding:10mm}.token{break-inside:avoid}.sheet:last-of-type{break-after:auto}@page{size:A4 portrait;margin:8mm}}
+</style>
+</head>
+<body>
+<header><div class="brand">TRAMPILLERA GAME STUDIO<small>WORLDS &amp; PLAY · ORIGAMI MAPS PLANNER</small></div><nav class="nav"><a href="/worlds-play/">← World pack</a></nav></header>
+<section class="intro"><div class="eyebrow">PHYSICAL-FIRST · PRINTABLE MASTER v0.2</div><h1>MARS<br>PHYSICAL ASSEMBLY KIT</h1><p>Printable cut-out tokens, role cards and an expedition record sheet for the fictional Mars / Arcadia Planitia tabletop scenario. Print at 100% on ordinary paper or light card. Cut along dashed borders. No glue or special components are required.</p></section>
+<div class="toolbar"><button onclick="window.print()">PRINT ASSEMBLY KIT</button><a href="/worlds-play/packs/mars/mars-world-dossier-v0.2.md">Read World Dossier ↗</a><a href="/worlds-play/packs/mars/quick-start-print-and-play.md">Quick Start ↗</a></div>
+<section class="sheet"><h2>01 / TERRITORY &amp; UNIT TOKENS</h2><p>Cut each card around its dashed border. Write a coordinate or status where a blank line is provided.</p>
+<div class="cards">
+<article class="token"><div><div class="code">OMP-MARS-TKN-001</div><div class="symbol">⌂</div><h3>HABITAT 01</h3><p>Expedition shelter · starting asset</p></div><div class="write">COORDINATE: __________________</div></article>
+<article class="token"><div><div class="code">OMP-MARS-TKN-002</div><div class="symbol">◇</div><h3>ROVER UNIT</h3><p>Mobile survey unit · record current position</p></div><div class="write">COORDINATE: __________________</div></article>
+<article class="token"><div><div class="code">OMP-MARS-TKN-003</div><div class="symbol">?</div><h3>POINT OF INTEREST</h3><p>Provisional location · contents unknown</p></div><div class="write">COORDINATE: __________________</div></article>
+<article class="token"><div><div class="code">OMP-MARS-TKN-004</div><div class="symbol">△</div><h3>HAZARD MARKER</h3><p>Temporary condition · add evidence and status</p></div><div class="write">TYPE / STATUS: ________________</div></article>
+<article class="token"><div><div class="code">OMP-MARS-TKN-005</div><div class="symbol">⊙</div><h3>WAYPOINT</h3><p>Route reference · not a confirmed safe passage</p></div><div class="write">COORDINATE: __________________</div></article>
+<article class="token"><div><div class="code">OMP-MARS-TKN-006</div><div class="symbol">✳</div><h3>OBJECTIVE</h3><p>Player-selected goal · define completion condition</p></div><div class="write">OBJECTIVE: ____________________</div></article>
+<article class="token"><div><div class="code">OMP-MARS-TKN-007</div><div class="symbol">▤</div><h3>SUPPLY CACHE</h3><p>Optional scenario marker · contents set by players</p></div><div class="write">CONTENTS / STATUS: ____________</div></article>
+<article class="token"><div><div class="code">OMP-MARS-TKN-008</div><div class="symbol">⌁</div><h3>COMMUNICATIONS</h3><p>Signal or delay prompt · source may be unknown</p></div><div class="write">NOTE: _________________________</div></article>
+<article class="token"><div><div class="code">OMP-MARS-TKN-009</div><div class="symbol">↻</div><h3>EVENT / STATE CHANGE</h3><p>Record a change without erasing prior state</p></div><div class="write">EVENT: ________________________</div></article>
+</div></section>
+<section class="sheet"><h2>02 / CREW ROLE CARDS</h2><p>Optional roles. One player may hold more than one role; groups may rename or replace them.</p>
+<div class="roles">
+<article class="role"><div class="code">ROLE-01</div><h3>SAFETY LEAD</h3><p>Tracks crew exposure, route risk, shelter decisions and unresolved hazards.</p></article>
+<article class="role"><div class="code">ROLE-02</div><h3>SURVEY LEAD</h3><p>Records observations and distinguishes confirmed findings from hypotheses.</p></article>
+<article class="role"><div class="code">ROLE-03</div><h3>CONSTRUCTION LEAD</h3><p>Plans habitat extensions, landing-area improvements and repair priorities.</p></article>
+<article class="role"><div class="code">ROLE-04</div><h3>LOGISTICS LEAD</h3><p>Tracks supplies, travel priorities, caches and return plans.</p></article>
+<article class="role"><div class="code">ROLE-05</div><h3>EXPEDITION RECORDER</h3><p>Maintains the log, preserves earlier entries and updates the appropriate map layer.</p></article>
+<article class="role"><div class="code">ROLE-06</div><h3>OPEN ROLE</h3><p>Invent a specialist role that fits the group's chosen story and play style.</p></article>
+</div>
+<div class="note"><b>Evidence discipline:</b> use KNOWN, PROVISIONAL, UNKNOWN, CHANGED or DISPUTED. A marker is not proof of a resource, safe route or discovered object. UNVERIFIED ≠ FALSE.</div>
+</section>
+<section class="sheet"><h2>03 / EXPEDITION LOG</h2><p>Use one row per observation, decision or state change. Add another copy of this sheet for longer sessions.</p>
+<table class="log"><thead><tr><th>SESSION / SOL</th><th>COORDINATE</th><th>LAYER</th><th>OBSERVATION / DECISION</th><th>STATUS</th><th>RECORDED BY</th></tr></thead><tbody><tr><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table>
+<h2 style="margin-top:28px">04 / SESSION DEBRIEF</h2>
+<table class="log"><tbody><tr><th>What changed?</th><td style="height:55px"></td></tr><tr><th>What remains unknown?</th><td style="height:55px"></td></tr><tr><th>What should happen next?</th><td style="height:55px"></td></tr><tr><th>Next session / crew priority</th><td style="height:45px"></td></tr></tbody></table>
+</section>
+<footer>© 2026 TRAMPILLERA · ORIGINAL FICTIONAL TABLETOP MATERIAL · OMP-MARS-ASSEMBLY-001 · v0.2 · Not scientific Mars data.</footer>
+</body></html>
