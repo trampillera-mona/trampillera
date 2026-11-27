@@ -40,3 +40,10 @@ This pack is designed to work on a table. You do not need an app, account, onlin
 
 ## Pack status
 The map, six aligned overlay sheets, legend, scenario, symbol sheet and quick-start guide are original starter assets. This is not a complete ruleset, synchronized multiplayer product, scientific Mars atlas, or validated GIS dataset. Printer registration and physical overlay usability still need testing.
+
+
+---
+
+**TRAMPILLERA PROVENANCE** · OMP-MARS-QST-001 · ORIGAMI MAPS PLANNER v0.1  
+© 2026 TRAMPILLERA. Original editorial material. Brand identity and product marks are reserved; no trademark registration is claimed by this notice.  
+Source: https://trampillera.com/worlds-play/ · Registry: https://trampillera.com/worlds-play/verify/?id=OMP-MARS-QST-001
