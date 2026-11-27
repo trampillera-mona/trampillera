@@ -7,6 +7,7 @@ import pg from "pg";
 import sharp from "sharp";
 import { S3Client, PutObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 import { runMigrations } from "./migrations.js";
+import { resolveDatabaseSchema, buildDatabaseSearchPath, ensureDatabaseSchema } from "./db-schema.js";
 import crypto from "node:crypto";
 import path from "node:path";
 import { createReadStream } from "node:fs";
@@ -20,6 +21,7 @@ const PORT = Number(process.env.PORT || 3000);
 const NODE_ENV = process.env.NODE_ENV || "development";
 const APP_STARTED_AT = new Date();
 const DATABASE_URL = process.env.DATABASE_URL;
+const DB_SCHEMA = resolveDatabaseSchema(process.env.DB_SCHEMA || "public");
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const SESSION_SECRET = process.env.SESSION_SECRET;
 
@@ -29,6 +31,7 @@ if (!SESSION_SECRET || SESSION_SECRET.length < 32) throw new Error("Set SESSION_
 
 const pool = new pg.Pool({
   connectionString: DATABASE_URL,
+  options: buildDatabaseSearchPath(DB_SCHEMA) ? `-c search_path=${buildDatabaseSearchPath(DB_SCHEMA)}` : undefined,
   max: Number(process.env.DB_POOL_SIZE || 10),
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
@@ -136,6 +139,7 @@ const clean = (v, max=500) => typeof v === "string" ? v.trim().slice(0,max) : ""
 const asyncRoute = (fn) => (req,res,next) => Promise.resolve(fn(req,res,next)).catch(next);
 
 async function initializeDatabase() {
+  await ensureDatabaseSchema(pool, DB_SCHEMA);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS platform_modules (
       key TEXT PRIMARY KEY, name TEXT NOT NULL, version TEXT NOT NULL DEFAULT '1.0.0',
