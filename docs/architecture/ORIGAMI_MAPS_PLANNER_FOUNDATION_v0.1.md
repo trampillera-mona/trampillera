@@ -178,3 +178,24 @@ All six share the same 1100 × 850 page canvas, 900 × 640 map frame, coordinate
 **Physical workflow intended:** print each sheet at 100% / actual size; use tracing paper or transparent film for simultaneous overlays; align the map frame and coordinate grid. Separate ordinary-paper sheets can also be consulted side by side.
 
 **Verification boundary:** shared SVG geometry is authored consistently in source, but printer scaling, registration tolerance, transparency-film handling and real tabletop usability have not yet been physically tested. These are aligned printable SVG overlays, not GIS data layers or an editable map engine.
+
+
+## 13. Brand, watermark and provenance controls — 2026-11-27
+
+### Brand layer
+The WORLDS & PLAY page and Mars pack identify the origin as **TRAMPILLERA GAME STUDIO / WORLDS & PLAY / ORIGAMI MAPS PLANNER**. The page footer carries a copyright and brand notice plus a link to the provenance registry.
+
+### Passive marks
+- SVG map sheets and symbol sheet include visible TRAMPILLERA / ORIGAMI MAPS PLANNER marks, per-asset IDs, source/verification URLs and embedded SVG metadata.
+- Editorial Markdown assets include copyright/provenance footers and unique asset IDs.
+- SVG metadata records product, asset ID, version, date, source and a notice to preserve provenance when redistributing.
+
+### Active provenance lookup
+- `app/public/worlds-play/provenance/registry.json` is the registry of issued Mars pack asset IDs and canonical source paths.
+- `app/public/worlds-play/verify/index.html` reads the `id` query parameter and checks whether that ID is listed in the registry.
+- Each marked SVG contains a verification URL. Editorial Markdown footers contain matching lookup URLs.
+
+### Security and legal limits
+The current active check confirms only that an asset ID and path are listed in the project registry. It does **not** hash the downloaded file, detect edits, prevent copying, provide DRM, or independently prove legal ownership. A copied ID can be copied along with a file. Cryptographic integrity checking (e.g. signed manifest and SHA-256 file verification), automated release signing, QR code labels, and tamper-evident publication records are NOT IMPLEMENTED.
+
+The copyright and brand notice is a provenance and rights notice, not a claim that TRAMPILLERA or ORIGAMI MAPS PLANNER is a registered trademark. Registration, ownership and enforceability require separate legal verification in relevant jurisdictions. Existing `TRADEMARKS.md` remains the governing brand-use notice.
