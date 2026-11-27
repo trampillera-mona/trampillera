@@ -199,3 +199,20 @@ The WORLDS & PLAY page and Mars pack identify the origin as **TRAMPILLERA GAME S
 The current active check confirms only that an asset ID and path are listed in the project registry. It does **not** hash the downloaded file, detect edits, prevent copying, provide DRM, or independently prove legal ownership. A copied ID can be copied along with a file. Cryptographic integrity checking (e.g. signed manifest and SHA-256 file verification), automated release signing, QR code labels, and tamper-evident publication records are NOT IMPLEMENTED.
 
 The copyright and brand notice is a provenance and rights notice, not a claim that TRAMPILLERA or ORIGAMI MAPS PLANNER is a registered trademark. Registration, ownership and enforceability require separate legal verification in relevant jurisdictions. Existing `TRADEMARKS.md` remains the governing brand-use notice.
+
+
+## 14. TRAMPILLERA-wide Brand & Provenance Standard — 2026-11-27
+
+The product-specific marks are now governed by the umbrella standard:
+`docs/brand/TRAMPILLERA_BRAND_PROVENANCE_STANDARD_v1.0.md` (TMP-BPS-STD-001).
+
+Implemented baseline:
+- Versioned registry schema: `schemas/provenance-registry-v1.1.schema.json`.
+- Mars registry entries include origin type, attribution, rights-status note and issue date.
+- Automated validator: `scripts/verify-provenance-registry.mjs`.
+- The validator is called by `scripts/check.sh`.
+- Architecture documentation index links the standard and schema.
+
+The validator checks the current registry's required fields, unique IDs and paths, supported origin classifications, canonical path scope, source-file existence, embedded asset ID, TRAMPILLERA attribution, and SVG metadata presence.
+
+**Boundary:** this is validation of registry consistency and attribution markers, not automated stamping of arbitrary new assets, SHA-256 file integrity, cryptographic signatures, proof of legal ownership, or trademark registration. Platform-wide publication adapters remain future implementation work.
