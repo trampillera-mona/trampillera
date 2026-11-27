@@ -155,8 +155,9 @@ A copyright/provenance notice is not proof of ownership and does not create a re
 
 **Not yet implemented platform-wide:**
 - A universal registry covering every TRAMPILLERA product and media type.
-- Automated asset stamping for every publication pipeline.
-- Schema/path/marker validation in CI (planned in this standard's initial release).
+- Automated asset stamping for every publication pipeline. The current implementation validates already-marked assets; it does not yet stamp arbitrary new uploads automatically.
+- Versioned registry JSON Schema and a Node.js validator for schema version, required fields, unique IDs/paths, canonical path scope, source-file existence, asset-ID presence, TRAMPILLERA attribution, and SVG metadata presence.
+- The validator is wired into `scripts/check.sh` and therefore into the repository verification workflow.
 - SHA-256 release manifests and file verification endpoint.
 - Digital signing, public-key publication, key rotation and revocation.
 - QR label generation.
