@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070b12">
+<title>WORLDS & PLAY · ORIGAMI MAPS PLANNER | TRAMPILLERA</title>
+<style>
+:root{color-scheme:dark;--bg:#070b12;--panel:#101a27;--panel2:#142234;--line:#29445b;--text:#e9f3fb;--muted:#91a7b9;--cyan:#64d8e9;--violet:#b39aff;--gold:#e8c47e;--green:#78d6ad}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:radial-gradient(ellipse at 50% -15%,#1b3044 0,transparent 55%),var(--bg);color:var(--text);font:14px/1.5 Inter,system-ui,Segoe UI,sans-serif}
+body{min-height:100vh}.shell{max-width:1440px;margin:auto;padding:22px clamp(14px,3vw,42px) 56px}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:8px 0 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}.mark{width:42px;height:42px;border:1px solid var(--cyan);border-radius:13px;display:grid;place-items:center;color:var(--cyan);font-size:22px;box-shadow:0 0 25px #64d8e922}.brand b{display:block;letter-spacing:.14em;font-size:12px}.brand small{display:block;color:var(--muted);font:9px ui-monospace,monospace;letter-spacing:.13em}
+.head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.head-actions a,.head-actions button,.head-actions select{border:1px solid var(--line);border-radius:8px;background:#101d2b;color:var(--text);padding:9px 12px;text-decoration:none;font:10px ui-monospace,monospace;cursor:pointer}.head-actions select{min-width:150px}
+.eyebrow{font:10px ui-monospace,monospace;letter-spacing:.18em;color:var(--cyan);text-transform:uppercase}
+.hero{padding:clamp(34px,6vw,76px) 0 34px;display:grid;grid-template-columns:1.05fr .95fr;gap:30px;align-items:center}
+h1{font-size:clamp(32px,5.4vw,68px);line-height:.98;letter-spacing:-.045em;margin:12px 0 18px;max-width:780px}
+.lead{color:#c0d0dc;font-size:clamp(14px,1.6vw,18px);max-width:700px}.tagline{font:11px ui-monospace,monospace;letter-spacing:.16em;color:var(--gold);margin-top:20px}
+.hero-art{border:1px solid #38536b;border-radius:18px;overflow:hidden;background:linear-gradient(145deg,#111c2a,#09111b);min-height:280px;display:grid;place-items:center;position:relative}
+.hero-art:after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 55% 45%,transparent 15%,#02070b99 100%);pointer-events:none}
+.hero-art svg{width:100%;max-width:560px;height:auto}
+.section-head{display:flex;align-items:end;justify-content:space-between;gap:16px;margin:32px 0 14px;flex-wrap:wrap}.section-head h2{margin:0;font-size:20px;letter-spacing:.02em}.section-head p{margin:4px 0 0;color:var(--muted);font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}.card{background:linear-gradient(155deg,#142234dd,#0d1722ee);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}.span-7{grid-column:span 7}.span-5{grid-column:span 5}.span-4{grid-column:span 4}.span-6{grid-column:span 6}.span-12{grid-column:span 12}
+.card h3{font-size:14px;letter-spacing:.08em;margin:0 0 8px}.card p{margin:0;color:var(--muted);font-size:12px}.pill{display:inline-flex;border:1px solid #3d6174;border-radius:999px;padding:4px 8px;color:var(--cyan);font:9px ui-monospace,monospace;letter-spacing:.1em;margin-bottom:10px}
+.map-workbench{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:14px;margin-top:14px}.map-frame{border:1px solid #38546a;border-radius:12px;background:#09121d;overflow:hidden;position:relative;min-height:390px}.map-frame svg{display:block;width:100%;height:100%;min-height:390px}.map-side{display:flex;flex-direction:column;gap:9px}.layer-row{display:flex;align-items:center;gap:9px;padding:9px;border:1px solid #29445b;border-radius:8px;background:#0b1622;font-size:11px}.layer-row input{accent-color:var(--cyan);width:15px;height:15px}.layer-row small{display:block;color:var(--muted);font-size:9px}.btn{border:1px solid #3c6077;background:#122638;color:var(--text);border-radius:8px;padding:10px 12px;font:10px ui-monospace,monospace;letter-spacing:.08em;cursor:pointer}.btn.primary{background:var(--cyan);color:#071017;border-color:var(--cyan);font-weight:800}.btn.gold{border-color:#8d7444;color:var(--gold)}.btn:hover{filter:brightness(1.15)}.map-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.layer-group{transition:opacity .15s}.layer-group.off{display:none}.legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;color:var(--muted);font:9px ui-monospace,monospace}.legend span:before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--swatch);margin-right:5px}
+.feature-list{display:grid;gap:10px;margin-top:14px}.feature{display:flex;gap:12px;align-items:flex-start}.feature-icon{width:34px;height:34px;flex:0 0 34px;border-radius:10px;background:#193147;border:1px solid #31546c;display:grid;place-items:center;color:var(--cyan);font-size:16px}.feature b{display:block;font-size:12px}.feature span{display:block;color:var(--muted);font-size:11px}
+.asset-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.asset{padding:15px;border-radius:11px;background:#0b1622;border:1px solid #29445b}.asset .glyph{font-size:24px;margin-bottom:8px}.asset b{display:block;font-size:11px;letter-spacing:.06em}.asset p{margin-top:5px}
+.notice{border-left:3px solid var(--gold);background:#211d15;padding:12px 14px;border-radius:0 8px 8px 0;color:#d9c9a5;font-size:11px;margin-top:12px}
+footer{border-top:1px solid var(--line);margin-top:34px;padding-top:18px;color:var(--muted);font:9px ui-monospace,monospace;letter-spacing:.08em;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media(max-width:850px){.hero{grid-template-columns:1fr}.span-7,.span-5,.span-4,.span-6{grid-column:span 12}.map-workbench{grid-template-columns:1fr}.map-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.asset-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.map-side{grid-template-columns:1fr 1fr}.asset-grid{grid-template-columns:1fr}.map-frame,.map-frame svg{min-height:290px}.head-actions{width:100%}.head-actions select{flex:1}}
+@media print{body{background:white;color:#111}.shell{max-width:none;padding:0}.no-print,header,.hero,.section-head,.map-side,.map-actions,.grid:not(.map-print){display:none!important}.map-workbench{display:block;margin:0}.map-frame{border:0;min-height:0;background:white}.map-frame svg{min-height:0;height:auto;max-height:95vh}.map-frame svg text{fill:#111!important}.map-frame svg .map-bg{fill:#fff!important}.map-frame svg .gridline{stroke:#bbb!important}.map-frame svg .layer-group{opacity:1!important}.map-frame svg .layer-group.off{display:none!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="no-print">
+  <div class="brand"><div class="mark">◎</div><div><b>TRAMPILLERA GAME STUDIO</b><small>WORLDS &amp; PLAY · EXCLUSIVE COLLECTION</small></div></div>
+  <div class="head-actions">
+    <a href="/" data-i18n="back">← MAIN PORTAL</a>
+    <a href="/games/polar-settlement.html" data-i18n="game">GAME ENVIRONMENT ↗</a>
+    <label class="sr-only" for="locale">Language</label>
+    <select id="locale" aria-label="Language">
+      <option value="EN">EN · English</option><option value="RU">RU · Русский</option><option value="SR">SR · Srpski</option><option value="DE">DE · Deutsch</option><option value="FR">FR · Français</option><option value="ES">ES · Español</option><option value="IT">IT · Italiano</option><option value="PT">PT · Português</option><option value="ZH">ZH · 中文</option><option value="JA">JA · 日本語</option><option value="KO">KO · 한국어</option><option value="AR">AR · العربية</option>
+    </select>
+  </div>
+</header>
+
+<section class="hero no-print">
+  <div>
+    <div class="eyebrow" data-i18n="eyebrow">A CREATIVE TABLETOP WORLD TOOLKIT</div>
+    <h1>ORIGAMI<br><span style="color:var(--cyan)">MAPS</span> PLANNER</h1>
+    <p class="lead" data-i18n="lead">Printable worlds, adaptable map layers, world lore and origami craft instructions. We provide the materials. You decide how to play.</p>
+    <div class="tagline">MAP IT. FOLD IT. BUILD YOUR WORLD.</div>
+  </div>
+  <div class="hero-art" aria-label="Illustrated layered Mars map and paper rover">
+    <svg viewBox="0 0 600 340" role="img">
+      <defs><radialGradient id="mars"><stop stop-color="#d88b68"/><stop offset=".7" stop-color="#824b42"/><stop offset="1" stop-color="#3d3036"/></radialGradient><filter id="glow"><feGaussianBlur stdDeviation="8"/></filter></defs>
+      <circle cx="300" cy="170" r="130" fill="#64d8e9" opacity=".12" filter="url(#glow)"/>
+      <circle cx="300" cy="170" r="118" fill="url(#mars)" stroke="#e9b18d" stroke-opacity=".65"/>
+      <path d="M214 122l34-24 31 8 14 25-20 18-8 30-35 9-27-24zM312 82l48 12 18 33-24 22-34-10-15-29zM280 208l33-20 39 12 12 34-32 27-46-15z" fill="#503e43" opacity=".65"/>
+      <path d="M184 171Q300 50 416 171M190 205Q300 290 410 205" fill="none" stroke="#f3d0a9" stroke-dasharray="4 7" opacity=".7"/>
+      <g fill="none" stroke="#64d8e9" stroke-width="2"><path d="M300 52V288M182 170H418"/><circle cx="300" cy="170" r="82" stroke-dasharray="3 8"/></g>
+      <g fill="#e8c47e" stroke="#fff1c9" stroke-width="1.4"><path d="M358 142l14-8 13 8v16l-13 8-14-8z"/><path d="M230 201l12-7 12 7v14l-12 7-12-7z"/></g>
+      <g transform="translate(405 225) rotate(-12)"><path d="M0 25L45 0l48 24-47 28z" fill="#d8e1e6" stroke="#64d8e9" stroke-width="2"/><path d="M45 0v52M0 25l46 27 47-28" fill="none" stroke="#607b8e" stroke-width="1.5"/><path d="M30 9l15-8 18 9-18 9z" fill="#e8c47e"/><circle cx="15" cy="31" r="5" fill="#111b25"/><circle cx="76" cy="31" r="5" fill="#111b25"/></g>
+      <g font-family="monospace" font-size="10" fill="#bcecf2"><text x="26" y="36">MAP LAYER 01 / TERRAIN</text><text x="26" y="52">MARS · GRID 04 / 12</text><text x="430" y="54">ORIGAMI UNIT</text><text x="430" y="68">PAPER ROVER / MK-I</text></g>
+    </svg>
+  </div>
+</section>
+
+<section class="no-print">
+  <div class="section-head"><div><div class="eyebrow">01 / FIRST WORLD PACK</div><h2 data-i18n="marsTitle">MARS — ORIGAMI WORLD</h2><p data-i18n="marsSub">An example world pack for exploration, settlement, logistics and creative play.</p></div><span class="pill">FOUNDATION PACK · v0.1</span></div>
+  <div class="grid">
+    <article class="card span-7">
+      <span class="pill" data-i18n="mapPreview">INTERACTIVE MAP PREVIEW</span>
+      <h3 data-i18n="mapTitle">MULTI-LAYER MAP SYSTEM</h3>
+      <p data-i18n="mapDesc">Switch map layers on and off, or combine several layers at once. All layers share one coordinate grid so players can work across the same territory.</p>
+      <div class="map-workbench">
+        <div>
+          <div class="map-frame">
+            <svg viewBox="0 0 720 480" role="img" aria-label="Mars tabletop map with independently selectable layers">
+              <defs><pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse"><path class="gridline" d="M36 0H0V36" fill="none" stroke="#426176" stroke-opacity=".38" stroke-width="1"/><text x="4" y="12" font-size="7" fill="#8096a6">A</text></pattern><radialGradient id="terrain"><stop stop-color="#a96c57"/><stop offset=".55" stop-color="#754b46"/><stop offset="1" stop-color="#382f39"/></radialGradient></defs>
+              <rect class="map-bg" width="720" height="480" fill="#0a1722"/>
+              <g id="layer-terrain" class="layer-group"><path d="M80 92l110-40 80 32 55-18 90 35 95-12 92 65-24 92-75 28-37 94-106 40-95-32-70 22-88-60-52-110z" fill="url(#terrain)" stroke="#d59a7b" stroke-opacity=".55" stroke-width="2"/><g fill="#49383d" opacity=".65"><ellipse cx="188" cy="173" rx="40" ry="19"/><ellipse cx="354" cy="111" rx="30" ry="12"/><ellipse cx="500" cy="264" rx="52" ry="22"/><ellipse cx="280" cy="340" rx="27" ry="13"/></g><g fill="none" stroke="#e4b08a" stroke-opacity=".6" stroke-dasharray="5 5"><path d="M110 260Q250 130 390 235T625 190"/><path d="M155 100Q270 230 420 330"/></g></g>
+              <g id="layer-infrastructure" class="layer-group"><g fill="#b9d9df" stroke="#64d8e9" stroke-width="2"><rect x="245" y="205" width="38" height="27" rx="4"/><path d="M245 205l19-15 19 15" fill="#33596b"/><rect x="490" y="112" width="32" height="24" rx="3"/><path d="M490 112l16-12 16 12" fill="#33596b"/></g><path d="M264 218L506 124 575 275 264 218" fill="none" stroke="#64d8e9" stroke-width="3" stroke-dasharray="8 6"/></g>
+              <g id="layer-resources" class="layer-group"><g fill="#e8c47e" stroke="#fff0bf" stroke-width="1.5"><path d="M160 300l12-20 12 20-12 20z"/><path d="M400 160l12-20 12 20-12 20z"/><path d="M570 350l12-20 12 20-12 20z"/></g><g fill="#f4d99e" font-size="12" font-family="monospace"><text x="190" y="304">Fe</text><text x="430" y="164">H₂O</text><text x="600" y="354">Si</text></g></g>
+              <g id="layer-operations" class="layer-group"><g fill="#77d7ae" stroke="#c3ffe3" stroke-width="1.5"><path d="M320 270l12-20 12 20-12 20z"/><path d="M560 200l12-20 12 20-12 20z"/></g><g fill="none" stroke="#77d7ae" stroke-width="2.5"><path d="M332 270Q430 225 572 200" stroke-dasharray="7 5"/></g><g fill="#d8f8e9" font-size="10" font-family="monospace"><text x="348" y="290">ROVER-01</text><text x="590" y="198">ZONE B</text></g></g>
+              <g id="layer-environment" class="layer-group"><g fill="none" stroke="#b39aff" stroke-width="2" stroke-dasharray="3 6"><circle cx="430" cy="285" r="52"/><circle cx="430" cy="285" r="72"/></g><g fill="#d2c5ff" font-size="10" font-family="monospace"><text x="438" y="292">DUST</text><text x="438" y="306">HAZARD</text></g></g>
+              <g id="layer-scenario" class="layer-group"><path d="M80 390H640" stroke="#fff" stroke-opacity=".55" stroke-width="1"/><g fill="#d9e6ef" font-size="10" font-family="monospace"><text x="90" y="414">SOL 014 · SETTLEMENT PHASE</text><text x="520" y="414">SCENARIO A</text></g><circle cx="264" cy="218" r="9" fill="none" stroke="#fff" stroke-width="2"/></g>
+              <rect x="0" y="0" width="720" height="480" fill="url(#grid)" opacity=".65" pointer-events="none"/>
+              <g fill="#d6e8f0" font-family="monospace" font-size="10"><text x="18" y="24">MARS / ARCADIA PLANITIA</text><text x="610" y="24">N ↑</text><text x="18" y="462">GRID: 20 KM / CELL</text><text x="585" y="462">ORIGAMI MAPS PLANNER</text></g>
+            </svg>
+          </div>
+          <div class="legend"><span style="--swatch:#d59a7b" data-i18n="terrain">Terrain</span><span style="--swatch:#64d8e9" data-i18n="infrastructure">Infrastructure</span><span style="--swatch:#e8c47e" data-i18n="resources">Resources</span><span style="--swatch:#77d7ae" data-i18n="operations">Operations</span><span style="--swatch:#b39aff" data-i18n="hazards">Hazards</span></div>
+          <div class="map-actions"><button class="btn primary" id="printMap" data-i18n="print">PRINT ACTIVE MAP LAYERS</button><button class="btn" id="allLayers" data-i18n="allLayers">SHOW ALL LAYERS</button><button class="btn" id="clearLayers" data-i18n="clearLayers">CLEAR LAYERS</button></div>
+        </div>
+        <aside class="map-side" aria-label="Map layer controls">
+          <div class="eyebrow" data-i18n="layers">MAP LAYERS</div>
+          <label class="layer-row"><input type="checkbox" data-layer="terrain" checked><span><b data-i18n="terrain">Terrain</b><small>01 · BASE GEOGRAPHY</small></span></label>
+          <label class="layer-row"><input type="checkbox" data-layer="infrastructure" checked><span><b data-i18n="infrastructure">Infrastructure</b><small>02 · BUILT ENVIRONMENT</small></span></label>
+          <label class="layer-row"><input type="checkbox" data-layer="resources" checked><span><b data-i18n="resources">Resources</b><small>03 · DEPOSITS &amp; SUPPLIES</small></span></label>
+          <label class="layer-row"><input type="checkbox" data-layer="operations" checked><span><b data-i18n="operations">Operations</b><small>04 · UNITS &amp; ROUTES</small></span></label>
+          <label class="layer-row"><input type="checkbox" data-layer="environment" checked><span><b data-i18n="hazards">Environment</b><small>05 · CONDITIONS</small></span></label>
+          <label class="layer-row"><input type="checkbox" data-layer="scenario" checked><span><b data-i18n="scenario">Scenario / Time</b><small>06 · STATE &amp; EVENTS</small></span></label>
+        </aside>
+      </div>
+    </article>
+    <article class="card span-5">
+      <span class="pill">DESIGN PRINCIPLE</span><h3 data-i18n="playersTitle">ONE WORLD. MANY WAYS TO PLAY.</h3>
+      <p data-i18n="playersDesc">This is not a mandatory ruleset or a closed game. The map, lore and craft materials are a shared starting point for each player's own interpretation.</p>
+      <div class="feature-list">
+        <div class="feature"><div class="feature-icon">▤</div><div><b data-i18n="printable">Printable by design</b><span data-i18n="printableDesc">Print a complete map or selected layers for table play.</span></div></div>
+        <div class="feature"><div class="feature-icon">⌘</div><div><b data-i18n="adaptable">Adaptable materials</b><span data-i18n="adaptableDesc">Modify terrain, symbols, objects, lore and rules.</span></div></div>
+        <div class="feature"><div class="feature-icon">◇</div><div><b data-i18n="physical">Physical first, digital optional</b><span data-i18n="physicalDesc">Use paper, dice, counters and notebooks. Digitization is each player's choice.</span></div></div>
+        <div class="feature"><div class="feature-icon">⇄</div><div><b data-i18n="layersFeature">Concurrent map layers</b><span data-i18n="layersFeatureDesc">Players can consult and play across several aligned layers in one session.</span></div></div>
+      </div>
+      <div class="notice" data-i18n="layerNote">Layered gameplay is a planned product capability. This preview demonstrates independent layer visibility; coordinated campaign mechanics and physical accessories will be designed separately.</div>
+    </article>
+  </div>
+</section>
+
+<section class="no-print">
+  <div class="section-head"><div><div class="eyebrow">02 / WORLD MATERIALS</div><h2 data-i18n="materialsTitle">THE WORLD-BUILDING KIT</h2><p data-i18n="materialsSub">A flexible collection of source materials, not a closed rules package.</p></div></div>
+  <div class="asset-grid">
+    <article class="asset"><div class="glyph">🗺️</div><b data-i18n="maps">MAPS &amp; LAYERS</b><p data-i18n="mapsDesc">Printable maps, coordinate grids, legends and aligned overlays.</p></article>
+    <article class="asset"><div class="glyph">📚</div><b data-i18n="lore">LORE &amp; SCENARIOS</b><p data-i18n="loreDesc">World history, locations, factions, events and optional scenarios.</p></article>
+    <article class="asset"><div class="glyph">📄</div><b data-i18n="origami">ORIGAMI WORKSHOP</b><p data-i18n="origamiDesc">Original folding guides, paper units, buildings and models.</p></article>
+    <article class="asset"><div class="glyph">✳</div><b data-i18n="identity">SYMBOLS &amp; IDENTITY</b><p data-i18n="identityDesc">Coloring sheets, emblems, flags, labels and object identifiers.</p></article>
+    <article class="asset"><div class="glyph">🎲</div><b data-i18n="play">PLAY MATERIALS</b><p data-i18n="playDesc">Optional cards, counters, dice ideas, legends and quick-start guides.</p></article>
+    <article class="asset"><div class="glyph">📖</div><b data-i18n="guides">USE GUIDES</b><p data-i18n="guidesDesc">How to print, assemble, adapt, combine and share the materials.</p></article>
+  </div>
+</section>
+
+<section class="no-print">
+  <div class="section-head"><div><div class="eyebrow">03 / FUTURE DESIGN TRACK</div><h2 data-i18n="futureTitle">PHYSICAL PLAY ACCESSORIES</h2><p data-i18n="futureSub">Reserved for a later design phase — not included as existing products.</p></div><span class="pill" style="color:var(--gold);border-color:#8d7444">FUTURE CONCEPT</span></div>
+  <div class="grid">
+    <article class="card span-4"><h3 data-i18n="woodTitle">WOODEN COUNTING TOOLS</h3><p data-i18n="woodDesc">Special wooden counters or counting instruments, with form and use to be designed.</p></article>
+    <article class="card span-4"><h3 data-i18n="tablesTitle">CALCULATION TABLES</h3><p data-i18n="tablesDesc">Reference tables for calculations, conversions and scenario-specific values.</p></article>
+    <article class="card span-4"><h3 data-i18n="notebookTitle">CAMPAIGN NOTEBOOK</h3><p data-i18n="notebookDesc">A physical record of decisions, events, values and evolving world state.</p></article>
+  </div>
+</section>
+
+<footer class="no-print"><span>TRAMPILLERA GAME STUDIO / WORLDS &amp; PLAY</span><span>ORIGAMI MAPS PLANNER · FOUNDATION PREVIEW v0.1</span><span>CONCEPT / PROTOTYPE · NOT A COMPLETE GAME SYSTEM</span></footer>
+</div>
+<script>
+(function(){
+'use strict';
+const translations={
+EN:{back:'← MAIN PORTAL',game:'GAME ENVIRONMENT ↗',eyebrow:'A CREATIVE TABLETOP WORLD TOOLKIT',lead:'Printable worlds, adaptable map layers, world lore and origami craft instructions. We provide the materials. You decide how to play.',marsTitle:'MARS — ORIGAMI WORLD',marsSub:'An example world pack for exploration, settlement, logistics and creative play.',mapPreview:'INTERACTIVE MAP PREVIEW',mapTitle:'MULTI-LAYER MAP SYSTEM',mapDesc:'Switch map layers on and off, or combine several layers at once. All layers share one coordinate grid so players can work across the same territory.',terrain:'Terrain',infrastructure:'Infrastructure',resources:'Resources',operations:'Operations',hazards:'Environment',scenario:'Scenario / Time',layers:'MAP LAYERS',print:'PRINT ACTIVE MAP LAYERS',allLayers:'SHOW ALL LAYERS',clearLayers:'CLEAR LAYERS',playersTitle:'ONE WORLD. MANY WAYS TO PLAY.',playersDesc:'This is not a mandatory ruleset or a closed game. The map, lore and craft materials are a shared starting point for each player\'s own interpretation.',printable:'Printable by design',printableDesc:'Print a complete map or selected layers for table play.',adaptable:'Adaptable materials',adaptableDesc:'Modify terrain, symbols, objects, lore and rules.',physical:'Physical first, digital optional',physicalDesc:'Use paper, dice, counters and notebooks. Digitization is each player\'s choice.',layersFeature:'Concurrent map layers',layersFeatureDesc:'Players can consult and play across several aligned layers in one session.',layerNote:'Layered gameplay is a planned product capability. This preview demonstrates independent layer visibility; coordinated campaign mechanics and physical accessories will be designed separately.',materialsTitle:'THE WORLD-BUILDING KIT',materialsSub:'A flexible collection of source materials, not a closed rules package.',maps:'MAPS & LAYERS',mapsDesc:'Printable maps, coordinate grids, legends and aligned overlays.',lore:'LORE & SCENARIOS',loreDesc:'World history, locations, factions, events and optional scenarios.',origami:'ORIGAMI WORKSHOP',origamiDesc:'Original folding guides, paper units, buildings and models.',identity:'SYMBOLS & IDENTITY',identityDesc:'Coloring sheets, emblems, flags, labels and object identifiers.',play:'PLAY MATERIALS',playDesc:'Optional cards, counters, dice ideas, legends and quick-start guides.',guides:'USE GUIDES',guidesDesc:'How to print, assemble, adapt, combine and share the materials.',futureTitle:'PHYSICAL PLAY ACCESSORIES',futureSub:'Reserved for a later design phase — not included as existing products.',woodTitle:'WOODEN COUNTING TOOLS',woodDesc:'Special wooden counters or counting instruments, with form and use to be designed.',tablesTitle:'CALCULATION TABLES',tablesDesc:'Reference tables for calculations, conversions and scenario-specific values.',notebookTitle:'CAMPAIGN NOTEBOOK',notebookDesc:'A physical record of decisions, events, values and evolving world state.'},
+RU:{back:'← ГЛАВНЫЙ ПОРТАЛ',game:'ИГРОВАЯ СРЕДА ↗',eyebrow:'НАБОР ИНСТРУМЕНТОВ ДЛЯ НАСТОЛЬНЫХ МИРОВ',lead:'Карты для печати, изменяемые слои, история мира и инструкции по искусству оригами. Мы предоставляем материалы. Вы решаете, как играть.',marsTitle:'МАРС — МИР ОРИГАМИ',marsSub:'Первый набор мира для исследования, освоения, логистики и творчества.',mapPreview:'ИНТЕРАКТИВНЫЙ ПРЕДПРОСМОТР',mapTitle:'МНОГОСЛОЙНАЯ СИСТЕМА КАРТ',mapDesc:'Включайте и выключайте слои или объединяйте несколько одновременно. Все слои используют единую сетку координат.',terrain:'Рельеф',infrastructure:'Инфраструктура',resources:'Ресурсы',operations:'Операции',hazards:'Окружающая среда',scenario:'Сценарий / Время',layers:'СЛОИ КАРТЫ',print:'ПЕЧАТЬ ВЫБРАННЫХ СЛОЁВ',allLayers:'ПОКАЗАТЬ ВСЕ СЛОИ',clearLayers:'СКРЫТЬ ВСЕ СЛОИ',playersTitle:'ОДИН МИР. МНОЖЕСТВО СПОСОБОВ ИГРЫ.',playersDesc:'Это не обязательный свод правил и не закрытая игра. Карта, история и материалы для творчества — общая отправная точка.',printable:'Создано для печати',printableDesc:'Печатайте всю карту или отдельные слои.',adaptable:'Изменяемые материалы',adaptableDesc:'Меняйте рельеф, символы, объекты, историю и правила.',physical:'Физический формат, цифра по желанию',physicalDesc:'Используйте бумагу, кубики, счётчики и блокноты.',layersFeature:'Параллельные слои карты',layersFeatureDesc:'Игроки могут одновременно работать с несколькими совмещёнными слоями.',layerNote:'Многослойная игра — планируемая возможность. Здесь показано независимое включение слоёв; механика кампаний и физические аксессуары будут разработаны отдельно.',materialsTitle:'НАБОР ДЛЯ СОЗДАНИЯ МИРА',materialsSub:'Гибкая коллекция исходных материалов, а не закрытый пакет правил.',maps:'КАРТЫ И СЛОИ',mapsDesc:'Карты для печати, координатные сетки, легенды и совмещаемые листы.',lore:'ИСТОРИЯ И СЦЕНАРИИ',loreDesc:'История мира, места, фракции, события и дополнительные сценарии.',origami:'МАСТЕРСКАЯ ОРИГАМИ',origamiDesc:'Оригинальные инструкции, бумажные подразделения, здания и модели.',identity:'СИМВОЛЫ И ИДЕНТИФИКАЦИЯ',identityDesc:'Раскраски, эмблемы, флаги, метки и обозначения объектов.',play:'ИГРОВЫЕ МАТЕРИАЛЫ',playDesc:'Карточки, счётчики, идеи для кубиков, легенды и краткие руководства.',guides:'ИНСТРУКЦИИ',guidesDesc:'Как печатать, собирать, изменять, комбинировать и распространять материалы.',futureTitle:'АКСЕССУАРЫ ДЛЯ ФИЗИЧЕСКОЙ ИГРЫ',futureSub:'Отложенный этап проектирования — пока не существующие продукты.',woodTitle:'ДЕРЕВЯННЫЕ СЧЁТНЫЕ ИНСТРУМЕНТЫ',woodDesc:'Специальные деревянные счётчики или инструменты, конструкцию ещё предстоит разработать.',tablesTitle:'ТАБЛИЦЫ РАСЧЁТОВ',tablesDesc:'Справочные таблицы расчётов, пересчётов и сценарных значений.',notebookTitle:'ИГРОВОЙ БЛОКНОТ',notebookDesc:'Физическая запись решений, событий, значений и изменений мира.'}
+};
+const fallback=translations.EN;
+const locale=document.getElementById('locale');
+const layerInputs=[...document.querySelectorAll('[data-layer]')];
+function applyLayers(){layerInputs.forEach(input=>{const el=document.getElementById('layer-'+input.dataset.layer);if(el)el.classList.toggle('off',!input.checked);});}
+function setLanguage(code){const dict=translations[code]||fallback;document.documentElement.lang=code.toLowerCase();document.documentElement.dir=code==='AR'?'rtl':'ltr';document.querySelectorAll('[data-i18n]').forEach(el=>{const key=el.dataset.i18n;const value=dict[key]||fallback[key];if(value)el.textContent=value;});locale.value=code;try{localStorage.setItem('trampillera.locale.v1',code);}catch(e){}}
+let saved='EN';try{saved=localStorage.getItem('trampillera.locale.v1')||'EN';}catch(e){};if(![...locale.options].some(o=>o.value===saved))saved='EN';setLanguage(saved);
+locale.addEventListener('change',()=>setLanguage(locale.value));
+window.addEventListener('storage',e=>{if(e.key==='trampillera.locale.v1'&&e.newValue)setLanguage(e.newValue);});
+layerInputs.forEach(input=>input.addEventListener('change',applyLayers));applyLayers();
+document.getElementById('allLayers').addEventListener('click',()=>{layerInputs.forEach(x=>x.checked=true);applyLayers();});
+document.getElementById('clearLayers').addEventListener('click',()=>{layerInputs.forEach(x=>x.checked=false);applyLayers();});
+document.getElementById('printMap').addEventListener('click',()=>window.print());
+})();
+</script>
+<script src="/shared/origami-worlds-launcher.js" defer></script>
+</body></html>
