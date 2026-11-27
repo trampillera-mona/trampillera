@@ -29,11 +29,13 @@ jobs:
           node --test scripts/migrations.test.mjs
           node --test scripts/organization-migration.test.mjs
           node scripts/verify-preservation.mjs
+          node scripts/verify-provenance-registry.mjs
           node --test scripts/locale-voice.test.mjs
           node --check app/public/shared/trampillera-analytics.js
           node --check app/public/shared/trampillera-unified-reality.js
           node --test scripts/analytics-growth.test.mjs
           node --test scripts/unified-reality.test.mjs
+          node --test scripts/origami-map-planner.test.mjs
 
       - name: Validate Compose configuration
         run: |
@@ -57,7 +59,7 @@ jobs:
             sleep 2
           done
           echo "CI: verify PostgreSQL migrations and normalized organization schema"
-          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '2'
+          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '4'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '\''public'\'' AND table_name IN ('\''org_units'\'','\''positions'\'','\''employee_org_assignments'\'')"' | tr -d '\r' | grep -qx '3'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM employee_org_assignments"' | tr -d '\r' | grep -qx '0'
           docker compose restart app
@@ -71,7 +73,7 @@ jobs:
             fi
             sleep 2
           done
-          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '2'
+          docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM schema_migrations"' | tr -d '\r' | grep -qx '4'
           docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM employee_org_assignments"' | tr -d '\r' | grep -qx '0'
           curl --fail --silent http://127.0.0.1:3000/
           curl --fail --silent http://127.0.0.1:3000/shared/trampillera-global-controls.js | grep -q 'TrampilleraLocaleCore'
@@ -82,7 +84,7 @@ jobs:
           curl --fail --silent http://127.0.0.1:3000/control/growth/ | grep -q 'Audience Intelligence Desk'
           curl --fail --silent http://127.0.0.1:3000/city/ | grep -q 'allow="microphone;'
           curl --fail --silent --dump-header /tmp/trampillera-headers.txt --output /dev/null http://127.0.0.1:3000/api/health
-          grep -qi '^Permissions-Policy: microphone=(self)' /tmp/trampillera-headers.txt
+          grep -qi '^Permissions-Policy: .*microphone=(self)' /tmp/trampillera-headers.txt
           curl --fail --silent http://127.0.0.1:3000/control/ > /dev/null
           curl --fail --silent -H 'Content-Type: application/json' -d '{"visitorId":"11111111-1111-4111-8111-111111111111","path":"/","source":"ci","medium":"test","campaign":""}' http://127.0.0.1:3000/api/analytics/visit | jq -e '.visitors == 1 and .today == 1 and .pageviews == 1'
           curl --fail --silent http://127.0.0.1:3000/api/analytics/counter | jq -e '.visitors == 1 and .today == 1 and .pageviews == 1'

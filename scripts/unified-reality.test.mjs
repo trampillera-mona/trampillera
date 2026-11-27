@@ -13,7 +13,7 @@ test('Unified Reality banner is mounted once and loads its shared assets', () =>
   assert.match(css, /#unified-reality-banner/);
   assert.match(css, /width:100vw/);
   assert.match(css, /max-width:none/);
-  assert.match(css, /margin-left:calc\\(50% - 50vw\\)/);
+  assert.match(css, /margin-left:calc\(50% - 50vw\)/);
   assert.doesNotMatch(css, /max-width:840px/);
   assert.match(css, /height:260px/);
   assert.match(css, /min-height:260px/);

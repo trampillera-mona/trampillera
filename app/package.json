@@ -6,8 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "NODE_ENV=development node --watch server.js",
-    "check": "node --check server.js && node --check ai-provider.js && node --check migrations.js",
-    "test": "node --test ../scripts/ai-provider.test.mjs && node --test ../scripts/migrations.test.mjs && node --test ../scripts/organization-migration.test.mjs && node ../scripts/verify-preservation.mjs && node --test ../scripts/locale-voice.test.mjs && node --test ../scripts/analytics-growth.test.mjs && node --test ../scripts/organization-desk.test.mjs && node --test ../scripts/unified-reality.test.mjs"
+    "check": "node --check server.js && node --check ai-provider.js && node --check migrations.js && node ../scripts/verify-provenance-registry.mjs && node --test ../scripts/origami-map-planner.test.mjs && node --check db-schema.js && node --test ../scripts/db-schema.test.mjs",
+    "test": "node --test ../scripts/ai-provider.test.mjs && node --test ../scripts/migrations.test.mjs && node --test ../scripts/organization-migration.test.mjs && node ../scripts/verify-preservation.mjs && node --test ../scripts/locale-voice.test.mjs && node --test ../scripts/analytics-growth.test.mjs && node --test ../scripts/organization-desk.test.mjs && node --test ../scripts/unified-reality.test.mjs && node --test ../scripts/origami-map-planner.test.mjs && node --test ../scripts/db-schema.test.mjs"
   },
   "engines": {
     "node": ">=20"
