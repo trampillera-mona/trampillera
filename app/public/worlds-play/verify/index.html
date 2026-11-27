@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Asset Provenance Check · TRAMPILLERA</title>
+<style>
+:root{color-scheme:dark;--bg:#070b12;--panel:#101a27;--line:#29445b;--text:#e9f3fb;--muted:#91a7b9;--cyan:#64d8e9;--gold:#e8c47e}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -15%,#1b3044 0,transparent 55%),var(--bg);color:var(--text);font:14px/1.6 Inter,system-ui,sans-serif;display:grid;place-items:center;padding:20px}
+main{width:min(720px,100%);border:1px solid var(--line);border-radius:18px;background:#101a27eF;padding:clamp(22px,5vw,42px);box-shadow:0 20px 80px #0008}
+.brand{color:var(--cyan);font:700 12px ui-monospace,monospace;letter-spacing:.18em}h1{font-size:clamp(25px,5vw,38px);line-height:1.1;margin:18px 0 8px}p{color:var(--muted)}.panel{margin:22px 0;padding:18px;border:1px solid var(--line);border-radius:12px;background:#09121d}.label{color:var(--gold);font:10px ui-monospace,monospace;letter-spacing:.14em}.value{font:13px ui-monospace,monospace;overflow-wrap:anywhere}.status{color:var(--cyan);font-weight:700}.warn{border-left:3px solid var(--gold);padding:10px 14px;background:#211d15;color:#e0d0ac;font-size:12px}a{color:var(--cyan)}footer{border-top:1px solid var(--line);padding-top:16px;margin-top:24px;color:var(--muted);font:10px ui-monospace,monospace}
+</style></head><body><main>
+<div class="brand">TRAMPILLERA / WORLDS &amp; PLAY</div><h1>Asset provenance check</h1><p>ORIGAMI MAPS PLANNER · Mars Foundation Pack · Registry v0.1</p>
+<div class="panel"><div class="label">REGISTRY RESULT</div><p id="status" class="status">Checking registry…</p><div class="label">ASSET ID</div><p id="asset-id" class="value">—</p><div class="label">ASSET</div><p id="asset-title" class="value">—</p><div class="label">CANONICAL SOURCE</div><p id="asset-path" class="value">—</p></div>
+<div class="warn">A matching registry entry means this identifier and source path are listed in the TRAMPILLERA project registry. It does not cryptographically prove that a downloaded file is unchanged, establish legal ownership, or indicate that a trademark is registered.</div>
+<p><a href="/worlds-play/">← Return to WORLDS &amp; PLAY</a></p>
+<footer>© 2026 TRAMPILLERA · ORIGAMI MAPS PLANNER · PROVENANCE REGISTRY v0.1</footer>
+</main><script>
+(async()=>{const params=new URLSearchParams(location.search);const id=params.get('id');const status=document.getElementById('status');document.getElementById('asset-id').textContent=id||'No asset ID supplied';try{const response=await fetch('/worlds-play/provenance/registry.json',{cache:'no-store'});if(!response.ok)throw new Error('Registry unavailable');const registry=await response.json();const item=registry.assets.find(x=>x.id===id);if(item){status.textContent='LISTED IN PROJECT REGISTRY';document.getElementById('asset-title').textContent=item.title+' · v'+item.version;document.getElementById('asset-path').textContent=item.path;}else{status.textContent=id?'NO MATCHING REGISTRY ENTRY':'SUPPLY AN ASSET ID';}}catch(error){status.textContent='REGISTRY COULD NOT BE LOADED';}})();
+</script></body></html>
