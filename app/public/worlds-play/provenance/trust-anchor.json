@@ -1,0 +1,7 @@
+{
+  "schema": "trampillera.provenance.trust-anchor.v1",
+  "algorithm": "Ed25519",
+  "status": "active",
+  "public_key_spki_base64": "MCowBQYDK2VwAyEAXA94YJ3pVtQEovAToZzOf2JNBTS8A0Z5+3cVTpStLs4=",
+  "public_key_fingerprint_sha256": "8a9cdfb8d9da4d01e98206549a2a39e0908e3afef65061ed81e99729a7ae30b0"
+}
