@@ -10,8 +10,8 @@
 
 ## Print
 1. Open the SVG files in a browser or vector-capable application.
-2. Print each sheet in landscape orientation at 100% / actual size. The 272 × 210 mm print area fits A4 landscape with side margins. Avoid “fit to page” when accurate overlay registration matters.
-3. The six overlay sheets use the same 272 × 210 mm print area, 900 × 700 map frame, 9 × 7 coordinate grid and north arrow.
+2. Print each sheet in landscape orientation at 100% / actual size. The 259 × 200 mm print area fits A4 landscape with a 5 mm top/bottom print margin. Avoid “fit to page” when accurate overlay registration matters.
+3. The six overlay sheets use the same 259 × 200 mm print area, 900 × 700 map frame, 9 × 7 coordinate grid and north arrow.
 4. For simultaneous physical play, print overlays on tracing paper or transparent film. If using ordinary paper, place sheets side by side or consult them in sequence.
 5. Align the outer map frame and coordinate grid. Do not stretch or crop individual sheets.
 
