@@ -134,3 +134,29 @@ The following source-level elements have been added on the feature branch:
 - Lore, origami folding sheets, printable object templates, symbols, resource cards, and campaign notebook content remain planned materials; the current page describes the intended library but does not yet provide those downloadable assets.
 - Wooden counters, calculation/conversion tables, and campaign notebook remain FUTURE CONCEPT.
 - No production deployment has been performed. Render deployment remains a separate operator decision.
+
+
+## 11. Mars Print & Play asset snapshot — 2026-11-27
+
+The feature branch now includes the first downloadable Mars starter pack under `app/public/worlds-play/packs/mars/`:
+
+| Asset | Source status | Purpose |
+|---|---|---|
+| `mars-base-map.svg` | IMPLEMENTED — original SVG source | Landscape printable base map with coordinate grid, terrain, habitat, ridge and supply route |
+| `mars-map-legend.md` | IMPLEMENTED — authored guide | Coordinate reference, symbol key and print notes |
+| `mars-scenario-01.md` | IMPLEMENTED — authored scenario draft | Open exploration/logistics scenario, adaptable by players |
+| `symbol-sheet.svg` | IMPLEMENTED — original SVG source | Printable cut-out tabletop markers |
+| `origami-field-marker-guide.md` | IMPLEMENTED — original folding guide draft | Beginner standing paper marker using one square sheet |
+| `quick-start-print-and-play.md` | IMPLEMENTED — authored guide | Print setup, physical play and adaptation instructions |
+
+The product page contains direct links to all six assets in a new **PRINT & PLAY LIBRARY** section.
+
+### Verification limits
+
+- SVG files are source assets committed to the branch; browser rendering, printer output, and physical fold stability have not been independently tested in this workflow.
+- The base map is fictional tabletop content. Its 20 km-per-cell convention is a game scale only, not a real Mars measurement.
+- The scenario is an open prompt, not a complete mandatory ruleset.
+- The paper-fold marker is a beginner concept draft; test folds with scrap paper before producing a set.
+- The six assets do not yet constitute six independently downloadable aligned GIS/map layers. The current interactive page preview still uses its own illustrative SVG.
+- Localization remains incomplete: EN and RU are authored; the other ten locale options currently fall back to English. The selector must not be treated as proof of full localization.
+- No production deployment or merge has been performed.
