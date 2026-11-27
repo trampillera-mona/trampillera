@@ -36,3 +36,10 @@ There is no mandatory turn system, combat system, resource economy, or victory c
 
 ## Record keeping
 For every discovered point, note its coordinate, observation, confidence (confirmed / provisional / unknown), and any resulting change to another map layer. Do not convert an uncertain observation into a confirmed fact without a player-agreed rule.
+
+
+---
+
+**TRAMPILLERA PROVENANCE** · OMP-MARS-SCN-001 · ORIGAMI MAPS PLANNER v0.1  
+© 2026 TRAMPILLERA. Original editorial material. Brand identity and product marks are reserved; no trademark registration is claimed by this notice.  
+Source: https://trampillera.com/worlds-play/ · Registry: https://trampillera.com/worlds-play/verify/?id=OMP-MARS-SCN-001
