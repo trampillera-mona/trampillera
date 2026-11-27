@@ -1,0 +1,117 @@
+# ORIGAMI MAPS PLANNER — Product & Architecture Foundation v0.1
+
+**Parent environment:** TRAMPILLERA GAME STUDIO  
+**Navigation:** TRAMPILLERA → GAME STUDIO → WORLDS & PLAY → ORIGAMI MAPS PLANNER  
+**Initial world pack:** MARS — ORIGAMI WORLD  
+**Specification language:** English  
+**Status:** CONCEPT / FOUNDATION SPECIFICATION — not yet implemented or production-verified
+
+## 1. Product definition
+
+ORIGAMI MAPS PLANNER is a creative tabletop-world toolkit. It provides printable maps, world lore, modifiable map layers, origami craft instructions, printable templates, symbols, object identifiers, and guidance for using the materials.
+
+It does not prescribe one mandatory game or require users to digitize their play. Users decide how to use, adapt, combine, print, share, and optionally digitize the supplied materials, subject to the applicable material-use license.
+
+**Product principle:** We provide the world-building materials. Players create the way they play.
+
+Suggested tagline: **MAP IT. FOLD IT. BUILD YOUR WORLD.**
+
+## 2. Placement and discovery
+
+ORIGAMI MAPS PLANNER is an exclusive product area within TRAMPILLERA GAME STUDIO, not a separate application.
+
+Required entry points:
+- A dedicated WORLDS & PLAY item inside the Game Studio navigation.
+- A distinct circular, gently pulsing shortcut on the main splash / launcher, positioned near the AI Assistant entry point.
+- Both entry points lead to the WORLDS & PLAY landing page.
+
+WORLDS & PLAY is the collection/catalogue for game worlds and their materials. ORIGAMI MAPS PLANNER is its first featured product. Future worlds and material collections can be added without changing the parent navigation model.
+
+## 3. Language and localization
+
+- English is the canonical development language and source language for UI copy, product documentation, map legends, object metadata, craft instructions, and material guides.
+- Provide a language/translation panel using the platform's declared locale set: EN, RU, SR, DE, FR, ES, IT, PT, ZH, JA, KO, AR.
+- Keep source strings separate from translations. Use stable translation keys and locale dictionaries; do not hard-code translated UI copy into components.
+- Translation coverage must be tracked per content type. A locale being selectable does not mean every page, instruction, map label, or downloadable asset has been translated.
+- Preserve user-generated names and custom lore unless the user explicitly requests translation. Map symbols and identifiers should remain stable across locales.
+- Any machine-generated translation should be identifiable as such until reviewed.
+
+## 4. Map model: multi-layer worlds
+
+A map may consist of multiple named, aligned layers sharing a common coordinate system, scale, extent, and reference grid. A player or group can use one layer or operate across several layers in the same session.
+
+Initial layer categories (configurable per world):
+1. **BASE TERRAIN** — geography, elevation, craters, water/ice, terrain types.
+2. **INFRASTRUCTURE** — bases, buildings, roads, landing sites, energy and communications.
+3. **RESOURCES** — deposits, supplies, production areas, points of interest.
+4. **OPERATIONS / TACTICAL** — units, routes, objectives, restricted areas, operational markers.
+5. **ENVIRONMENT / CONDITIONS** — weather, hazards, visibility, radiation or other scenario conditions where appropriate.
+6. **TIME / SCENARIO STATE** — changing events, ownership, discoveries, construction progress, and scenario phases.
+
+These are proposed layer types, not a fixed mandatory schema. A world author may add, rename, combine, hide, reveal, print, or omit layers.
+
+### Multi-layer play
+
+- Several layers may be active in one game at the same time.
+- Different players or roles may consult different layers while sharing the same world coordinates.
+- Actions on one layer may affect another (for example, discovering a resource on the terrain layer may enable an infrastructure decision).
+- The physical print-and-play format should support transparent overlays, separate aligned sheets, or another practical registration method.
+- Layer names, visibility, version, scale, legend, and coordinate reference should be clear on every printable layer.
+- The digital planner may help prepare and preview layers, but digital operation is optional and is not a prerequisite for physical play.
+
+## 5. Materials library
+
+The product may provide:
+- Printable world maps and aligned map layers.
+- Lore, setting notes, factions, locations, scenarios, and optional objectives.
+- Origami folding instructions and printable model templates.
+- Coloring sheets, emblems, flags, markings, labels, and unit identifiers.
+- Printable cards, tokens, reference sheets, legends, and quick-start guides.
+- Instructions for printing, assembling, modifying, combining, and using the materials.
+
+Origami instructions should be original or appropriately licensed. Difficulty, paper size, required tools, and assembly steps should be stated. Models intended as tabletop pieces should be stable and practical to handle.
+
+## 6. Physical play and future accessory system
+
+The product is intentionally physical-first / print-and-play friendly. Players may use dice, paper models, counters, cards, pencils, and their own rules.
+
+A future optional physical accessory system is reserved for later design:
+- Special wooden counting instruments / counters (exact form and terminology to be designed).
+- Calculation and conversion tables for the selected game systems.
+- A campaign notebook / logbook for recording decisions, values, events, and state changes.
+- Supporting reference sheets and player aids.
+
+These accessories are **FUTURE CONCEPT — NOT PART OF THE INITIAL IMPLEMENTATION**. Their mechanics, dimensions, materials, manufacturing, and calculation methods require separate design and testing. The software must not pretend these physical tools already exist or silently assume their rules.
+
+## 7. Initial product scope
+
+The first release should establish the product structure and a usable first world pack:
+- WORLDS & PLAY landing page.
+- ORIGAMI MAPS PLANNER product page.
+- MARS — ORIGAMI WORLD as the first collection.
+- One printable base map and a small set of aligned sample layers.
+- A compact lore/legend package.
+- A small set of original, beginner-friendly origami models and instructions.
+- Printable symbols, labels, and usage guide.
+- English source content and localization infrastructure aligned with the platform locale set.
+
+The first release does not require a full rules engine, online multiplayer, campaign synchronization, digital twin, marketplace, or manufacturing of wooden accessories.
+
+## 8. Architecture and integration boundaries
+
+- Integrate as a module/page within the existing TRAMPILLERA application and Game Studio; do not create an independent deployable service without a later architectural decision.
+- Reuse the platform's shared navigation, design system, authentication model where required, and localization infrastructure after inspecting their actual implementation.
+- Keep map content, layer definitions, lore, printable assets, and translation resources modular and versionable.
+- Distinguish downloadable static assets from interactive planner features.
+- Do not claim a map is editable, layered, translated, printable, or tested until that capability is implemented and verified.
+- No automatic production deployment. Render deployment remains an explicit operator decision.
+
+## 9. Acceptance principles
+
+A capability may be marked IMPLEMENTED only when its source and behavior are verified. Use the platform's status vocabulary: REAL / IMPLEMENTED, PARTIAL, DEMO, NOT IMPLEMENTED, or UNKNOWN.
+
+For the initial foundation:
+- The product placement and navigation are specified.
+- English source language and the 12 declared locales are specified; translation completeness remains unverified.
+- Multi-layer map behavior is specified; no multi-layer editor or printable layer pack is yet claimed.
+- Physical accessory concepts are recorded as future work only.
