@@ -34,7 +34,8 @@ for (const [index, asset] of (registry.assets ?? []).entries()) {
   if (!["first-party-original", "commissioned", "partner-provided", "licensed-third-party", "user-generated", "derivative"].includes(asset.origin_type)) fail(`${label}: unsupported origin_type.`);
 
   const relative = asset.path?.replace(/^\//, "app/public/");
-  if (!relative || !fs.existsSync(relative) || !fs.statSync(relative).isFile()) {
+  const absolute = relative ? path.join(repoRoot, relative) : null;
+  if (!absolute || !fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) {
     fail(`${label}: registered file does not exist at ${relative ?? "(missing path)"}.`);
     continue;
   }
