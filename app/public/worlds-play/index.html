@@ -30,7 +30,7 @@ h1{font-size:clamp(32px,5.4vw,68px);line-height:.98;letter-spacing:-.045em;margi
 footer{border-top:1px solid var(--line);margin-top:34px;padding-top:18px;color:var(--muted);font:9px ui-monospace,monospace;letter-spacing:.08em;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 @media(max-width:850px){.hero{grid-template-columns:1fr}.span-7,.span-5,.span-4,.span-6{grid-column:span 12}.map-workbench{grid-template-columns:1fr}.map-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.asset-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.map-side{grid-template-columns:1fr 1fr}.asset-grid{grid-template-columns:1fr}.map-frame,.map-frame svg{min-height:290px}.head-actions{width:100%}.head-actions select{flex:1}}
-@media print{body{background:white;color:#111}.shell{max-width:none;padding:0}.no-print,header,.hero,.section-head,.map-side,.map-actions,.grid:not(.map-print){display:none!important}.map-workbench{display:block;margin:0}.map-frame{border:0;min-height:0;background:white}.map-frame svg{min-height:0;height:auto;max-height:95vh}.map-frame svg text{fill:#111!important}.map-frame svg .map-bg{fill:#fff!important}.map-frame svg .gridline{stroke:#bbb!important}.map-frame svg .layer-group{opacity:1!important}.map-frame svg .layer-group.off{display:none!important}}
+@media print{body{background:white;color:#111}.shell{max-width:none;padding:0}.no-print:not(.map-print),header,.hero,.map-print>.section-head,.map-print .card.span-5,.map-print .map-side,.map-print .map-actions,.map-print .legend,.map-print .pill,.map-print .card h3,.map-print .card>p{display:none!important}.map-print{display:block!important}.map-print .grid{display:block!important}.map-print .card.span-7{display:block!important;border:0;padding:0;background:white}.map-workbench{display:block!important;margin:0}.map-frame{border:0;min-height:0;background:white}.map-frame svg{min-height:0;height:auto;max-height:95vh}.map-frame svg text{fill:#111!important}.map-frame svg .map-bg{fill:#fff!important}.map-frame svg .gridline{stroke:#bbb!important}.map-frame svg .layer-group{opacity:1!important}.map-frame svg .layer-group.off{display:none!important}}
 </style>
 </head>
 <body>
@@ -69,7 +69,7 @@ footer{border-top:1px solid var(--line);margin-top:34px;padding-top:18px;color:v
   </div>
 </section>
 
-<section class="no-print">
+<section class="no-print map-print">
   <div class="section-head"><div><div class="eyebrow">01 / FIRST WORLD PACK</div><h2 data-i18n="marsTitle">MARS — ORIGAMI WORLD</h2><p data-i18n="marsSub">An example world pack for exploration, settlement, logistics and creative play.</p></div><span class="pill">FOUNDATION PACK · v0.1</span></div>
   <div class="grid">
     <article class="card span-7">
