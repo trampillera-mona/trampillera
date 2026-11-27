@@ -164,3 +164,12 @@ A copyright/provenance notice is not proof of ownership and does not create a re
 - PDF, raster, audio/video, CAD/BIM/GIS-specific stamping adapters.
 
 The existence of this standard does not mean these capabilities are already active. Each capability must be implemented and verified before being marked operational.
+
+
+## 12. CI evidence — 2026-11-27
+
+GitHub Actions run #427 executed `npm --prefix app run check` and reported:
+
+`TRAMPILLERA provenance validation passed: 12 registered assets, unique IDs and paths, source files and attribution markers verified.`
+
+The overall workflow still concluded **failure** in the separate existing `scripts/unified-reality.test.mjs` test, whose CSS regular-expression assertion did not match the Unified Reality banner stylesheet. The provenance validator itself passed in that run. No claim is made that the full repository verification suite passed.
