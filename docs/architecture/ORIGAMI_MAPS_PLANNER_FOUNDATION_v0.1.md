@@ -160,3 +160,21 @@ The product page contains direct links to all six assets in a new **PRINT & PLAY
 - The six assets do not yet constitute six independently downloadable aligned GIS/map layers. The current interactive page preview still uses its own illustrative SVG.
 - Localization remains incomplete: EN and RU are authored; the other ten locale options currently fall back to English. The selector must not be treated as proof of full localization.
 - No production deployment or merge has been performed.
+
+
+## 12. Aligned physical map overlays — 2026-11-27
+
+Six separate SVG overlay sheets have now been added:
+
+- `layer-terrain.svg`
+- `layer-infrastructure.svg`
+- `layer-resources.svg`
+- `layer-operations.svg`
+- `layer-environment.svg`
+- `layer-scenario.svg`
+
+All six share the same 1100 × 850 page canvas, 900 × 640 map frame, coordinate grid, north orientation and nominal 20 km-per-cell game convention. Their page backgrounds are transparent in the SVG source. Each is independently linked from the product page.
+
+**Physical workflow intended:** print each sheet at 100% / actual size; use tracing paper or transparent film for simultaneous overlays; align the map frame and coordinate grid. Separate ordinary-paper sheets can also be consulted side by side.
+
+**Verification boundary:** shared SVG geometry is authored consistently in source, but printer scaling, registration tolerance, transparency-film handling and real tabletop usability have not yet been physically tested. These are aligned printable SVG overlays, not GIS data layers or an editable map engine.
