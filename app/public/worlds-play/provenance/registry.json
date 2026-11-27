@@ -1,94 +1,143 @@
 {
-  "schema": "trampillera.provenance.registry.v1",
+  "schema": "trampillera.provenance.registry.v1.1",
   "brand": "TRAMPILLERA",
   "product": "WORLDS & PLAY / ORIGAMI MAPS PLANNER",
   "release": "0.1",
   "issued": "2026-11-27",
-  "registry_notice": "An entry confirms that an asset identifier and source path are listed in this project registry. It is not a cryptographic integrity check, legal opinion, or proof of trademark registration.",
+  "registry_notice": "Registry membership confirms that an asset ID and canonical path are listed. It does not prove file integrity, legal ownership, or trademark registration.",
   "assets": [
     {
       "id": "OMP-MARS-MAP-001",
       "title": "Mars / Arcadia Planitia base map",
       "path": "/worlds-play/packs/mars/mars-base-map.svg",
       "type": "original-printable-svg",
-      "version": "0.1"
+      "version": "0.1",
+      "origin_type": "first-party-original",
+      "attribution": "TRAMPILLERA / ORIGAMI MAPS PLANNER",
+      "rights_status": "first-party-original; legal ownership and registration status are not asserted by this record",
+      "issued": "2026-11-27"
     },
     {
       "id": "OMP-MARS-SYM-001",
       "title": "Mars tabletop symbol sheet",
       "path": "/worlds-play/packs/mars/symbol-sheet.svg",
       "type": "original-printable-svg",
-      "version": "0.1"
+      "version": "0.1",
+      "origin_type": "first-party-original",
+      "attribution": "TRAMPILLERA / ORIGAMI MAPS PLANNER",
+      "rights_status": "first-party-original; legal ownership and registration status are not asserted by this record",
+      "issued": "2026-11-27"
     },
     {
       "id": "OMP-MARS-LYR-001",
       "title": "Mars terrain overlay",
       "path": "/worlds-play/packs/mars/layer-terrain.svg",
       "type": "original-printable-svg-overlay",
-      "version": "0.1"
+      "version": "0.1",
+      "origin_type": "first-party-original",
+      "attribution": "TRAMPILLERA / ORIGAMI MAPS PLANNER",
+      "rights_status": "first-party-original; legal ownership and registration status are not asserted by this record",
+      "issued": "2026-11-27"
     },
     {
       "id": "OMP-MARS-LYR-002",
       "title": "Mars infrastructure overlay",
       "path": "/worlds-play/packs/mars/layer-infrastructure.svg",
       "type": "original-printable-svg-overlay",
-      "version": "0.1"
+      "version": "0.1",
+      "origin_type": "first-party-original",
+      "attribution": "TRAMPILLERA / ORIGAMI MAPS PLANNER",
+      "rights_status": "first-party-original; legal ownership and registration status are not asserted by this record",
+      "issued": "2026-11-27"
     },
     {
       "id": "OMP-MARS-LYR-003",
       "title": "Mars resources overlay",
       "path": "/worlds-play/packs/mars/layer-resources.svg",
       "type": "original-printable-svg-overlay",
-      "version": "0.1"
+      "version": "0.1",
+      "origin_type": "first-party-original",
+      "attribution": "TRAMPILLERA / ORIGAMI MAPS PLANNER",
+      "rights_status": "first-party-original; legal ownership and registration status are not asserted by this record",
+      "issued": "2026-11-27"
     },
     {
       "id": "OMP-MARS-LYR-004",
       "title": "Mars operations overlay",
       "path": "/worlds-play/packs/mars/layer-operations.svg",
       "type": "original-printable-svg-overlay",
-      "version": "0.1"
+      "version": "0.1",
+      "origin_type": "first-party-original",
+      "attribution": "TRAMPILLERA / ORIGAMI MAPS PLANNER",
+      "rights_status": "first-party-original; legal ownership and registration status are not asserted by this record",
+      "issued": "2026-11-27"
     },
     {
       "id": "OMP-MARS-LYR-005",
       "title": "Mars environment overlay",
       "path": "/worlds-play/packs/mars/layer-environment.svg",
       "type": "original-printable-svg-overlay",
-      "version": "0.1"
+      "version": "0.1",
+      "origin_type": "first-party-original",
+      "attribution": "TRAMPILLERA / ORIGAMI MAPS PLANNER",
+      "rights_status": "first-party-original; legal ownership and registration status are not asserted by this record",
+      "issued": "2026-11-27"
     },
     {
       "id": "OMP-MARS-LYR-006",
       "title": "Mars scenario overlay",
       "path": "/worlds-play/packs/mars/layer-scenario.svg",
       "type": "original-printable-svg-overlay",
-      "version": "0.1"
+      "version": "0.1",
+      "origin_type": "first-party-original",
+      "attribution": "TRAMPILLERA / ORIGAMI MAPS PLANNER",
+      "rights_status": "first-party-original; legal ownership and registration status are not asserted by this record",
+      "issued": "2026-11-27"
     },
     {
       "id": "OMP-MARS-LEG-001",
       "title": "Mars map legend",
       "path": "/worlds-play/packs/mars/mars-map-legend.md",
       "type": "original-editorial-markdown",
-      "version": "0.1"
+      "version": "0.1",
+      "origin_type": "first-party-original",
+      "attribution": "TRAMPILLERA / ORIGAMI MAPS PLANNER",
+      "rights_status": "first-party-original; legal ownership and registration status are not asserted by this record",
+      "issued": "2026-11-27"
     },
     {
       "id": "OMP-MARS-SCN-001",
       "title": "The Quiet Landing scenario",
       "path": "/worlds-play/packs/mars/mars-scenario-01.md",
       "type": "original-editorial-markdown",
-      "version": "0.1"
+      "version": "0.1",
+      "origin_type": "first-party-original",
+      "attribution": "TRAMPILLERA / ORIGAMI MAPS PLANNER",
+      "rights_status": "first-party-original; legal ownership and registration status are not asserted by this record",
+      "issued": "2026-11-27"
     },
     {
       "id": "OMP-MARS-ORI-001",
       "title": "Origami field marker folding guide",
       "path": "/worlds-play/packs/mars/origami-field-marker-guide.md",
       "type": "original-editorial-markdown",
-      "version": "0.1"
+      "version": "0.1",
+      "origin_type": "first-party-original",
+      "attribution": "TRAMPILLERA / ORIGAMI MAPS PLANNER",
+      "rights_status": "first-party-original; legal ownership and registration status are not asserted by this record",
+      "issued": "2026-11-27"
     },
     {
       "id": "OMP-MARS-QST-001",
       "title": "Mars Foundation Pack quick start",
       "path": "/worlds-play/packs/mars/quick-start-print-and-play.md",
       "type": "original-editorial-markdown",
-      "version": "0.1"
+      "version": "0.1",
+      "origin_type": "first-party-original",
+      "attribution": "TRAMPILLERA / ORIGAMI MAPS PLANNER",
+      "rights_status": "first-party-original; legal ownership and registration status are not asserted by this record",
+      "issued": "2026-11-27"
     }
-  ]
+  ],
+  "standard": "TMP-BPS-STD-001"
 }
