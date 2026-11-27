@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Asset Integrity &amp; Provenance · TRAMPILLERA</title>
+<style>
+:root{color-scheme:dark;--bg:#070b12;--panel:#101a27;--line:#29445b;--text:#e9f3fb;--muted:#91a7b9;--cyan:#64d8e9;--gold:#e8c47e;--red:#ff8d8d}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -15%,#1b3044 0,transparent 55%),var(--bg);color:var(--text);font:14px/1.6 Inter,system-ui,sans-serif;display:grid;place-items:center;padding:20px}
+main{width:min(760px,100%);border:1px solid var(--line);border-radius:18px;background:#101a27ef;padding:clamp(22px,5vw,42px);box-shadow:0 20px 80px #0008}
+.brand{color:var(--cyan);font:700 12px ui-monospace,monospace;letter-spacing:.18em}h1{font-size:clamp(25px,5vw,38px);line-height:1.1;margin:18px 0 8px}p{color:var(--muted)}.panel{margin:22px 0;padding:18px;border:1px solid var(--line);border-radius:12px;background:#09121d}.label{color:var(--gold);font:10px ui-monospace,monospace;letter-spacing:.14em}.value{font:13px ui-monospace,monospace;overflow-wrap:anywhere}.status{color:var(--cyan);font-weight:700}.warn{border-left:3px solid var(--gold);padding:10px 14px;background:#211d15;color:#e0d0ac;font-size:12px}.bad{color:var(--red)}a{color:var(--cyan)}footer{border-top:1px solid var(--line);padding-top:16px;margin-top:24px;color:var(--muted);font:10px ui-monospace,monospace}
+</style></head><body><main>
+<div class="brand">TRAMPILLERA / WORLDS &amp; PLAY</div><h1>Asset integrity check</h1><p>ORIGAMI MAPS PLANNER · SHA-256 Release Manifest</p>
+<div class="panel"><div class="label">VERIFICATION RESULT</div><p id="status" class="status">Checking release manifest…</p><div class="label">ASSET ID</div><p id="asset-id" class="value">—</p><div class="label">ASSET</div><p id="asset-title" class="value">—</p><div class="label">CANONICAL SOURCE</div><p id="asset-path" class="value">—</p><div class="label">EXPECTED SHA-256</div><p id="expected" class="value">—</p><div class="label">OBSERVED SHA-256</div><p id="observed" class="value">—</p></div>
+<div class="warn">A matching SHA-256 digest confirms that the fetched file bytes match the published manifest entry. An unsigned manifest does not authenticate who published it. Publisher authenticity requires an Ed25519 signature and a public key fingerprint trusted independently of this website. Hashing is integrity checking, not anti-copying, DRM, legal ownership proof, or trademark registration.</div>
+<p><a href="/worlds-play/">← Return to WORLDS &amp; PLAY</a></p>
+<footer>© 2026 TRAMPILLERA · PROVENANCE VERIFIER · SHA-256 / ED25519-READY</footer>
+</main><script>
+(async()=>{
+ const params=new URLSearchParams(location.search),id=params.get('id');
+ const el=(key)=>document.getElementById(key);
+ const setStatus=(message,bad=false)=>{el('status').textContent=message;el('status').classList.toggle('bad',bad);};
+ const hex=(buffer)=>Array.from(new Uint8Array(buffer),b=>b.toString(16).padStart(2,'0')).join('');
+ const decodeBase64=(value)=>Uint8Array.from(atob(value),c=>c.charCodeAt(0));
+ el('asset-id').textContent=id||'No asset ID supplied';
+ try{
+  const [manifestResponse,signatureResponse,trustResponse]=await Promise.all([
+   fetch('/worlds-play/provenance/release-manifest.json',{cache:'no-store'}),
+   fetch('/worlds-play/provenance/release-manifest.sig.json',{cache:'no-store'}),
+   fetch('/worlds-play/provenance/trust-anchor.json',{cache:'no-store'})
+  ]);
+  if(!manifestResponse.ok)throw new Error('Release manifest not published yet');
+  const manifestBytes=await manifestResponse.arrayBuffer();
+  const manifest=JSON.parse(new TextDecoder().decode(manifestBytes));
+  const item=manifest.assets.find(x=>x.id===id);
+  if(!item){setStatus(id?'NO MATCHING MANIFEST ENTRY':'SUPPLY AN ASSET ID',true);return;}
+  el('asset-title').textContent=item.id+' · '+manifest.product+' · v'+manifest.release;
+  el('asset-path').textContent=item.path;
+  el('expected').textContent=item.sha256;
+  const fileResponse=await fetch(item.path,{cache:'no-store'});
+  if(!fileResponse.ok)throw new Error('Canonical asset could not be fetched');
+  const bytes=await fileResponse.arrayBuffer();
+  const digest=hex(await crypto.subtle.digest('SHA-256',bytes));
+  el('observed').textContent=digest;
+  if(digest!==item.sha256||bytes.byteLength!==item.size_bytes){setStatus('INTEGRITY MISMATCH · FILE DIFFERS FROM MANIFEST',true);return;}
+  setStatus('SHA-256 MATCH · FILE BYTES VERIFIED');
+  if(!signatureResponse.ok||!trustResponse.ok){setStatus('INTEGRITY VERIFIED · SIGNATURE OR TRUST CONFIG NOT PUBLISHED');return;}
+  const signature=await signatureResponse.json(),trust=await trustResponse.json();
+  if(trust.status!=='active'||!trust.public_key_spki_base64||!trust.public_key_fingerprint_sha256){setStatus('INTEGRITY VERIFIED · PUBLISHER KEY NOT YET PROVISIONED');return;}
+  if(signature.algorithm!=='Ed25519'||signature.key_fingerprint_sha256!==trust.public_key_fingerprint_sha256){setStatus('INTEGRITY VERIFIED · SIGNING KEY DOES NOT MATCH TRUST ANCHOR',true);return;}
+  const spki=decodeBase64(trust.public_key_spki_base64);
+  const fingerprint=hex(await crypto.subtle.digest('SHA-256',spki));
+  if(fingerprint!==trust.public_key_fingerprint_sha256){setStatus('INTEGRITY VERIFIED · TRUST ANCHOR FINGERPRINT INVALID',true);return;}
+  const publicKey=await crypto.subtle.importKey('spki',spki,{name:'Ed25519'},false,['verify']);
+  const valid=await crypto.subtle.verify({name:'Ed25519'},publicKey,decodeBase64(signature.signature_base64),manifestBytes);
+  if(valid)setStatus('AUTHENTICATED RELEASE · ED25519 SIGNATURE VALID · ASSET HASH MATCH');
+  else setStatus('INTEGRITY VERIFIED · RELEASE SIGNATURE INVALID',true);
+ }catch(error){setStatus('CHECK INCOMPLETE · '+error.message,true);}
+})();
+</script></body></html>
