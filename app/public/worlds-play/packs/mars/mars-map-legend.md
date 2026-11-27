@@ -1,28 +1,36 @@
 # MARS / ARCADIA PLANITIA — MAP LEGEND
 
 **Pack:** ORIGAMI MAPS PLANNER · Mars Foundation Pack v0.1  
-**Asset:** `mars-base-map.svg`  
-**Status:** ORIGINAL PRINTABLE PLAY ASSET · FICTIONAL SCENARIO
+**Assets:** `mars-base-map.svg` and six aligned `layer-*.svg` overlays  
+**Status:** ORIGINAL PRINTABLE PLAY ASSETS · FICTIONAL SCENARIO
 
 ## Coordinate reference
 - Columns: 01–09, left to right.
 - Rows: A–G, top to bottom.
 - One cell represents **20 km in this fictional game scenario**. It is not a real-world measurement or navigational reference.
-- North is at the top of the sheet.
-- Print at 100% / actual size where possible. Disable “fit to page” if exact overlay alignment is required.
+- North is at the top of every sheet.
+- Print at 100% / actual size. Disable “fit to page” if exact overlay alignment is required.
 
-## Map key
-| Symbol / feature | Meaning | Suggested play use |
+## Six aligned layers
+| Layer | File | Contents |
 |---|---|---|
-| Rust-coloured ground and contour lines | Base terrain | Movement cost, exploration, terrain description |
-| Dark circular forms | Crater fields | Obstacles, shelter, points of interest |
-| Pale angular ridge | Elevated ridge | Line of sight, route choice, construction limits |
-| Blue outlined building | Habitat 01 | Starting settlement / protected location |
-| Dashed blue route | Supply route | Logistics, travel time, route risk |
-| Grid coordinate | Shared location reference | Record events and positions consistently |
+| 01 — Terrain | `layer-terrain.svg` | Contours, crater field, ridge |
+| 02 — Infrastructure | `layer-infrastructure.svg` | Habitats, landing structures, route |
+| 03 — Resources | `layer-resources.svg` | Provisional resource survey points |
+| 04 — Operations | `layer-operations.svg` | Rover, route and objective markers |
+| 05 — Environment | `layer-environment.svg` | Illustrative dust / visibility hazard |
+| 06 — Scenario / Time | `layer-scenario.svg` | Event and state timeline markers |
 
-## Layer convention
-This sheet is the **BASE TERRAIN + reference overlay**. Future sheets should preserve the same 900 × 640 map frame, coordinate grid, north orientation and print dimensions. A layer may be printed alone or placed over this base sheet.
+All six files share the same 1100 × 850 page canvas, 900 × 640 map frame, coordinate grid and north orientation. Their SVG page backgrounds are transparent. Use tracing paper or transparent film for simultaneous physical overlays.
+
+## Overview map key
+The `mars-base-map.svg` overview sheet combines selected sample features:
+- Rust-coloured ground and contour lines — base terrain.
+- Dark circular forms — crater fields.
+- Pale angular ridge — elevated ridge.
+- Blue outlined buildings — habitat / infrastructure.
+- Dashed blue route — supply route.
+- Grid coordinate — shared location reference.
 
 ## Important
-This is a fictional tabletop map, not a scientific Mars surface dataset, GIS product, or operational planning chart. The 20 km cell value is a game convention only.
+This is a fictional tabletop map, not a scientific Mars surface dataset, GIS product, or operational planning chart. The 20 km cell value is a game convention only. Printer scaling and physical overlay registration have not yet been tested.
