@@ -75,8 +75,10 @@ if (command === "keygen") {
   fs.writeFileSync(manifestFile, canonical(manifest));
   console.log(`Wrote SHA-256 manifest for ${manifest.assets.length} registered assets: ${manifestFile}`);
 } else if (command === "sign") {
-  const privatePath = path.resolve(process.argv[3] ?? process.env.TRAMPILLERA_PROVENANCE_PRIVATE_KEY ?? "");
-  if (!privatePath || !fs.existsSync(privatePath)) fail("Provide a local private-key path or TRAMPILLERA_PROVENANCE_PRIVATE_KEY. Never store the private key in the repository.");
+  const privateArg = process.argv[3] ?? process.env.TRAMPILLERA_PROVENANCE_PRIVATE_KEY;
+  if (!privateArg) fail("Provide a local private-key path or TRAMPILLERA_PROVENANCE_PRIVATE_KEY. Never store the private key in the repository.");
+  const privatePath = path.resolve(privateArg);
+  if (!fs.existsSync(privatePath)) fail("Provide a local private-key path or TRAMPILLERA_PROVENANCE_PRIVATE_KEY. Never store the private key in the repository.");
   if (!fs.existsSync(manifestFile)) fail("Release manifest missing. Run the manifest command first.");
   const privateKey = fs.readFileSync(privatePath, "utf8");
   const key = crypto.createPrivateKey(privateKey);
@@ -95,9 +97,11 @@ if (command === "keygen") {
   console.log("Detached Ed25519 signature written:", signatureFile);
   console.log("Pin this public-key fingerprint in a trusted verifier before treating signatures as authenticated:", fingerprint);
 } else if (command === "verify") {
-  const publicPath = path.resolve(process.argv[3] ?? "");
+  const publicArg = process.argv[3];
+  if (!publicArg) fail("Supply the trusted public key path as the second argument.");
+  const publicPath = path.resolve(publicArg);
   if (!fs.existsSync(manifestFile) || !fs.existsSync(signatureFile)) fail("Manifest or detached signature is missing.");
-  if (!publicPath || !fs.existsSync(publicPath)) fail("Supply the trusted public key path as the second argument.");
+  if (!fs.existsSync(publicPath)) fail("Supply the trusted public key path as the second argument.");
   const manifestBytes = fs.readFileSync(manifestFile);
   const signature = JSON.parse(fs.readFileSync(signatureFile, "utf8"));
   const publicKey = crypto.createPublicKey(fs.readFileSync(publicPath, "utf8"));
