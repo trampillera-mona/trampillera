@@ -21,7 +21,7 @@
 | 05 — Environment | `layer-environment.svg` | Illustrative dust / visibility hazard |
 | 06 — Scenario / Time | `layer-scenario.svg` | Event and state timeline markers |
 
-All six files share the same 1100 × 850 page canvas, 900 × 700 map frame, coordinate grid and north orientation. Their SVG page backgrounds are transparent. Use tracing paper or transparent film for simultaneous physical overlays.
+All six files share the same 1100 × 850 SVG canvas, 259 × 200 mm A4-landscape print area, 900 × 700 map frame, 9 × 7 coordinate grid and north orientation. Their SVG page backgrounds are transparent. Use tracing paper or transparent film for simultaneous physical overlays.
 
 ## Overview map key
 The `mars-base-map.svg` overview sheet combines selected sample features:
