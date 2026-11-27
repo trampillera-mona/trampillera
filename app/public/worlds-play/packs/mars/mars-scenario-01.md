@@ -4,7 +4,7 @@
 **Format:** Open tabletop scenario · adaptable rules  
 **Players:** 1–4 (suggested)  
 **Duration:** 30–60 minutes (suggested)  
-**Status:** ORIGINAL SCENARIO DRAFT v0.1
+**Status:** ORIGINAL SCENARIO DRAFT v0.2
 
 ## Premise
 A small expedition has reached the edge of Arcadia Planitia. Habitat 01 is intact, but the supply route crosses unfamiliar ground. A short-range survey unit has detected three points of interest. The crew must decide what to inspect first and how to protect the settlement's limited supplies.
@@ -40,6 +40,6 @@ For every discovered point, note its coordinate, observation, confidence (confir
 
 ---
 
-**TRAMPILLERA PROVENANCE** · OMP-MARS-SCN-001 · ORIGAMI MAPS PLANNER v0.1  
+**TRAMPILLERA PROVENANCE** · OMP-MARS-SCN-001 · ORIGAMI MAPS PLANNER v0.2  
 © 2026 TRAMPILLERA. Original editorial material. Brand identity and product marks are reserved; no trademark registration is claimed by this notice.  
 Source: https://trampillera.com/worlds-play/ · Registry: https://trampillera.com/worlds-play/verify/?id=OMP-MARS-SCN-001
