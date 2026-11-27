@@ -157,7 +157,7 @@ The product page contains direct links to all six assets in a new **PRINT & PLAY
 - The base map is fictional tabletop content. Its 20 km-per-cell convention is a game scale only, not a real Mars measurement.
 - The scenario is an open prompt, not a complete mandatory ruleset.
 - The paper-fold marker is a beginner concept draft; test folds with scrap paper before producing a set.
-- The six assets do not yet constitute six independently downloadable aligned GIS/map layers. The current interactive page preview still uses its own illustrative SVG.
+- At this snapshot, the initial six starter assets did not yet constitute a separate aligned overlay series; that gap was addressed in the later overlay update documented in section 12. The interactive page preview still uses its own illustrative SVG and is not a GIS/map engine.
 - Localization remains incomplete: EN and RU are authored; the other ten locale options currently fall back to English. The selector must not be treated as proof of full localization.
 - No production deployment or merge has been performed.
 
