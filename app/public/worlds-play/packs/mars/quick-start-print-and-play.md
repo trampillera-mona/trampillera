@@ -3,17 +3,27 @@
 **ORIGAMI MAPS PLANNER · TRAMPILLERA GAME STUDIO · v0.1**
 
 ## What you need
-- The printable base map.
-- This legend and one scenario sheet.
+- The base map and any selected overlay sheets.
+- The map legend and one scenario sheet.
 - Paper, pencils and any markers, coins, cubes or dice you already own.
-- Optional: transparent sheet or tracing paper for extra map layers.
+- Optional: tracing paper or transparent film for stacking map layers.
 
 ## Print
-1. Open `mars-base-map.svg` in a browser or vector-capable application.
-2. Print landscape at 100% / actual size when your printer supports it.
-3. Print the legend and scenario separately.
-4. For a custom layer, trace the same map frame and grid onto transparent paper or a second sheet.
-5. Keep the north arrow, coordinate labels and frame aligned when making overlays.
+1. Open the SVG files in a browser or vector-capable application.
+2. Print each sheet landscape at 100% / actual size. Avoid “fit to page” when accurate overlay registration matters.
+3. The six overlay sheets use the same page canvas, map frame, grid and north arrow.
+4. For simultaneous physical play, print overlays on tracing paper or transparent film. If using ordinary paper, place sheets side by side or consult them in sequence.
+5. Align the outer map frame and coordinate grid. Do not stretch or crop individual sheets.
+
+## Available map layers
+- 01 — Terrain
+- 02 — Infrastructure
+- 03 — Resources
+- 04 — Operations
+- 05 — Environment / Hazards
+- 06 — Scenario / Time
+
+Use one layer or several at once. A group may keep different layers visible to different players or roles. The pack does not prescribe how information must be shared.
 
 ## Play
 1. Pick a scenario or invent your own.
@@ -29,4 +39,4 @@ You may rename places, add factions, change objectives, create new symbols, or r
 This pack is designed to work on a table. You do not need an app, account, online connection, or digital game engine. Digitization is optional and entirely up to the players.
 
 ## Pack status
-The base map, legend, scenario and quick-start guide are original starter assets. This is not a complete ruleset, synchronized multiplayer product, scientific Mars atlas, or validated GIS dataset.
+The map, six aligned overlay sheets, legend, scenario, symbol sheet and quick-start guide are original starter assets. This is not a complete ruleset, synchronized multiplayer product, scientific Mars atlas, or validated GIS dataset. Printer registration and physical overlay usability still need testing.
