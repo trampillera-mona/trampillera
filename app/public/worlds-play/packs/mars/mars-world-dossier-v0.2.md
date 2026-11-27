@@ -2,6 +2,7 @@
 
 **Product:** TRAMPILLERA GAME STUDIO · WORLDS & PLAY · ORIGAMI MAPS PLANNER  
 **World pack:** Mars Foundation Pack v0.2  
+**Asset ID:** OMP-MARS-DOS-001  
 **Document status:** Original fictional tabletop setting draft  
 **Scope:** Physical-first world-building reference; not a scientific Mars atlas or GIS dataset.
 
