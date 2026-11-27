@@ -1,0 +1,8 @@
+{
+  "schema": "trampillera.provenance.trust-anchor.v1",
+  "algorithm": "Ed25519",
+  "status": "unprovisioned",
+  "public_key_spki_base64": null,
+  "public_key_fingerprint_sha256": null,
+  "notice": "Provision this trust anchor only after independently verifying the public-key fingerprint. Never place a private key here."
+}
