@@ -61,6 +61,34 @@
       "path": "/worlds-play/packs/mars/layer-scenario.svg",
       "type": "original-printable-svg-overlay",
       "version": "0.1"
+    },
+    {
+      "id": "OMP-MARS-LEG-001",
+      "title": "Mars map legend",
+      "path": "/worlds-play/packs/mars/mars-map-legend.md",
+      "type": "original-editorial-markdown",
+      "version": "0.1"
+    },
+    {
+      "id": "OMP-MARS-SCN-001",
+      "title": "The Quiet Landing scenario",
+      "path": "/worlds-play/packs/mars/mars-scenario-01.md",
+      "type": "original-editorial-markdown",
+      "version": "0.1"
+    },
+    {
+      "id": "OMP-MARS-ORI-001",
+      "title": "Origami field marker folding guide",
+      "path": "/worlds-play/packs/mars/origami-field-marker-guide.md",
+      "type": "original-editorial-markdown",
+      "version": "0.1"
+    },
+    {
+      "id": "OMP-MARS-QST-001",
+      "title": "Mars Foundation Pack quick start",
+      "path": "/worlds-play/packs/mars/quick-start-print-and-play.md",
+      "type": "original-editorial-markdown",
+      "version": "0.1"
     }
   ]
 }
