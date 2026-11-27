@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const registryPath = "app/public/worlds-play/provenance/registry.json";
-const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+const registry = JSON.parse(fs.readFileSync(path.join(repoRoot, registryPath), "utf8"));
 const errors = [];
 const ids = new Set();
 const paths = new Set();
@@ -35,7 +38,7 @@ for (const [index, asset] of (registry.assets ?? []).entries()) {
     fail(`${label}: registered file does not exist at ${relative ?? "(missing path)"}.`);
     continue;
   }
-  const source = fs.readFileSync(relative, "utf8");
+  const source = fs.readFileSync(absolute, "utf8");
   if (!source.includes(asset.id)) fail(`${label}: source file does not contain its registered asset ID.`);
   if (!source.includes("TRAMPILLERA")) fail(`${label}: source file has no TRAMPILLERA attribution marker.`);
   if (relative.endsWith(".svg") && !source.includes("<metadata")) fail(`${label}: SVG has no embedded metadata block.`);
